@@ -109,8 +109,8 @@ export class HUD {
     window.setTimeout(() => this.ammoEl.classList.remove('flash'), 250);
   }
 
-  /** Crosshair shrink kick + food-crumb burst at the aim point. */
-  playShootAnim(clientX: number, clientY: number): void {
+  /** Crosshair shrink kick at the aim point. */
+  playShootAnim(): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
     if (ch) {
       ch.classList.remove('kick');
@@ -119,11 +119,10 @@ export class HUD {
       ch.classList.add('kick');
       window.setTimeout(() => ch.classList.remove('kick'), 180);
     }
-
-    this.spawnCrumbs(clientX, clientY);
   }
 
-  private spawnCrumbs(clientX: number, clientY: number): void {
+  /** Food-crumb burst — only for successful durian hits. */
+  spawnCrumbs(clientX: number, clientY: number): void {
     const colors = ['#e8c89a', '#d2a36a', '#c48a4a', '#f0d6b0', '#a8743c', '#fff1d6'];
     const count = 10 + Math.floor(Math.random() * 5);
     for (let i = 0; i < count; i++) {

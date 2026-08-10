@@ -138,7 +138,7 @@ export class PlayScene implements GameScene {
     if (!this.ammo.tryShoot()) return;
 
     playShootSound();
-    this.hud.playShootAnim(clientX, clientY);
+    this.hud.playShootAnim();
     this.camKick = 1;
 
     this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
@@ -171,6 +171,7 @@ export class PlayScene implements GameScene {
     if (this.isDurianKind(target.kind)) {
       // Every successful durian hit fills the combo meter
       this.registerComboShot(clientX, clientY);
+      this.hud.spawnCrumbs(clientX, clientY);
     }
     if (!destroyed) return;
     this.resolveDestroyedTarget(target, clientX, clientY);
