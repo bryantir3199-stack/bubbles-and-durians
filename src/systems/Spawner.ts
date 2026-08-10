@@ -30,12 +30,13 @@ export class Spawner {
   start(): void {
     this.running = true;
     this.elapsed = 0;
-    this.nextAt = 700;
+    // Match the slower cadence (was 700ms / 450ms stagger).
+    this.nextAt = 2800;
     this.occupiedWindows.clear();
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
-      }, i * 450);
+      }, i * 1800);
     }
   }
 
@@ -68,12 +69,16 @@ export class Spawner {
     this.occupiedWindows.clear();
   }
 
-  /** Count everything still in the scene (cap at 6 on screen). */
+  /**
+   * On-screen count. At the cap we wait — never destroy/replace existing targets
+   * to make room for a new spawn.
+   */
   private liveCount(): number {
-    return this.targets.filter((t) => t.onScreen).length;
+    return this.targets.reduce((n, t) => n + (t.onScreen ? 1 : 0), 0);
   }
 
   private trySpawn(): void {
+    // Hard stop: do not remove anyone; only spawn when a slot is free.
     if (this.liveCount() >= gameConfig.maxTargets) return;
 
     const kind = this.pickKind();
@@ -81,6 +86,9 @@ export class Spawner {
 
     const spec = this.pickSpec();
     if (!spec) return;
+
+    // Re-check after pickSpec in case of races with timeouts.
+    if (this.liveCount() >= gameConfig.maxTargets) return;
 
     const target = new Target(this.scene, kind, spec, this.onEscape, () => this.releaseSpec(spec));
     this.targets.push(target);

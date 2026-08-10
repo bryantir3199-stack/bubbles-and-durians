@@ -70,7 +70,10 @@ export function applyCastleMarkers(markers: CastleMarkers): void {
       if (!prev || pointsDiffer(prev, p)) deduped.push({ ...p });
     }
     if (deduped.length >= 2) {
-      PATHS = deduped;
+      // Path empties may sit on the ground for depth markers (path3/path4). Keep
+      // authored XZ (toward/away from camera) but stabilize Y to corridor height
+      // so movers don't dive/climb between waypoints.
+      PATHS = stabilizePathHeights(deduped);
       if (typeof markers.doorZ === 'number' && Number.isFinite(markers.doorZ)) {
         DOOR_PLANE_Z = markers.doorZ;
       } else {
@@ -104,6 +107,18 @@ export function applyCastleMarkers(markers: CastleMarkers): void {
 
 function pointsDiffer(a: Vec3, b: Vec3, eps = 0.5): boolean {
   return Math.abs(a.x - b.x) > eps || Math.abs(a.y - b.y) > eps || Math.abs(a.z - b.z) > eps;
+}
+
+/**
+ * Keep XZ from empties; set Y to the median of elevated points so travel reads as
+ * depth (closer/further) rather than rising/falling from the sky.
+ */
+function stabilizePathHeights(points: Vec3[]): Vec3[] {
+  const elevated = points.filter((p) => p.y >= 20);
+  if (elevated.length === 0) return points.map((p) => ({ ...p }));
+  const ys = elevated.map((p) => p.y).sort((a, b) => a - b);
+  const corridorY = ys[Math.floor(ys.length / 2)]!;
+  return points.map((p) => ({ x: p.x, y: corridorY, z: p.z }));
 }
 
 /** True if the segment a→b crosses (or ends at) the door plane. */

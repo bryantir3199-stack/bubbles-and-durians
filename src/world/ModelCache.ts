@@ -73,7 +73,11 @@ export class ModelCache {
    */
   static cloneGoldDurian(): THREE.Object3D {
     const clone = this.cloneModel('durian');
-    const gold = this.getTexture('goldDurian');
+    // Gold texture is authored flipped vs the green map — rotate UVs 180°.
+    const gold = this.getTexture('goldDurian').clone();
+    gold.center.set(0.5, 0.5);
+    gold.rotation = Math.PI;
+    gold.needsUpdate = true;
     clone.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
       const src = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -89,13 +93,19 @@ export class ModelCache {
     return clone;
   }
 
-  /** Dispose materials cloned for a gold durian instance. */
+  /** Dispose materials (and cloned gold map) for a gold durian instance. */
   static disposeGoldMaterials(root: THREE.Object3D): void {
+    const maps = new Set<THREE.Texture>();
     root.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const m of mats) m.dispose();
+      for (const m of mats) {
+        const map = (m as THREE.MeshBasicMaterial).map;
+        if (map) maps.add(map);
+        m.dispose();
+      }
     });
+    for (const map of maps) map.dispose();
   }
 
   private static normalizeTemplate(root: THREE.Object3D, targetSize: number): THREE.Object3D {

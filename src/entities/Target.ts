@@ -197,9 +197,11 @@ export class Target {
     this.to.copy(this.waypoints[index + 1]!);
     this.root.position.copy(this.from);
     const dist = this.from.distanceTo(this.to);
-    this.moveDur = randBetween(1.2, 1.8) * Math.max(0.55, dist / 120);
+    // Duration scales with path length so depth travel reads at a steady pace.
+    this.moveDur = Math.max(1.6, dist / 70);
     this.moveT = 0;
-    this.bobAmp = 2;
+    // No vertical bob on path travel — motion should read as closer/further.
+    this.bobAmp = 0;
 
     if (this.segmentNeedsDoor[index]) {
       this.phase = 'waitDoor';
@@ -327,7 +329,7 @@ export class Target {
     this.escaped = true;
     this.phase = 'done';
     this.visual.visible = true;
-    this.freeSlot();
+    this.releaseDoor();
     this.onEscape?.(this);
     this.fadeOut();
   }
@@ -337,7 +339,9 @@ export class Target {
     this.fadeT = 0;
     this.fadeDur = durationMs / 1000;
     this.startScale = this.root.scale.x;
-    this.freeSlot();
+    // Keep the spawn slot occupied until destroy so we never replace in-place
+    // while this target is still visible.
+    this.releaseDoor();
   }
 
   destroy(): void {
