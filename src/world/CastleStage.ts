@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
+import { FlagWaver } from './FlagWaver';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -14,72 +15,13 @@ export function getCastleStage(): CastleStage | null {
 }
 
 /**
- * Soft wind on the baked-in crown banners (part of `baked2`).
- * Same approach as the earlier castle: spatial strips on the door-flanking
- * front-wall banners (one mesh with the castle, close to the walls).
- *
- * Share one uWindTime uniform across color/shadow onBeforeCompile passes.
- */
-function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV15';
-  const windTime = { value: 0 };
-  material.userData.uWindTime = windTime;
-
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uWindTime = windTime;
-
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        '#include <common>',
-        /* glsl */ `#include <common>
-uniform float uWindTime;
-`,
-      )
-      .replace(
-        '#include <begin_vertex>',
-        /* glsl */ `#include <begin_vertex>
-{
-  float ax = abs(position.x);
-  // Door-flanking crown banners on the front wall of baked2 (local meters).
-  // Verified verts: |x| 0.575–0.812, y 0.276–0.904, z 1.247.
-  float spatial =
-    smoothstep(0.54, 0.58, ax) * (1.0 - smoothstep(0.82, 0.86, ax)) *
-    smoothstep(0.26, 0.32, position.y) * (1.0 - smoothstep(0.92, 0.98, position.y)) *
-    step(1.22, position.z);
-  // Crown UV island AND — keeps gate-arch stone still even if spatial bleeds.
-  float bu = uv.x;
-  float bv = uv.y;
-  float island =
-    step(0.0, bu) * step(bu, 0.070) *
-    step(0.068, bv) * step(bv, 0.165);
-  float flagMask = spatial * island;
-  if (flagMask > 0.05) {
-    float hang = clamp((0.90 - position.y) / 0.58, 0.0, 1.0) * flagMask;
-    float phase = position.x * 10.0 + position.y * 7.0;
-    float flutter = sin(uWindTime * 3.2 + phase) * 0.9
-      + sin(uWindTime * 5.1 + phase * 1.6) * 0.45;
-    // Keep amp mostly linear so free-edge motion stays readable.
-    float amp = hang;
-    transformed.z += flutter * amp * 0.26;
-    transformed.x += flutter * amp * 0.11 * sign(position.x + 0.0001);
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.045;
-  }
-}
-`,
-      );
-  };
-  material.needsUpdate = true;
-}
-
-/**
  * Loads castle.glb, wires door pivots, daytime sky/clouds,
- * shadow-casting sun, and wind on the baked banners.
+ * shadow-casting sun, and JS wind on the baked banners.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
   readonly doors = new DoorController();
-  private windMaterials: THREE.Material[] = [];
-  private elapsed = 0;
+  private readonly flags = new FlagWaver();
 
   constructor(private scene: THREE.Scene) {
     stageInstance = this;
@@ -116,10 +58,6 @@ export class CastleStage {
           mat.map.magFilter = THREE.LinearFilter;
           mat.map.needsUpdate = true;
         }
-        if (obj.name === 'baked2') {
-          applyBakedFlagWind(mat);
-          this.windMaterials.push(mat);
-        }
         mat.needsUpdate = true;
       }
     });
@@ -138,6 +76,7 @@ export class CastleStage {
     castle.updateMatrixWorld(true);
     this.applyMarkers(castle);
     this.doors.setup(castle);
+    this.flags.setup(castle);
     setDoorController(this.doors);
   }
 
@@ -264,18 +203,13 @@ export class CastleStage {
   }
 
   update(dt: number): void {
-    this.elapsed += dt;
     this.doors.update(dt);
-    for (const mat of this.windMaterials) {
-      const windTime = mat.userData.uWindTime as { value: number } | undefined;
-      if (windTime) windTime.value = this.elapsed;
-    }
+    this.flags.update(dt);
   }
 
   dispose(): void {
     if (stageInstance === this) stageInstance = null;
     this.scene.remove(this.root);
-    this.windMaterials = [];
     this.root.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
         if (obj instanceof THREE.Mesh) obj.geometry.dispose();
