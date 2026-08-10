@@ -14,11 +14,11 @@ export function getCastleStage(): CastleStage | null {
 }
 
 /**
- * Soft wind on the baked-in banners (painted into `baked2` mesh).
- * Vertex positions are castle-local (pre-scale meters).
+ * Soft wind on the baked-in crown banners (painted into `baked2`).
+ * Masked by the atlas UV islands — no overlay flag meshes.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWind';
+  material.customProgramCacheKey = () => 'bakedFlagWindV2';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -28,29 +28,55 @@ function applyBakedFlagWind(material: THREE.Material): void {
         '#include <common>',
         /* glsl */ `#include <common>
 uniform float uWindTime;
+varying float vBannerWind;
 `,
       )
       .replace(
         '#include <begin_vertex>',
         /* glsl */ `#include <begin_vertex>
-// Four front-wall banners: vertical strips flanking the door on baked2.
+vBannerWind = 0.0;
+// Crown-banner UV islands in castle_texture (on baked2).
 {
-  float ax = abs(position.x);
-  float inner = smoothstep(0.28, 0.34, ax) * (1.0 - smoothstep(0.50, 0.56, ax));
-  float outer = smoothstep(0.58, 0.64, ax) * (1.0 - smoothstep(0.82, 0.90, ax));
-  float bannerX = max(inner, outer);
-  float bannerY = smoothstep(0.52, 0.62, position.y) * (1.0 - smoothstep(1.28, 1.38, position.y));
-  float bannerZ = smoothstep(1.14, 1.22, position.z);
-  float flagMask = bannerX * bannerY * bannerZ;
-  if (flagMask > 0.01) {
-    float hang = clamp((1.28 - position.y) / 0.7, 0.0, 1.0);
-    float phase = position.x * 11.0 + position.y * 6.0;
-    float flutter = sin(uWindTime * 2.8 + phase) * 0.6
-      + sin(uWindTime * 4.4 + phase * 1.7) * 0.32;
-    transformed.z += flutter * hang * hang * flagMask * 0.045;
-    transformed.x += sin(uWindTime * 2.1 + phase * 0.55) * hang * flagMask * 0.012;
+  float bu = uv.x;
+  float bv = uv.y;
+  float islandA = step(0.002, bu) * step(bu, 0.018) * step(0.755, bv) * step(bv, 0.930);
+  float islandB = step(0.036, bu) * step(bu, 0.055) * step(0.755, bv) * step(bv, 0.930);
+  float flagMask = max(islandA, islandB);
+  if (flagMask > 0.5) {
+    float hang = clamp((0.925 - bv) / 0.16, 0.0, 1.0);
+    float phase = bu * 80.0 + bv * 40.0;
+    float flutter = sin(uWindTime * 3.1 + phase) * 0.7
+      + sin(uWindTime * 5.2 + phase * 1.6) * 0.35;
+    transformed.z += flutter * hang * hang * 0.09;
+    transformed.x += sin(uWindTime * 2.3 + phase * 0.5) * hang * 0.025;
+    vBannerWind = hang;
   }
 }
+`,
+      );
+
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        /* glsl */ `#include <common>
+uniform float uWindTime;
+varying float vBannerWind;
+`,
+      )
+      .replace(
+        '#include <map_fragment>',
+        /* glsl */ `
+#ifdef USE_MAP
+  vec2 bannerUv = vMapUv;
+  if (vBannerWind > 0.01) {
+    float w = sin(uWindTime * 3.4 + vMapUv.y * 28.0) * 0.0045 * vBannerWind
+      + sin(uWindTime * 5.6 + vMapUv.x * 50.0) * 0.003 * vBannerWind;
+    bannerUv.x += w;
+    bannerUv.y += w * 0.35;
+  }
+  vec4 sampledDiffuseColor = texture2D( map, bannerUv );
+  diffuseColor *= sampledDiffuseColor;
+#endif
 `,
       );
   };
