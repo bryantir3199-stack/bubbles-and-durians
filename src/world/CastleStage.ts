@@ -11,9 +11,9 @@ const ASSET = {
  * Loads castle.glb (embedded textures + spawn/path empties), wires door pivots,
  * and sets up a cheap night backdrop.
  *
- * Door swing stays procedural (DoorController) — the GLB has no animation clips.
- * Flags are baked into the castle mesh (adjusted in castle3); there are no
- * separate flag objects or clips to retarget.
+ * Door swing stays procedural (DoorController, opens inward) — the GLB has no
+ * animation clips. Flags are baked into the castle mesh (adjusted in castle4);
+ * there are no separate flag objects or clips to retarget.
  */
 export class CastleStage {
   readonly root = new THREE.Group();

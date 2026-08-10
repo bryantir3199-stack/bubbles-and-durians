@@ -6,6 +6,7 @@ const OPEN_SPEED = 2.2;
 /**
  * Procedural swing for baked_door_l / baked_door_r.
  * The castle GLB has no door animation clips — open/close is driven here.
+ * Doors swing inward (into the castle / −Z), hinged on their outer vertical edges.
  */
 export class DoorController {
   private openT = 0;
@@ -73,8 +74,9 @@ export class DoorController {
       const dir = Math.sign(this.target - this.openT);
       this.openT = THREE.MathUtils.clamp(this.openT + dir * OPEN_SPEED * dt, 0, 1);
     }
-    this.leftPivot.rotation.y = -OPEN_ANGLE * this.openT;
-    this.rightPivot.rotation.y = OPEN_ANGLE * this.openT;
+    // Inward: free edges swing toward −Z (into the castle), away from the camera.
+    this.leftPivot.rotation.y = OPEN_ANGLE * this.openT;
+    this.rightPivot.rotation.y = -OPEN_ANGLE * this.openT;
   }
 }
 
