@@ -21,12 +21,17 @@ export function getCastleStage(): CastleStage | null {
  * Note: three r185 does not `#define USE_UV` for mapped standard materials
  * (it uses USE_MAP + MAP_UV). The `uv` attribute is still always present, so
  * do not gate this block on USE_UV or the wind compiles out entirely.
+ *
+ * Shadow-map depth passes also call `onBeforeCompile`; share one uWindTime
+ * uniform object so updates reach the color program, not only the last compile.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV8';
+  material.customProgramCacheKey = () => 'bakedFlagWindV9';
+  const windTime = { value: 0 };
+  material.userData.uWindTime = windTime;
+
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uWindTime = { value: 0 };
-    material.userData.windShader = shader;
+    shader.uniforms.uWindTime = windTime;
 
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -60,10 +65,10 @@ uniform float uWindTime;
     float flutter = sin(uWindTime * 3.2 + phase) * 0.8
       + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
     float amp = hang * hang;
-    // Lateral X flap reads from the play camera (+Z).
-    transformed.x += flutter * amp * 0.09 * sign(position.x + 0.0001);
-    transformed.z += flutter * amp * 0.04;
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.02;
+    // Z toward camera reads clearly on coplanar wall banners; X adds lateral skew.
+    transformed.z += flutter * amp * 0.12;
+    transformed.x += flutter * amp * 0.07 * sign(position.x + 0.0001);
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.025;
   }
 }
 `,
@@ -268,12 +273,8 @@ export class CastleStage {
     this.elapsed += dt;
     this.doors.update(dt);
     for (const mat of this.windMaterials) {
-      const shader = mat.userData.windShader as
-        | { uniforms: { uWindTime: { value: number } } }
-        | undefined;
-      if (shader?.uniforms?.uWindTime) {
-        shader.uniforms.uWindTime.value = this.elapsed;
-      }
+      const windTime = mat.userData.uWindTime as { value: number } | undefined;
+      if (windTime) windTime.value = this.elapsed;
     }
   }
 
