@@ -24,7 +24,6 @@ export class PlayScene implements GameScene {
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private unsubs: Array<() => void> = [];
-  private muzzleLight: THREE.PointLight | null = null;
   private escapesArmed = false;
   private camKick = 0;
   private camBase = new THREE.Vector3(0, 140, 560);
@@ -58,9 +57,6 @@ export class PlayScene implements GameScene {
     this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
-
-    this.muzzleLight = new THREE.PointLight(0xfff0aa, 0, 80, 2);
-    this.ctx.three.scene.add(this.muzzleLight);
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
 
@@ -123,10 +119,6 @@ export class PlayScene implements GameScene {
     this.ammo = null;
     this.hud?.destroy();
     this.hud = null;
-    if (this.muzzleLight) {
-      this.ctx.three.scene.remove(this.muzzleLight);
-      this.muzzleLight = null;
-    }
     clearUI(this.ctx.uiRoot);
   }
 
@@ -152,15 +144,6 @@ export class PlayScene implements GameScene {
     this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.ctx.three.camera);
-
-    // Muzzle light pop
-    if (this.muzzleLight) {
-      this.muzzleLight.intensity = 4.5;
-      this.muzzleLight.position.copy(this.ctx.three.camera.position);
-      window.setTimeout(() => {
-        if (this.muzzleLight) this.muzzleLight.intensity = 0;
-      }, 55);
-    }
 
     // Raycast proxies only (non-recursive)
     const hitObjs = this.spawner.targets.filter((t) => t.active).flatMap((t) => t.hitObjects);

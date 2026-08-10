@@ -109,7 +109,7 @@ export class HUD {
     window.setTimeout(() => this.ammoEl.classList.remove('flash'), 250);
   }
 
-  /** Crosshair kick + muzzle flash burst at the aim point. */
+  /** Crosshair shrink kick + food-crumb burst at the aim point. */
   playShootAnim(clientX: number, clientY: number): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
     if (ch) {
@@ -120,13 +120,31 @@ export class HUD {
       window.setTimeout(() => ch.classList.remove('kick'), 180);
     }
 
-    const flash = document.createElement('div');
-    flash.className = 'muzzle-flash';
-    flash.style.left = `${clientX}px`;
-    flash.style.top = `${clientY}px`;
-    this.root.appendChild(flash);
-    requestAnimationFrame(() => flash.classList.add('go'));
-    window.setTimeout(() => flash.remove(), 220);
+    this.spawnCrumbs(clientX, clientY);
+  }
+
+  private spawnCrumbs(clientX: number, clientY: number): void {
+    const colors = ['#e8c89a', '#d2a36a', '#c48a4a', '#f0d6b0', '#a8743c', '#fff1d6'];
+    const count = 10 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const crumb = document.createElement('div');
+      crumb.className = 'crumb';
+      crumb.style.left = `${clientX}px`;
+      crumb.style.top = `${clientY}px`;
+      const size = 3 + Math.random() * 5;
+      const dx = (Math.random() - 0.5) * 56;
+      const dy = 28 + Math.random() * 54;
+      const dur = 0.4 + Math.random() * 0.35;
+      const rot = (Math.random() - 0.5) * 420;
+      crumb.style.setProperty('--s', `${size.toFixed(1)}px`);
+      crumb.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      crumb.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+      crumb.style.setProperty('--dur', `${dur.toFixed(2)}s`);
+      crumb.style.setProperty('--rot', `${rot.toFixed(0)}deg`);
+      crumb.style.setProperty('--c', colors[Math.floor(Math.random() * colors.length)]!);
+      this.root.appendChild(crumb);
+      window.setTimeout(() => crumb.remove(), Math.ceil(dur * 1000) + 40);
+    }
   }
 
   setPointer(x: number, y: number): void {
