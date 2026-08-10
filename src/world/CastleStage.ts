@@ -21,7 +21,7 @@ export function getCastleStage(): CastleStage | null {
  * Share one uWindTime uniform across color/shadow onBeforeCompile passes.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV11';
+  material.customProgramCacheKey = () => 'bakedFlagWindV12';
   const windTime = { value: 0 };
   material.userData.uWindTime = windTime;
 
@@ -54,16 +54,15 @@ uniform float uWindTime;
     step(0.068, bv) * step(bv, 0.165);
   float flagMask = spatial * island;
   if (flagMask > 0.05) {
-    // DEBUG: permanent push toward camera so we can see if mask hits.
-    transformed.z += 0.45;
-    float hang = clamp((0.92 - position.y) / 0.60, 0.0, 1.0) * flagMask;
+    float hang = clamp((0.90 - position.y) / 0.58, 0.0, 1.0) * flagMask;
     float phase = position.x * 10.0 + position.y * 7.0;
-    float flutter = sin(uWindTime * 3.2 + phase) * 0.8
-      + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
-    float amp = hang * hang;
-    transformed.z += flutter * amp * 0.25;
-    transformed.x += flutter * amp * 0.12 * sign(position.x + 0.0001);
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.05;
+    float flutter = sin(uWindTime * 3.5 + phase) * 1.0
+      + sin(uWindTime * 5.4 + phase * 1.6) * 0.55;
+    // Linear hang (not squared) so mid-banner still reads clearly.
+    float amp = hang;
+    transformed.z += flutter * amp * 0.35;
+    transformed.x += flutter * amp * 0.14 * sign(position.x + 0.0001);
+    transformed.y += sin(uWindTime * 2.8 + phase * 0.8) * amp * 0.06;
   }
 }
 `,
