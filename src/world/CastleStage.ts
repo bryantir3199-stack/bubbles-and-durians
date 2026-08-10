@@ -21,7 +21,7 @@ export function getCastleStage(): CastleStage | null {
  * Share one uWindTime uniform across color/shadow onBeforeCompile passes.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV14';
+  material.customProgramCacheKey = () => 'bakedFlagWindV15';
   const windTime = { value: 0 };
   material.userData.uWindTime = windTime;
 
@@ -56,13 +56,13 @@ uniform float uWindTime;
   if (flagMask > 0.05) {
     float hang = clamp((0.90 - position.y) / 0.58, 0.0, 1.0) * flagMask;
     float phase = position.x * 10.0 + position.y * 7.0;
-    float flutter = sin(uWindTime * 3.1 + phase) * 0.85
-      + sin(uWindTime * 5.0 + phase * 1.6) * 0.45;
-    float amp = hang * hang;
-    // Mid strength: readable from the play camera without looking chaotic.
-    transformed.z += flutter * amp * 0.22;
-    transformed.x += flutter * amp * 0.10 * sign(position.x + 0.0001);
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.04;
+    float flutter = sin(uWindTime * 3.2 + phase) * 0.9
+      + sin(uWindTime * 5.1 + phase * 1.6) * 0.45;
+    // Keep amp mostly linear so free-edge motion stays readable.
+    float amp = hang;
+    transformed.z += flutter * amp * 0.26;
+    transformed.x += flutter * amp * 0.11 * sign(position.x + 0.0001);
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.045;
   }
 }
 `,
