@@ -60,7 +60,7 @@ Without `.env` keys, the game still runs; score submit/leaderboard stay offline.
 - `public/assets/bubble.glb`, `durian.glb` — hopping targets
 - `public/assets/gold-durian.png` — gold target sprite
 - `public/assets/logo.png` — title logo
-- `public/assets/castle/castle.glb` — castle stage (`castle2.glb`, embedded textures)
+- `public/assets/castle/castle.glb` — castle stage (castle4; embedded textures; includes `baked_door_l` / `baked_door_r`, spawn empties `sp1`…, and path empties `path1`…)
 
 ## Project layout
 

@@ -64,7 +64,7 @@ export class GameOverScene implements GameScene {
     };
     window.addEventListener('keydown', this.onKey);
 
-    this.ctx.three.camera.position.set(0, 140, 460);
+    this.ctx.three.camera.position.set(0, 140, 560);
     this.ctx.three.camera.lookAt(0, 110, 40);
   }
 

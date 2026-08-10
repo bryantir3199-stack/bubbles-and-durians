@@ -263,12 +263,24 @@
       .hud-reload-btn:hover { background: var(--accent-hot); }
       .hud-reload-hint {
         position: absolute;
-        top: 90px;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
-        font-size: 32px;
+        transform: translate(-50%, -50%);
+        font-size: 48px; /* 50% larger than previous 32px */
+        font-weight: 700;
         color: #ff4444;
-        text-shadow: 0 0 4px #000, 2px 2px 0 #000;
+        text-shadow: 0 0 6px #000, 3px 3px 0 #000;
+        animation: reloadFlash 0.55s ease-in-out infinite;
+        z-index: 15;
+        pointer-events: none;
+      }
+      .hud-reload-hint[hidden] {
+        display: none !important;
+        animation: none;
+      }
+      @keyframes reloadFlash {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.2; }
       }
       body.playing { cursor: none; }
       .crosshair {
@@ -280,6 +292,7 @@
         border-radius: 50%;
         pointer-events: none;
         box-shadow: 0 0 0 1px #000;
+        transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%);
       }
       .crosshair::before, .crosshair::after {
         content: '';
@@ -298,6 +311,31 @@
         box-shadow: 28px 0 0 #fff, 0 0 0 1px #000, 28px 0 0 1px #000;
       }
       .crosshair::marker { display: none; }
+      .crosshair.kick {
+        animation: crosshairKick 0.16s ease-out;
+      }
+      @keyframes crosshairKick {
+        0% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
+        35% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1.55); }
+        100% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
+      }
+      .muzzle-flash {
+        position: fixed;
+        width: 56px;
+        height: 56px;
+        margin: 0;
+        transform: translate(-50%, -50%) scale(0.4);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 18;
+        background: radial-gradient(circle, #fff7c2 0%, #ffb84a 35%, rgba(255, 120, 40, 0.35) 60%, transparent 72%);
+        opacity: 1;
+        transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+      }
+      .muzzle-flash.go {
+        transform: translate(-50%, -50%) scale(1.8);
+        opacity: 0;
+      }
       .floater {
         position: fixed;
         transform: translate(-50%, -50%);

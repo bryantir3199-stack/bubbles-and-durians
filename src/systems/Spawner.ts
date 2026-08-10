@@ -2,6 +2,7 @@ import type { GameMode, TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
   PATTERN_WEIGHTS,
+  PATHS,
   WINDOWS,
   type SpawnPattern,
 } from '../config/spawnLayout';
@@ -11,7 +12,7 @@ import type * as THREE from 'three';
 type SpawnWeights = Record<TargetKind, number>;
 
 /**
- * Spawns up to 6 pattern-based targets (windows, doors, wall-top, front slide).
+ * Spawns up to maxTargets pattern-based targets (window holds + path travel).
  */
 export class Spawner {
   private elapsed = 0;
@@ -19,9 +20,8 @@ export class Spawner {
   private running = false;
   readonly targets: Target[] = [];
   private occupiedWindows = new Set<string>();
-  private doorBusy = false;
-  private wallBusy = false;
-  private frontBusy = false;
+  /** Only one mover may occupy the gate path at a time. */
+  private pathBusy = false;
 
   constructor(
     private scene: THREE.Scene,
@@ -32,15 +32,14 @@ export class Spawner {
   start(): void {
     this.running = true;
     this.elapsed = 0;
-    this.nextAt = 700;
+    // Match the slower cadence (was 700ms / 450ms stagger).
+    this.nextAt = 2150;
     this.occupiedWindows.clear();
-    this.doorBusy = false;
-    this.wallBusy = false;
-    this.frontBusy = false;
+    this.pathBusy = false;
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
-      }, i * 450);
+      }, i * 1380);
     }
   }
 
@@ -71,16 +70,19 @@ export class Spawner {
     for (const t of this.targets) t.destroy();
     this.targets.length = 0;
     this.occupiedWindows.clear();
-    this.doorBusy = false;
-    this.wallBusy = false;
-    this.frontBusy = false;
+    this.pathBusy = false;
   }
 
+  /**
+   * On-screen count. At the cap we wait — never destroy/replace existing targets
+   * to make room for a new spawn.
+   */
   private liveCount(): number {
-    return this.targets.filter((t) => t.active).length;
+    return this.targets.reduce((n, t) => n + (t.onScreen ? 1 : 0), 0);
   }
 
   private trySpawn(): void {
+    // Hard stop: do not remove anyone; only spawn when a slot is free.
     if (this.liveCount() >= gameConfig.maxTargets) return;
 
     const kind = this.pickKind();
@@ -89,6 +91,9 @@ export class Spawner {
     const spec = this.pickSpec();
     if (!spec) return;
 
+    // Re-check after pickSpec in case of races with timeouts.
+    if (this.liveCount() >= gameConfig.maxTargets) return;
+
     const target = new Target(this.scene, kind, spec, this.onEscape, () => this.releaseSpec(spec));
     this.targets.push(target);
   }
@@ -96,9 +101,7 @@ export class Spawner {
   private pickSpec(): TargetSpawnSpec | null {
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
       if (p === 'window') return this.occupiedWindows.size < WINDOWS.length;
-      if (p === 'door') return !this.doorBusy;
-      if (p === 'wall') return !this.wallBusy;
-      if (p === 'frontSlide') return !this.frontBusy;
+      if (p === 'path') return !this.pathBusy && PATHS.length >= 2;
       return false;
     });
     if (patterns.length === 0) return null;
@@ -122,29 +125,15 @@ export class Spawner {
       return { pattern: 'window', windowId: spot.id, windowSpot: spot };
     }
 
-    if (chosen === 'door') {
-      this.doorBusy = true;
-      return { pattern: 'door', doorExit: Math.random() < 0.55 };
-    }
-
-    if (chosen === 'wall') {
-      this.wallBusy = true;
-      return { pattern: 'wall', goRight: Math.random() < 0.5 };
-    }
-
-    this.frontBusy = true;
-    return { pattern: 'frontSlide', goRight: Math.random() < 0.5 };
+    this.pathBusy = true;
+    return { pattern: 'path', pathForward: Math.random() < 0.55 };
   }
 
   private releaseSpec(spec: TargetSpawnSpec): void {
     if (spec.pattern === 'window' && spec.windowId) {
       this.occupiedWindows.delete(spec.windowId);
-    } else if (spec.pattern === 'door') {
-      this.doorBusy = false;
-    } else if (spec.pattern === 'wall') {
-      this.wallBusy = false;
-    } else if (spec.pattern === 'frontSlide') {
-      this.frontBusy = false;
+    } else if (spec.pattern === 'path') {
+      this.pathBusy = false;
     }
   }
 

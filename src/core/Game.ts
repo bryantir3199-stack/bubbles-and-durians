@@ -6,7 +6,7 @@ import { ModeSelectScene } from '../scenes/ModeSelectScene';
 import { PlayScene } from '../scenes/PlayScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
-import { getDoorController } from '../world/DoorController';
+import { getCastleStage } from '../world/CastleStage';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -37,13 +37,16 @@ export class Game {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled = false;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'game-canvas';
     container.appendChild(this.canvas);
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 1, 2000);
-    this.camera.position.set(0, 140, 460);
+    this.camera.position.set(0, 140, 560);
     this.camera.lookAt(0, 110, 40);
 
     const gameRef = this;
@@ -82,7 +85,7 @@ export class Game {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - this.last) / 1000);
       this.last = now;
-      getDoorController()?.update(dt);
+      getCastleStage()?.update(dt);
       this.current?.update(dt);
       this.renderer.render(this.scene, this.camera);
     };

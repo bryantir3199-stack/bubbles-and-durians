@@ -109,9 +109,30 @@ export class HUD {
     window.setTimeout(() => this.ammoEl.classList.remove('flash'), 250);
   }
 
+  /** Crosshair kick + muzzle flash burst at the aim point. */
+  playShootAnim(clientX: number, clientY: number): void {
+    const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
+    if (ch) {
+      ch.classList.remove('kick');
+      // Retrigger CSS animation
+      void ch.offsetWidth;
+      ch.classList.add('kick');
+      window.setTimeout(() => ch.classList.remove('kick'), 180);
+    }
+
+    const flash = document.createElement('div');
+    flash.className = 'muzzle-flash';
+    flash.style.left = `${clientX}px`;
+    flash.style.top = `${clientY}px`;
+    this.root.appendChild(flash);
+    requestAnimationFrame(() => flash.classList.add('go'));
+    window.setTimeout(() => flash.remove(), 220);
+  }
+
   setPointer(x: number, y: number): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement;
-    ch.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+    ch.style.setProperty('--x', `${x}px`);
+    ch.style.setProperty('--y', `${y}px`);
   }
 
   spawnFloater(clientX: number, clientY: number, text: string, color: string): void {

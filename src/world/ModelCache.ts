@@ -67,12 +67,56 @@ export class ModelCache {
     return clone;
   }
 
+  /**
+   * Durian GLB with the gold texture swapped onto materials (cloned mats so the
+   * shared template stays green).
+   */
+  static cloneGoldDurian(): THREE.Object3D {
+    const clone = this.cloneModel('durian');
+    // Upright (180° rot) + horizontal mirror vs the green map orientation.
+    const gold = this.getTexture('goldDurian').clone();
+    gold.wrapS = THREE.RepeatWrapping;
+    gold.wrapT = THREE.RepeatWrapping;
+    gold.center.set(0.5, 0.5);
+    gold.rotation = Math.PI;
+    gold.repeat.x = -1;
+    gold.needsUpdate = true;
+    clone.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const src = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const next = src.map((mat) => {
+        const m = (mat as THREE.MeshBasicMaterial).clone();
+        m.map = gold;
+        m.color.setHex(0xffffff);
+        m.needsUpdate = true;
+        return m;
+      });
+      obj.material = next.length === 1 ? next[0]! : next;
+    });
+    return clone;
+  }
+
+  /** Dispose materials (and cloned gold map) for a gold durian instance. */
+  static disposeGoldMaterials(root: THREE.Object3D): void {
+    const maps = new Set<THREE.Texture>();
+    root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) {
+        const map = (m as THREE.MeshBasicMaterial).map;
+        if (map) maps.add(map);
+        m.dispose();
+      }
+    });
+    for (const map of maps) map.dispose();
+  }
+
   private static normalizeTemplate(root: THREE.Object3D, targetSize: number): THREE.Object3D {
     // Convert to unlit materials — flat cards don't need PBR
     root.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      obj.castShadow = false;
-      obj.receiveShadow = false;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
       obj.frustumCulled = true;
 
       const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];

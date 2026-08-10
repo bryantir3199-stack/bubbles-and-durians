@@ -8,14 +8,15 @@ export const gameConfig = {
   timedSeconds: 180,
   /** Hard cap — never more than this many live targets */
   maxTargets: 6,
-  spawnIntervalMs: 950,
-  minSpawnIntervalMs: 550,
+  /** Prior cadence was 3800/2200; +30% spawn rate → intervals / 1.3. */
+  spawnIntervalMs: 2920,
+  minSpawnIntervalMs: 1690,
   targetSize: 22,
   heartSize: 16,
   goldSize: 24,
   points: {
     durian: 1,
-    goldDurian: 3,
+    goldDurian: 7,
     bubble: -1,
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x). */

@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
-  DOOR,
-  FRONT_SLIDE,
-  WALL_TOP,
+  DOOR_PLANE_Z,
+  PATHS,
+  nearDoorPlane,
   type SpawnPattern,
   type WindowSpot,
 } from '../config/spawnLayout';
@@ -16,20 +16,23 @@ function randBetween(min: number, max: number): number {
 }
 
 const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
+/** Constant speed along the gate path (world units / second). */
+const PATH_SPEED = 95;
 
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
   /** Window slot id when pattern === 'window' */
   windowId?: string;
   windowSpot?: WindowSpot;
-  /** Door: true = exit castle, false = enter */
-  doorExit?: boolean;
-  /** Wall / frontSlide direction */
-  goRight?: boolean;
+  /**
+   * Path direction: true = PATHS forward (off-screen → inside / enter),
+   * false = reversed (inside → off-screen / exit).
+   */
+  pathForward?: boolean;
 }
 
 /**
- * Pattern-based target: windows, door transit, wall-top slide, front L↔R pass.
+ * Pattern-based target: static window holds, or continuous gate-path travel.
  */
 export class Target {
   readonly kind: TargetKind;
@@ -44,12 +47,12 @@ export class Target {
   private age = 0;
   private cleared = false;
   private escaped = false;
-  private baseScale = 1;
   private hpDots: THREE.Mesh[] = [];
   private onEscape: ((t: Target) => void) | null = null;
   private onFreeSlot: (() => void) | null = null;
   private visual: THREE.Object3D;
   private spriteMat: THREE.SpriteMaterial | null = null;
+  private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
   private fadeDur = 0.15;
@@ -57,14 +60,19 @@ export class Target {
   private warned = false;
   private slotFreed = false;
 
+  private waypoints: THREE.Vector3[] = [];
+  private cumLen: number[] = [0];
+  private pathLen = 0;
+  private pathTraveled = 0;
   private from = new THREE.Vector3();
-  private to = new THREE.Vector3();
-  private moveT = 0;
-  private moveDur = 1;
-  private phase: 'waitDoor' | 'move' | 'hold' | 'done' = 'move';
+  private phase: 'move' | 'hold' | 'done' = 'move';
   private holdLeft = 0;
   private doorRetained = false;
   private bobAmp = 0;
+  private bobBaseY = 0;
+  /** Hit-flash timer (seconds) for gold durian feedback. */
+  private hitFlash = 0;
+  private flashMats: { mat: THREE.MeshBasicMaterial; r: number; g: number; b: number }[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -94,13 +102,18 @@ export class Target {
     const lifeRange = gameConfig.lifetimeMs[kind];
     this.lifetime = randBetween(lifeRange.min, lifeRange.max);
 
-    if (kind === 'bubble' || kind === 'durian') {
-      this.visual = ModelCache.cloneModel(kind);
+    if (kind === 'bubble') {
+      this.visual = ModelCache.cloneModel('bubble');
       this.root.add(this.visual);
-      this.baseScale = 1;
+    } else if (kind === 'durian') {
+      this.visual = ModelCache.cloneModel('durian');
+      this.root.add(this.visual);
+    } else if (kind === 'goldDurian') {
+      this.visual = ModelCache.cloneGoldDurian();
+      this.ownsGoldMaterials = true;
+      this.root.add(this.visual);
     } else {
-      const map =
-        kind === 'goldDurian' ? ModelCache.getTexture('goldDurian') : ModelCache.getTexture('heart');
+      const map = ModelCache.getTexture('heart');
       this.spriteMat = new THREE.SpriteMaterial({
         map,
         transparent: true,
@@ -109,8 +122,7 @@ export class Target {
         opacity: 1,
       });
       const sprite = new THREE.Sprite(this.spriteMat);
-      const size = kind === 'heart' ? gameConfig.heartSize : gameConfig.goldSize;
-      this.baseScale = size;
+      const size = gameConfig.heartSize;
       sprite.scale.set(size, size, 1);
       this.visual = sprite;
       this.root.add(sprite);
@@ -132,6 +144,11 @@ export class Target {
     return !this.cleared && !this.escaped && !this.fading;
   }
 
+  /** Still occupying a slot on screen (including fade-out). */
+  get onScreen(): boolean {
+    return !!this.root.parent;
+  }
+
   get position(): THREE.Vector3 {
     return this.root.position;
   }
@@ -140,7 +157,7 @@ export class Target {
     if (spec.pattern === 'window' && spec.windowSpot) {
       const p = spec.windowSpot;
       this.from.set(p.x, p.y, p.z);
-      this.to.copy(this.from);
+      this.bobBaseY = p.y;
       this.root.position.copy(this.from);
       this.phase = 'hold';
       this.holdLeft = this.lifetime / 1000;
@@ -148,43 +165,63 @@ export class Target {
       return;
     }
 
-    if (spec.pattern === 'door') {
-      const exit = spec.doorExit !== false;
-      const a = exit ? DOOR.inside : DOOR.outside;
-      const b = exit ? DOOR.outside : DOOR.inside;
-      this.from.set(a.x, a.y, a.z);
-      this.to.set(b.x, b.y, b.z);
-      this.root.position.copy(this.from);
-      this.moveDur = randBetween(1.4, 2.0);
-      this.phase = 'waitDoor';
-      this.retainDoor();
+    const pts = PATHS.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+    if (pts.length < 2) {
+      const p = pts[0] ?? new THREE.Vector3();
+      this.from.copy(p);
+      this.root.position.copy(p);
+      this.phase = 'hold';
+      this.holdLeft = this.lifetime / 1000;
       return;
     }
 
-    if (spec.pattern === 'wall') {
-      const right = spec.goRight !== false;
-      const x0 = right ? WALL_TOP.minX : WALL_TOP.maxX;
-      const x1 = right ? WALL_TOP.maxX : WALL_TOP.minX;
-      this.from.set(x0, WALL_TOP.y, WALL_TOP.z);
-      this.to.set(x1, WALL_TOP.y, WALL_TOP.z);
-      this.root.position.copy(this.from);
-      this.moveDur = randBetween(3.2, 4.5);
-      this.phase = 'move';
-      this.bobAmp = 2;
-      return;
+    // Forward = enter (off-screen → inside); reverse = exit.
+    const forward = spec.pathForward !== false;
+    this.waypoints = forward ? pts : [...pts].reverse();
+    this.cumLen = [0];
+    this.pathLen = 0;
+    for (let i = 1; i < this.waypoints.length; i++) {
+      this.pathLen += this.waypoints[i - 1]!.distanceTo(this.waypoints[i]!);
+      this.cumLen.push(this.pathLen);
     }
-
-    // frontSlide
-    const right = spec.goRight !== false;
-    const x0 = right ? FRONT_SLIDE.minX : FRONT_SLIDE.maxX;
-    const x1 = right ? FRONT_SLIDE.maxX : FRONT_SLIDE.minX;
-    const y = FRONT_SLIDE.y + randBetween(-12, 18);
-    this.from.set(x0, y, FRONT_SLIDE.z);
-    this.to.set(x1, y, FRONT_SLIDE.z);
-    this.root.position.copy(this.from);
-    this.moveDur = randBetween(3.5, 5.0);
+    this.pathTraveled = 0;
+    this.bobAmp = 0;
     this.phase = 'move';
-    this.bobAmp = 4;
+    this.placeOnPath(0);
+    // Open doors while approaching — never pause for them.
+    this.retainDoor();
+  }
+
+  /** Constant-speed placement along the polyline. */
+  private placeOnPath(distance: number): void {
+    if (this.waypoints.length === 0) return;
+    if (distance <= 0) {
+      this.root.position.copy(this.waypoints[0]!);
+      return;
+    }
+    if (distance >= this.pathLen) {
+      this.root.position.copy(this.waypoints[this.waypoints.length - 1]!);
+      return;
+    }
+    for (let i = 1; i < this.cumLen.length; i++) {
+      if (distance <= this.cumLen[i]!) {
+        const start = this.cumLen[i - 1]!;
+        const end = this.cumLen[i]!;
+        const u = end > start ? (distance - start) / (end - start) : 1;
+        this.root.position.lerpVectors(this.waypoints[i - 1]!, this.waypoints[i]!, u);
+        return;
+      }
+    }
+  }
+
+  private syncDoorForPosition(): void {
+    if (nearDoorPlane(this.root.position.z, DOOR_PLANE_Z, 40)) {
+      this.retainDoor();
+    } else if (this.doorRetained) {
+      // Past the gate hall — close when clearly clear of the door plane.
+      const z = this.root.position.z;
+      if (Math.abs(z - DOOR_PLANE_Z) > 45) this.releaseDoor();
+    }
   }
 
   private retainDoor(): void {
@@ -221,9 +258,10 @@ export class Target {
     if (this.hpDots.length === 0) return;
     const spacing = 5;
     const startX = -((this.maxHits - 1) * spacing) / 2;
+    const y = gameConfig.targetSize * 0.55;
     this.hpDots.forEach((dot, i) => {
       (dot.material as THREE.MeshBasicMaterial).color.setHex(i < this.hitsLeft ? 0xffd700 : 0x444444);
-      dot.position.set(startX + i * spacing, this.baseScale * 0.55, 2);
+      dot.position.set(startX + i * spacing, y, 2);
       dot.visible = this.active;
     });
   }
@@ -233,11 +271,48 @@ export class Target {
     this.hitsLeft -= 1;
     this.root.scale.setScalar(1.12);
     this.layoutHpDots();
+    if (this.kind === 'goldDurian') this.triggerHitFlash();
     if (this.hitsLeft <= 0) this.cleared = true;
     return this.hitsLeft <= 0;
   }
 
+  private triggerHitFlash(): void {
+    if (this.flashMats.length === 0) {
+      this.visual.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const m of mats) {
+          if (m instanceof THREE.MeshBasicMaterial) {
+            this.flashMats.push({ mat: m, r: m.color.r, g: m.color.g, b: m.color.b });
+          }
+        }
+      });
+    }
+    this.hitFlash = 0.14;
+    for (const entry of this.flashMats) {
+      // Hot white/yellow multiply over the gold map.
+      entry.mat.color.setRGB(4, 3.6, 1.6);
+    }
+  }
+
   update(dt: number): void {
+    if (this.hitFlash > 0) {
+      this.hitFlash = Math.max(0, this.hitFlash - dt);
+      const t = this.hitFlash / 0.14;
+      for (const entry of this.flashMats) {
+        entry.mat.color.setRGB(
+          entry.r + (4 - entry.r) * t,
+          entry.g + (3.6 - entry.g) * t,
+          entry.b + (1.6 - entry.b) * t,
+        );
+      }
+      if (this.hitFlash === 0) {
+        for (const entry of this.flashMats) {
+          entry.mat.color.setRGB(entry.r, entry.g, entry.b);
+        }
+      }
+    }
+
     if (this.fading) {
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
@@ -251,52 +326,40 @@ export class Target {
     this.age += dt * 1000;
     const pop = this.age < 180 ? 0.55 + 0.55 * Math.sin((this.age / 180) * Math.PI) : 1;
 
-    if (this.phase === 'waitDoor') {
-      const doors = getDoorController();
-      if (!doors || doors.isOpenEnough) {
-        this.phase = 'move';
-        this.moveT = 0;
-      }
-    } else if (this.phase === 'move') {
-      this.moveT += dt / this.moveDur;
-      const u = Math.min(1, this.moveT);
-      const ease = u * u * (3 - 2 * u);
-      this.root.position.lerpVectors(this.from, this.to, ease);
-      this.root.position.y += Math.sin(u * Math.PI) * this.bobAmp * 0.15;
-      if (u >= 1) {
-        if (this.pattern === 'door') {
-          // Brief pause outside/inside then leave
-          this.phase = 'hold';
-          this.holdLeft = 0.35;
-          this.releaseDoor();
-        } else {
-          this.finishEscape();
-        }
+    if (this.phase === 'move') {
+      this.pathTraveled += PATH_SPEED * dt;
+      if (this.pathTraveled >= this.pathLen) {
+        this.placeOnPath(this.pathLen);
+        this.releaseDoor();
+        this.finishEscape();
+      } else {
+        this.placeOnPath(this.pathTraveled);
+        this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
       this.holdLeft -= dt;
       if (this.pattern === 'window') {
-        this.root.position.y = this.from.y + Math.sin(this.age / 220) * this.bobAmp;
+        this.root.position.y = this.bobBaseY + Math.sin(this.age / 220) * this.bobAmp;
       }
       if (this.holdLeft <= 0) {
-        if (this.pattern === 'window' || this.pattern === 'door') {
-          this.finishEscape();
-        }
+        this.finishEscape();
       }
     }
 
     this.root.scale.setScalar(pop);
 
-    if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
-      const on = Math.sin(this.age / 60) > 0;
-      if (on !== this.warned) {
-        this.warned = on;
-        this.visual.visible = on;
+    // Path movers keep going until the route ends — don't cut them mid-path.
+    if (this.pattern !== 'path') {
+      if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
+        const on = Math.sin(this.age / 60) > 0;
+        if (on !== this.warned) {
+          this.warned = on;
+          this.visual.visible = on;
+        }
       }
-    }
-
-    if (this.age >= this.lifetime && this.phase !== 'done') {
-      this.finishEscape();
+      if (this.age >= this.lifetime && this.phase !== 'done') {
+        this.finishEscape();
+      }
     }
   }
 
@@ -305,7 +368,7 @@ export class Target {
     this.escaped = true;
     this.phase = 'done';
     this.visual.visible = true;
-    this.freeSlot();
+    this.releaseDoor();
     this.onEscape?.(this);
     this.fadeOut();
   }
@@ -315,7 +378,9 @@ export class Target {
     this.fadeT = 0;
     this.fadeDur = durationMs / 1000;
     this.startScale = this.root.scale.x;
-    this.freeSlot();
+    // Keep the spawn slot occupied until destroy so we never replace in-place
+    // while this target is still visible.
+    this.releaseDoor();
   }
 
   destroy(): void {
@@ -325,6 +390,10 @@ export class Target {
       (d.material as THREE.Material).dispose();
     }
     this.hpDots = [];
+    if (this.ownsGoldMaterials) {
+      ModelCache.disposeGoldMaterials(this.visual);
+      this.ownsGoldMaterials = false;
+    }
     this.root.parent?.remove(this.root);
     this.spriteMat?.dispose();
   }
