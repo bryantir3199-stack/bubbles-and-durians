@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { applyCastleMarkers, type Vec3, type WindowSpot } from '../config/spawnLayout';
+import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
 
 const ASSET = {
@@ -8,15 +8,12 @@ const ASSET = {
 };
 
 /**
- * Loads castle.glb (embedded textures + spawn/path empties), wires door pivots,
+ * Loads castle.glb (embedded textures + spawn empties), wires door pivots,
  * and sets up a cheap night backdrop.
  *
- * Door swing stays procedural (DoorController, opens inward) — the GLB has no
- * animation clips. Flags are baked into the castle mesh (adjusted in castle4);
- * there are no separate flag objects or clips to retarget.
- *
- * Moving targets travel path* empties only; doors open only on path segments
- * that cross the gate.
+ * Door swing stays procedural (DoorController, opens inward). Flags are baked
+ * into the castle mesh. Window holds use sp* empties; movers use a rebuilt
+ * center-line gate path (layout matched to path* empties, not their raw coords).
  */
 export class CastleStage {
   readonly root = new THREE.Group();
@@ -69,15 +66,16 @@ export class CastleStage {
     castle.updateMatrixWorld(true);
 
     this.root.add(castle);
-    // Read empties before door pivots reparent meshes (same world xforms either way,
-    // but keeps marker sampling tied to the authored hierarchy).
     castle.updateMatrixWorld(true);
     this.applyMarkers(castle);
     this.doors.setup(castle);
     setDoorController(this.doors);
   }
 
-  /** Read sp* / path* empties (world space) into the spawn layout. */
+  /**
+   * Window spots from sp* empties; gate path rebuilt from door bounds using the
+   * path* empty layout (inside → door → outside) as a depth hint only.
+   */
   private applyMarkers(castle: THREE.Object3D): void {
     castle.updateMatrixWorld(true);
 
@@ -95,22 +93,24 @@ export class CastleStage {
       paths.push(worldPos(obj));
     }
 
-    let doorZ: number | undefined;
+    let door: DoorBounds | undefined;
     const doorL = castle.getObjectByName('baked_door_l');
     const doorR = castle.getObjectByName('baked_door_r');
     if (doorL || doorR) {
       const box = new THREE.Box3();
       if (doorL) box.expandByObject(doorL);
       if (doorR) box.expandByObject(doorR);
-      doorZ = (box.min.z + box.max.z) * 0.5;
+      door = {
+        minX: box.min.x,
+        maxX: box.max.x,
+        minY: box.min.y,
+        maxY: box.max.y,
+        minZ: box.min.z,
+        maxZ: box.max.z,
+      };
     }
 
-    if (spawns.length === 0 && paths.length === 0) {
-      console.warn('CastleStage: no sp*/path* empties found; using fallback spawnLayout');
-      return;
-    }
-
-    applyCastleMarkers({ spawns, paths, doorZ });
+    applyCastleMarkers({ spawns, paths, door });
   }
 
   private buildEnvironment(): void {

@@ -1,9 +1,10 @@
 /**
  * Spawn points / paths for castle routes.
  *
- * Empties from castle.glb (after ×100 scale + ground-centering):
- * - sp1…spN → static hold / window spots
- * - path1…pathN → ordered waypoints for moving targets (travel these only)
+ * - sp* empties → static window / hold spots (world positions from the GLB)
+ * - Moving targets use hand-authored gate paths that mirror the GLB path *layout*
+ *   (center-line inside → door → outside), built from the door mesh bounds — not
+ *   the raw path* empty coordinates.
  */
 
 export type SpawnPattern = 'window' | 'path';
@@ -21,6 +22,15 @@ export interface Vec3 {
   z: number;
 }
 
+export interface DoorBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+}
+
 /** Static hold spots — overwritten when castle empties load. */
 export let WINDOWS: WindowSpot[] = [
   { id: 'left-tower', x: -155, y: 125, z: 74 },
@@ -30,16 +40,16 @@ export let WINDOWS: WindowSpot[] = [
 ];
 
 /**
- * Ordered path waypoints (path1 → path2 → …). Moving targets travel this
- * polyline only (or reversed). Overwritten when castle empties load.
+ * Gate transit waypoints (inside → threshold → outside). Rebuilt from door
+ * bounds to match the GLB path layout without using empty world coords.
  */
 export let PATHS: Vec3[] = [
-  { x: 0, y: 28, z: 25 },
-  { x: 0, y: 28, z: 90 },
-  { x: 0, y: 28, z: 130 },
+  { x: 0, y: 42, z: 5 },
+  { x: 0, y: 42, z: 60 },
+  { x: 0, y: 42, z: 165 },
 ];
 
-/** Approximate door plane Z (world) — used to decide which path segment opens doors. */
+/** Door plane Z — segments that cross this open the doors. */
 export let DOOR_PLANE_Z = 60;
 
 export const PATTERN_WEIGHTS: Record<SpawnPattern, number> = {
@@ -49,68 +59,69 @@ export const PATTERN_WEIGHTS: Record<SpawnPattern, number> = {
 
 export interface CastleMarkers {
   spawns: WindowSpot[];
+  /** Raw path empties — used only as a layout hint (ordering / depth bias). */
   paths: Vec3[];
-  /** Optional world-space door plane Z from door meshes. */
-  doorZ?: number;
+  door?: DoorBounds;
 }
 
 /**
- * Apply empties from castle.glb.
- * Consecutive duplicate path points are collapsed.
+ * Apply castle markers: window empties as-is; rebuild movement paths from the
+ * door mesh so targets travel a clean center-line gate route.
  */
 export function applyCastleMarkers(markers: CastleMarkers): void {
   if (markers.spawns.length > 0) {
     WINDOWS = markers.spawns.map((s) => ({ ...s }));
   }
 
-  if (markers.paths.length > 0) {
-    const deduped: Vec3[] = [];
-    for (const p of markers.paths) {
-      const prev = deduped[deduped.length - 1];
-      if (!prev || pointsDiffer(prev, p)) deduped.push({ ...p });
-    }
-    if (deduped.length >= 2) {
-      // Use exact empty world positions from the GLB (no Y rewriting).
-      PATHS = deduped.map((p) => ({ ...p }));
-      if (typeof markers.doorZ === 'number' && Number.isFinite(markers.doorZ)) {
-        DOOR_PLANE_Z = markers.doorZ;
-      } else {
-        // Prefer a segment that straddles a facade-like Z; else midpoint of longest span.
-        let chosen: number | null = null;
-        for (let i = 0; i < deduped.length - 1; i++) {
-          const lo = Math.min(deduped[i]!.z, deduped[i + 1]!.z);
-          const hi = Math.max(deduped[i]!.z, deduped[i + 1]!.z);
-          if (lo < 55 && hi > 55) {
-            chosen = 55;
-            break;
-          }
-        }
-        if (chosen == null) {
-          let best = 0;
-          let bestDz = -1;
-          for (let i = 0; i < deduped.length - 1; i++) {
-            const dz = Math.abs(deduped[i + 1]!.z - deduped[i]!.z);
-            if (dz > bestDz) {
-              bestDz = dz;
-              best = i;
-            }
-          }
-          chosen = (deduped[best]!.z + deduped[best + 1]!.z) * 0.5;
-        }
-        DOOR_PLANE_Z = chosen;
-      }
-    }
-  }
+  PATHS = buildGatePath(markers.door, markers.paths);
+  DOOR_PLANE_Z = PATHS.length >= 2 ? PATHS[1]!.z : 60;
 }
 
-function pointsDiffer(a: Vec3, b: Vec3, eps = 0.5): boolean {
-  return Math.abs(a.x - b.x) > eps || Math.abs(a.y - b.y) > eps || Math.abs(a.z - b.z) > eps;
+/**
+ * Build inside → gate → outside on X=0 at a constant height through the doorway.
+ * Depth extents follow the GLB path layout (back / door / front) when available,
+ * otherwise fall back to offsets from the door plane.
+ */
+function buildGatePath(door: DoorBounds | undefined, layoutHint: Vec3[]): Vec3[] {
+  const doorZ = door ? (door.minZ + door.maxZ) * 0.5 : 60;
+  const doorH = door ? Math.max(8, door.maxY - door.minY) : 86;
+  const doorBase = door ? door.minY : 0;
+  // Center of the opening — clear of the sill and lintel.
+  const travelY = doorBase + doorH * 0.45;
+
+  // Sort unique layout hints by Z to recover inside → outside ordering.
+  const hints: Vec3[] = [];
+  for (const p of layoutHint) {
+    const prev = hints[hints.length - 1];
+    if (!prev || Math.abs(prev.z - p.z) > 0.5 || Math.abs(prev.x - p.x) > 0.5) {
+      hints.push({ ...p });
+    }
+  }
+  hints.sort((a, b) => a.z - b.z);
+
+  let insideZ: number;
+  let outsideZ: number;
+  if (hints.length >= 2) {
+    insideZ = hints[0]!.z;
+    outsideZ = hints[hints.length - 1]!.z;
+    // Keep a clear inside/outside split around the door even if empties bunch up.
+    if (insideZ > doorZ - 20) insideZ = doorZ - 55;
+    if (outsideZ < doorZ + 20) outsideZ = doorZ + 110;
+  } else {
+    insideZ = doorZ - 55;
+    outsideZ = doorZ + 110;
+  }
+
+  return [
+    { x: 0, y: travelY, z: insideZ },
+    { x: 0, y: travelY, z: doorZ },
+    { x: 0, y: travelY, z: outsideZ },
+  ];
 }
 
 /** True if the segment a→b crosses (or ends at) the door plane. */
 export function segmentCrossesDoor(a: Vec3, b: Vec3, doorZ = DOOR_PLANE_Z): boolean {
   const da = a.z - doorZ;
   const db = b.z - doorZ;
-  // Different sides of the door plane, or either endpoint very near it.
   return da * db <= 0 || Math.abs(da) < 8 || Math.abs(db) < 8;
 }
