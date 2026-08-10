@@ -18,7 +18,7 @@ export function getCastleStage(): CastleStage | null {
  * Masked by atlas UVs (glTF flipY=false) and a front-wall spatial fallback.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV4';
+  material.customProgramCacheKey = () => 'bakedFlagWindV5';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -54,9 +54,11 @@ uniform float uWindTime;
     float phase = position.x * 10.0 + position.y * 7.0;
     float flutter = sin(uWindTime * 3.2 + phase) * 0.8
       + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
-    // Local meters → ×100 world scale; ~0.1 ≈ noticeable flap.
-    transformed.z += flutter * hang * hang * 0.1;
-    transformed.x += sin(uWindTime * 2.4 + phase * 0.5) * hang * 0.03;
+    // From the play camera (+Z), lateral X flap reads clearly; Z is mostly foreshortening.
+    float amp = hang * hang;
+    transformed.x += flutter * amp * 0.09 * sign(position.x + 0.0001);
+    transformed.z += flutter * amp * 0.04;
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.02;
   }
 }
 `,
