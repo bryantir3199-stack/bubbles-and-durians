@@ -3,7 +3,7 @@ import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
   DOOR_PLANE_Z,
-  PATHS,
+  GATE_PATHS,
   nearDoorPlane,
   type SpawnPattern,
   type WindowSpot,
@@ -25,10 +25,12 @@ export interface TargetSpawnSpec {
   windowId?: string;
   windowSpot?: WindowSpot;
   /**
-   * Path direction: true = PATHS forward (off-screen → inside / enter),
+   * Path direction: true = lane forward (off-screen → inside / enter),
    * false = reversed (inside → off-screen / exit).
    */
   pathForward?: boolean;
+  /** Which gate lane: 0 = left L, 1 = mirrored right L. */
+  pathIndex?: number;
 }
 
 /**
@@ -165,7 +167,8 @@ export class Target {
       return;
     }
 
-    const pts = PATHS.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+    const lane = GATE_PATHS[spec.pathIndex ?? 0] ?? GATE_PATHS[0]!;
+    const pts = lane.map((p) => new THREE.Vector3(p.x, p.y, p.z));
     if (pts.length < 2) {
       const p = pts[0] ?? new THREE.Vector3();
       this.from.copy(p);

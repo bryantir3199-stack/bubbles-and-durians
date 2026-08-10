@@ -1,6 +1,7 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { CastleStage } from '../world/CastleStage';
 import { ModelCache } from '../world/ModelCache';
+import { preloadSfx } from '../audio/sfx';
 import { clearUI, panel } from '../ui/dom';
 
 export class BootScene implements GameScene {
@@ -27,7 +28,7 @@ export class BootScene implements GameScene {
     this.stage = new CastleStage(this.ctx.three.scene);
     bar.style.width = '35%';
 
-    await Promise.all([this.stage.load(), ModelCache.preload()]);
+    await Promise.all([this.stage.load(), ModelCache.preload(), preloadSfx()]);
     bar.style.width = '100%';
     this.ctx.markStageReady();
 

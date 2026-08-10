@@ -21,7 +21,7 @@ npm run preview  # preview production build
 | Input | Action |
 |-------|--------|
 | Mouse / touch | Aim & shoot (raycast) |
-| `R` or **RELOAD** button | Reload (7 ammo) |
+| `R`, `Space`, or **RELOAD** button | Reload (7 ammo) |
 
 ## Game rules
 

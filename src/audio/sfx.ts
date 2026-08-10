@@ -1,7 +1,9 @@
 /**
- * Lightweight cartoon SFX via Web Audio (no asset files).
+ * Lightweight cartoon SFX via Web Audio (synth + sample).
  */
 let ctx: AudioContext | null = null;
+let squishBuffer: AudioBuffer | null = null;
+let squishLoad: Promise<AudioBuffer | null> | null = null;
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -12,6 +14,33 @@ function getCtx(): AudioContext | null {
   }
   if (ctx.state === 'suspended') void ctx.resume();
   return ctx;
+}
+
+/** Decode squish sample early so first kill is snappy. */
+export async function preloadSfx(): Promise<void> {
+  await ensureSquishBuffer();
+}
+
+async function ensureSquishBuffer(): Promise<AudioBuffer | null> {
+  if (squishBuffer) return squishBuffer;
+  if (squishLoad) return squishLoad;
+
+  squishLoad = (async () => {
+    const ac = getCtx();
+    if (!ac) return null;
+    try {
+      const res = await fetch('assets/slime-squish.wav');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.arrayBuffer();
+      squishBuffer = await ac.decodeAudioData(data.slice(0));
+      return squishBuffer;
+    } catch (err) {
+      console.warn('Failed to load squish SFX', err);
+      return null;
+    }
+  })();
+
+  return squishLoad;
 }
 
 /** Short cartoony “pew” / pop for shooting. */
@@ -72,4 +101,31 @@ export function playDryFireSound(): void {
   gain.connect(ac.destination);
   osc.start(t0);
   osc.stop(t0 + 0.1);
+}
+
+/** Slime squish sample when a durian pops. */
+export function playSquishSound(): void {
+  const ac = getCtx();
+  if (!ac) return;
+
+  const play = (buffer: AudioBuffer) => {
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buffer;
+    // Slight pitch variety so rapid kills don’t sound identical
+    src.playbackRate.value = 0.92 + Math.random() * 0.16;
+    gain.gain.value = 0.85;
+    src.connect(gain);
+    gain.connect(ac.destination);
+    src.start(0);
+  };
+
+  if (squishBuffer) {
+    play(squishBuffer);
+    return;
+  }
+
+  void ensureSquishBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
 }

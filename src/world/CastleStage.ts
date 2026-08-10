@@ -6,6 +6,7 @@ import { FlagWaver } from './FlagWaver';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
+  sky: 'assets/sky-clouds.png',
 };
 
 let stageInstance: CastleStage | null = null;
@@ -15,7 +16,7 @@ export function getCastleStage(): CastleStage | null {
 }
 
 /**
- * Loads castle.glb, wires door pivots, daytime sky/clouds,
+ * Loads castle.glb, wires door pivots, sky image background,
  * shadow-casting sun, and JS wind on the baked banners.
  */
 export class CastleStage {
@@ -30,8 +31,10 @@ export class CastleStage {
   }
 
   async load(): Promise<void> {
-    const loader = new GLTFLoader();
-    const gltf = await loader.loadAsync(ASSET.glb);
+    const [gltf] = await Promise.all([
+      new GLTFLoader().loadAsync(ASSET.glb),
+      this.loadSkyBackground(),
+    ]);
     const castle = gltf.scene;
 
     castle.traverse((obj) => {
@@ -117,12 +120,16 @@ export class CastleStage {
     applyCastleMarkers({ spawns, paths, door });
   }
 
-  private buildEnvironment(): void {
-    // Day sky — between original deep blue and the high-exposure cyan.
-    this.scene.background = new THREE.Color(0x98d8f5);
-    this.scene.fog = new THREE.Fog(0xb9d9ef, 750, 1500);
+  private async loadSkyBackground(): Promise<void> {
+    const tex = await new THREE.TextureLoader().loadAsync(ASSET.sky);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.scene.background = tex;
+  }
 
-    this.addClouds();
+  private buildEnvironment(): void {
+    // Fallback until sky texture loads; Rhythm Heaven cyan.
+    this.scene.background = new THREE.Color(0x5abee6);
+    this.scene.fog = new THREE.Fog(0xa8d8f0, 900, 1600);
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(560, 32),
@@ -173,35 +180,6 @@ export class CastleStage {
     this.root.add(fill);
   }
 
-  private addClouds(): void {
-    const tex = makeCloudTexture();
-    const placements: Array<[number, number, number, number]> = [
-      [-280, 220, -180, 160],
-      [200, 250, -220, 190],
-      [-40, 280, -320, 220],
-      [320, 210, 40, 150],
-      [-360, 240, 120, 170],
-      [80, 300, 200, 200],
-      [-160, 260, 280, 140],
-      [260, 230, -80, 175],
-    ];
-
-    for (const [x, y, z, size] of placements) {
-      const mat = new THREE.SpriteMaterial({
-        map: tex,
-        transparent: true,
-        depthWrite: false,
-        fog: true,
-        opacity: 0.92,
-        color: 0xffffff,
-      });
-      const cloud = new THREE.Sprite(mat);
-      cloud.position.set(x, y, z);
-      cloud.scale.set(size * 1.8, size, 1);
-      this.root.add(cloud);
-    }
-  }
-
   update(dt: number): void {
     this.doors.update(dt);
     this.flags.update(dt);
@@ -228,40 +206,4 @@ function worldPos(obj: THREE.Object3D): Vec3 {
   const v = new THREE.Vector3();
   obj.getWorldPosition(v);
   return { x: v.x, y: v.y, z: v.z };
-}
-
-function makeCloudTexture(): THREE.CanvasTexture {
-  const w = 256;
-  const h = 128;
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const g = c.getContext('2d')!;
-  g.clearRect(0, 0, w, h);
-
-  const blobs: Array<[number, number, number]> = [
-    [0.32, 0.58, 0.28],
-    [0.48, 0.48, 0.34],
-    [0.62, 0.55, 0.3],
-    [0.4, 0.62, 0.22],
-    [0.55, 0.64, 0.2],
-    [0.7, 0.6, 0.18],
-  ];
-  for (const [ux, uy, ur] of blobs) {
-    const x = ux * w;
-    const y = uy * h;
-    const r = ur * h;
-    const grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-    grad.addColorStop(0.45, 'rgba(255,255,255,0.55)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-  }
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }

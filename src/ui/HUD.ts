@@ -32,7 +32,7 @@ export class HUD {
         </div>
         <button type="button" class="hud-reload-btn">RELOAD</button>
       </div>
-      <div class="hud-reload-hint" hidden>RELOAD! (R)</div>
+      <div class="hud-reload-hint" hidden>RELOAD! (R / Space)</div>
       <div class="crosshair" aria-hidden="true"></div>
     `;
     parent.appendChild(this.root);

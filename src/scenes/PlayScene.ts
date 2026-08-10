@@ -7,7 +7,7 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
-import { playDryFireSound, playShootSound } from '../audio/sfx';
+import { playDryFireSound, playShootSound, playSquishSound } from '../audio/sfx';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -73,7 +73,10 @@ export class PlayScene implements GameScene {
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'r' || e.key === 'R') this.onReload();
+      if (e.key === 'r' || e.key === 'R' || e.code === 'Space') {
+        if (e.code === 'Space') e.preventDefault();
+        this.onReload();
+      }
     };
 
     window.addEventListener('pointermove', onMove);
@@ -198,6 +201,7 @@ export class PlayScene implements GameScene {
     const { kind } = target;
 
     if (this.isDurianKind(kind)) {
+      playSquishSound();
       const base =
         kind === 'goldDurian' ? gameConfig.points.goldDurian : gameConfig.points.durian;
       const points = base * this.combo;
