@@ -6,6 +6,9 @@ export class HUD {
   private scoreEl: HTMLElement;
   private livesEl: HTMLElement;
   private ammoEl: HTMLElement;
+  private comboEl: HTMLElement;
+  private comboMultEl: HTMLElement;
+  private comboFillEl: HTMLElement;
   private timerEl: HTMLElement | null = null;
   private reloadHint: HTMLElement;
   private onReload: () => void;
@@ -20,6 +23,13 @@ export class HUD {
         <span class="hud-lives">${this.livesLabel(gameConfig.startLives)}</span>
         <span class="hud-ammo">Ammo: ${gameConfig.magazineSize}/${gameConfig.magazineSize}</span>
         ${mode === 'timed' ? `<span class="hud-timer">${this.formatTime(gameConfig.timedSeconds)}</span>` : ''}
+        <div class="hud-combo" aria-label="Combo meter">
+          <span class="hud-combo-label">Combo</span>
+          <div class="hud-combo-track">
+            <div class="hud-combo-fill" style="width: 0%"></div>
+          </div>
+          <span class="hud-combo-mult">x1</span>
+        </div>
         <button type="button" class="hud-reload-btn">RELOAD</button>
       </div>
       <div class="hud-reload-hint" hidden>RELOAD! (R)</div>
@@ -30,6 +40,9 @@ export class HUD {
     this.scoreEl = this.root.querySelector('.hud-score')!;
     this.livesEl = this.root.querySelector('.hud-lives')!;
     this.ammoEl = this.root.querySelector('.hud-ammo')!;
+    this.comboEl = this.root.querySelector('.hud-combo')!;
+    this.comboMultEl = this.root.querySelector('.hud-combo-mult')!;
+    this.comboFillEl = this.root.querySelector('.hud-combo-fill')!;
     this.timerEl = this.root.querySelector('.hud-timer');
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
 
@@ -52,6 +65,17 @@ export class HUD {
 
   setScore(score: number): void {
     this.scoreEl.textContent = `Score: ${score}`;
+  }
+
+  setCombo(multiplier: number): void {
+    const max = gameConfig.maxCombo;
+    const level = Math.max(1, Math.min(max, Math.floor(multiplier)));
+    this.comboMultEl.textContent = `x${level}`;
+    const fillPct = ((level - 1) / (max - 1)) * 100;
+    this.comboFillEl.style.width = `${fillPct}%`;
+    this.comboEl.classList.toggle('active', level > 1);
+    this.comboEl.classList.toggle('max', level >= max);
+    this.comboEl.dataset.level = String(level);
   }
 
   setLives(lives: number): void {

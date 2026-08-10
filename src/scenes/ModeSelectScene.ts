@@ -16,11 +16,11 @@ export class ModeSelectScene implements GameScene {
         <div class="mode-row">
           <button type="button" class="mode-card" data-mode="endless">
             <h2>ENDLESS</h2>
-            <p>3 lives<br/>Bubble hits &amp; escaped durians cost lives<br/>Targets in windows, doors, walls &amp; flybys<br/>Hearts restore HP</p>
+            <p>3 lives<br/>Bubble hits &amp; escaped durians cost lives<br/>Clear all durians for 2x–4x combo<br/>Hearts restore HP</p>
           </button>
           <button type="button" class="mode-card timed" data-mode="timed">
             <h2>TIMED</h2>
-            <p>3 minute clock<br/>Same ammo &amp; bubbles<br/>No escape penalty<br/>No heart pickups</p>
+            <p>3 minute clock<br/>Same ammo, bubbles &amp; combos<br/>No escape penalty<br/>No heart pickups</p>
           </button>
         </div>
         <button type="button" class="btn muted-btn" data-action="back">BACK</button>

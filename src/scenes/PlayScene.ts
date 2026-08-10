@@ -12,6 +12,7 @@ export class PlayScene implements GameScene {
   readonly id = 'play' as const;
   private mode: GameMode = 'endless';
   private score = 0;
+  private combo = 1;
   private lives: number = gameConfig.startLives;
   private timeLeft: number = gameConfig.timedSeconds;
   private ended = false;
@@ -30,6 +31,7 @@ export class PlayScene implements GameScene {
     clearUI(this.ctx.uiRoot);
     this.mode = data?.mode ?? 'endless';
     this.score = 0;
+    this.combo = 1;
     this.lives = gameConfig.startLives;
     this.timeLeft = gameConfig.timedSeconds;
     this.ended = false;
@@ -46,6 +48,7 @@ export class PlayScene implements GameScene {
     this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t));
     this.hud = new HUD(this.ctx.uiRoot, this.mode, () => this.onReload());
     this.hud.setScore(this.score);
+    this.hud.setCombo(this.combo);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
 
@@ -136,7 +139,11 @@ export class PlayScene implements GameScene {
     // Raycast proxies only (non-recursive)
     const hitObjs = this.spawner.targets.filter((t) => t.active).flatMap((t) => t.hitObjects);
     const hits = this.raycaster.intersectObjects(hitObjs, false);
-    if (hits.length === 0) return;
+    if (hits.length === 0) {
+      // Missed shot — break combo
+      this.resetCombo();
+      return;
+    }
 
     let target: Target | undefined;
     for (const hit of hits) {
@@ -146,24 +153,45 @@ export class PlayScene implements GameScene {
         break;
       }
     }
-    if (!target || !target.active) return;
+    if (!target || !target.active) {
+      this.resetCombo();
+      return;
+    }
 
     const destroyed = target.applyHit();
     if (!destroyed) return;
     this.resolveDestroyedTarget(target, clientX, clientY);
   }
 
+  private isDurianKind(kind: Target['kind']): boolean {
+    return kind === 'durian' || kind === 'goldDurian';
+  }
+
+  private countActiveDurians(): number {
+    if (!this.spawner) return 0;
+    return this.spawner.targets.filter((t) => t.active && this.isDurianKind(t.kind)).length;
+  }
+
   private resolveDestroyedTarget(target: Target, clientX: number, clientY: number): void {
     const { kind } = target;
 
-    if (kind === 'durian') {
-      this.addScore(gameConfig.points.durian, clientX, clientY, '#7CFF7C');
-    } else if (kind === 'goldDurian') {
-      this.addScore(gameConfig.points.goldDurian, clientX, clientY, '#FFD700');
+    if (this.isDurianKind(kind)) {
+      const base =
+        kind === 'goldDurian' ? gameConfig.points.goldDurian : gameConfig.points.durian;
+      const points = base * this.combo;
+      const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
+      this.addScore(points, clientX, clientY, color);
+
+      // Clearing every durian on screen advances the combo (up to 4x)
+      if (this.countActiveDurians() === 0) {
+        this.advanceCombo(clientX, clientY);
+      }
     } else if (kind === 'bubble') {
+      this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
       this.changeLives(-1);
     } else if (kind === 'heart') {
+      this.resetCombo();
       this.changeLives(1);
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
     }
@@ -173,11 +201,28 @@ export class PlayScene implements GameScene {
 
   private onTargetEscaped(target: Target): void {
     if (this.ended) return;
+    if (this.isDurianKind(target.kind)) {
+      // Missed a durian — break combo
+      this.resetCombo();
+    }
     if (this.mode !== 'endless' || !this.escapesArmed) return;
-    if (target.kind === 'durian' || target.kind === 'goldDurian') {
+    if (this.isDurianKind(target.kind)) {
       this.changeLives(-1);
       this.hud?.spawnFloater(window.innerWidth / 2, 120, 'ESCAPED!', '#ff4444');
     }
+  }
+
+  private advanceCombo(x: number, y: number): void {
+    if (this.combo >= gameConfig.maxCombo) return;
+    this.combo += 1;
+    this.hud?.setCombo(this.combo);
+    this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
+  }
+
+  private resetCombo(): void {
+    if (this.combo <= 1) return;
+    this.combo = 1;
+    this.hud?.setCombo(this.combo);
   }
 
   private addScore(delta: number, x: number, y: number, color: string): void {
