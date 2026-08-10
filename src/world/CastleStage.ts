@@ -9,7 +9,7 @@ const ASSET = {
 
 /**
  * Loads castle.glb (embedded textures + spawn empties), wires door pivots,
- * and sets up a cheap night backdrop.
+ * and sets up a daytime sky with soft clouds.
  *
  * Door swing stays procedural (DoorController, opens inward). Flags are baked
  * into the castle mesh. Window holds use sp* empties; movers use a continuous
@@ -114,35 +114,15 @@ export class CastleStage {
   }
 
   private buildEnvironment(): void {
-    this.scene.background = new THREE.Color(0x1e3a66);
-    this.scene.fog = new THREE.Fog(0x1e3a66, 620, 1200);
+    // Daytime sky + soft distance haze
+    this.scene.background = new THREE.Color(0x87ceeb);
+    this.scene.fog = new THREE.Fog(0xb9d9ef, 720, 1450);
 
-    const starCount = 120;
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const r = 520 + Math.random() * 180;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(0.02 + Math.random() * 0.72);
-      starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      starPos[i * 3 + 1] = Math.abs(r * Math.cos(phi));
-      starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-    }
-    this.root.add(
-      new THREE.Points(
-        new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(starPos, 3)),
-        new THREE.PointsMaterial({
-          color: 0xffffff,
-          size: 2.4,
-          sizeAttenuation: true,
-          depthWrite: false,
-          fog: false,
-        }),
-      ),
-    );
+    this.addClouds();
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(560, 24),
-      new THREE.MeshBasicMaterial({ color: 0x16122a }),
+      new THREE.MeshBasicMaterial({ color: 0x5f9b52 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
@@ -150,16 +130,46 @@ export class CastleStage {
 
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(70, 240, 32),
-      new THREE.MeshBasicMaterial({ color: 0x221c38, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color: 0x7eb86a, side: THREE.DoubleSide }),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
     this.root.add(ring);
 
-    this.root.add(new THREE.AmbientLight(0xb0c4de, 1.15));
-    const key = new THREE.DirectionalLight(0xffffff, 0.85);
-    key.position.set(-80, 220, 200);
-    this.root.add(key);
+    this.root.add(new THREE.AmbientLight(0xfff6e8, 1.35));
+    const sun = new THREE.DirectionalLight(0xfffaf0, 1.15);
+    sun.position.set(120, 280, 160);
+    this.root.add(sun);
+  }
+
+  /** Soft billboard clouds scattered across the daytime sky. */
+  private addClouds(): void {
+    const tex = makeCloudTexture();
+    const placements: Array<[number, number, number, number]> = [
+      [-280, 220, -180, 160],
+      [200, 250, -220, 190],
+      [-40, 280, -320, 220],
+      [320, 210, 40, 150],
+      [-360, 240, 120, 170],
+      [80, 300, 200, 200],
+      [-160, 260, 280, 140],
+      [260, 230, -80, 175],
+    ];
+
+    for (const [x, y, z, size] of placements) {
+      const mat = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+        fog: true,
+        opacity: 0.92,
+        color: 0xffffff,
+      });
+      const cloud = new THREE.Sprite(mat);
+      cloud.position.set(x, y, z);
+      cloud.scale.set(size * 1.8, size, 1);
+      this.root.add(cloud);
+    }
   }
 
   update(dt: number): void {
@@ -169,10 +179,13 @@ export class CastleStage {
   dispose(): void {
     this.scene.remove(this.root);
     this.root.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.geometry.dispose();
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
+        if (obj instanceof THREE.Mesh) obj.geometry.dispose();
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-        for (const m of mats) m.dispose();
+        for (const m of mats) {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
       }
     });
   }
@@ -182,4 +195,41 @@ function worldPos(obj: THREE.Object3D): Vec3 {
   const v = new THREE.Vector3();
   obj.getWorldPosition(v);
   return { x: v.x, y: v.y, z: v.z };
+}
+
+/** Procedural soft white cloud sprite (shared by all cloud billboards). */
+function makeCloudTexture(): THREE.CanvasTexture {
+  const w = 256;
+  const h = 128;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, w, h);
+
+  const blobs: Array<[number, number, number]> = [
+    [0.32, 0.58, 0.28],
+    [0.48, 0.48, 0.34],
+    [0.62, 0.55, 0.3],
+    [0.4, 0.62, 0.22],
+    [0.55, 0.64, 0.2],
+    [0.7, 0.6, 0.18],
+  ];
+  for (const [ux, uy, ur] of blobs) {
+    const x = ux * w;
+    const y = uy * h;
+    const r = ur * h;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

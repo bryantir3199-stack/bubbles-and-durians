@@ -229,12 +229,24 @@
       .hud-reload-btn:hover { background: var(--accent-hot); }
       .hud-reload-hint {
         position: absolute;
-        top: 90px;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
-        font-size: 32px;
+        transform: translate(-50%, -50%);
+        font-size: 48px; /* 50% larger than previous 32px */
+        font-weight: 700;
         color: #ff4444;
-        text-shadow: 0 0 4px #000, 2px 2px 0 #000;
+        text-shadow: 0 0 6px #000, 3px 3px 0 #000;
+        animation: reloadFlash 0.55s ease-in-out infinite;
+        z-index: 15;
+        pointer-events: none;
+      }
+      .hud-reload-hint[hidden] {
+        display: none !important;
+        animation: none;
+      }
+      @keyframes reloadFlash {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.2; }
       }
       body.playing { cursor: none; }
       .crosshair {
