@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { applyCastleMarkers, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
 
 const ASSET = {
@@ -7,7 +8,12 @@ const ASSET = {
 };
 
 /**
- * Loads castle2.glb (embedded textures), wires door pivots, and sets up a cheap night backdrop.
+ * Loads castle.glb (embedded textures + spawn/path empties), wires door pivots,
+ * and sets up a cheap night backdrop.
+ *
+ * Door swing stays procedural (DoorController) — the GLB has no animation clips.
+ * Flags are baked into the castle mesh (adjusted in castle3); there are no
+ * separate flag objects or clips to retarget.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
@@ -62,6 +68,32 @@ export class CastleStage {
     this.root.add(castle);
     this.doors.setup(castle);
     setDoorController(this.doors);
+    this.applyMarkers(castle);
+  }
+
+  /** Read sp* / path* empties (world space) into the spawn layout. */
+  private applyMarkers(castle: THREE.Object3D): void {
+    const spawns: WindowSpot[] = [];
+    for (let i = 1; i <= 16; i++) {
+      const obj = castle.getObjectByName(`sp${i}`);
+      if (!obj) break;
+      const p = worldPos(obj);
+      spawns.push({ id: `sp${i}`, ...p });
+    }
+
+    const paths: Vec3[] = [];
+    for (let i = 1; i <= 16; i++) {
+      const obj = castle.getObjectByName(`path${i}`);
+      if (!obj) break;
+      paths.push(worldPos(obj));
+    }
+
+    if (spawns.length === 0 && paths.length === 0) {
+      console.warn('CastleStage: no sp*/path* empties found; using fallback spawnLayout');
+      return;
+    }
+
+    applyCastleMarkers({ spawns, paths });
   }
 
   private buildEnvironment(): void {
@@ -127,4 +159,10 @@ export class CastleStage {
       }
     });
   }
+}
+
+function worldPos(obj: THREE.Object3D): Vec3 {
+  const v = new THREE.Vector3();
+  obj.getWorldPosition(v);
+  return { x: v.x, y: v.y, z: v.z };
 }

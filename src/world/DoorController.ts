@@ -4,7 +4,8 @@ const OPEN_ANGLE = Math.PI * 0.55;
 const OPEN_SPEED = 2.2;
 
 /**
- * Procedural swing for baked_door_l / baked_door_r (no bones in the GLB).
+ * Procedural swing for baked_door_l / baked_door_r.
+ * The castle GLB has no door animation clips — open/close is driven here.
  */
 export class DoorController {
   private openT = 0;
