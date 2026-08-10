@@ -15,18 +15,13 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Soft wind on the baked-in crown banners (part of `baked2`).
- * UV-island AND front/flank exclusions — same one-mesh approach as the earlier
- * castle, without a broad spatial OR that dragged the gate arch stone.
+ * Same approach as the earlier castle: spatial strips on the door-flanking
+ * front-wall banners (one mesh with the castle, close to the walls).
  *
- * Note: three r185 does not `#define USE_UV` for mapped standard materials
- * (it uses USE_MAP + MAP_UV). The `uv` attribute is still always present, so
- * do not gate this block on USE_UV or the wind compiles out entirely.
- *
- * Shadow-map depth passes also call `onBeforeCompile`; share one uWindTime
- * uniform object so updates reach the color program, not only the last compile.
+ * Share one uWindTime uniform across color/shadow onBeforeCompile passes.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV10';
+  material.customProgramCacheKey = () => 'bakedFlagWindV11';
   const windTime = { value: 0 };
   material.userData.uWindTime = windTime;
 
@@ -44,31 +39,31 @@ uniform float uWindTime;
         '#include <begin_vertex>',
         /* glsl */ `#include <begin_vertex>
 {
-  // Crown-banner atlas islands (glTF flipY=false), including the free bottom edge.
+  float ax = abs(position.x);
+  // Door-flanking crown banners on the front wall of baked2 (local meters).
+  // Verified verts: |x| 0.575–0.812, y 0.276–0.904, z 1.247.
+  float spatial =
+    smoothstep(0.54, 0.58, ax) * (1.0 - smoothstep(0.82, 0.86, ax)) *
+    smoothstep(0.26, 0.32, position.y) * (1.0 - smoothstep(0.92, 0.98, position.y)) *
+    step(1.22, position.z);
+  // Crown UV island AND — keeps gate-arch stone still even if spatial bleeds.
   float bu = uv.x;
   float bv = uv.y;
   float island =
     step(0.0, bu) * step(bu, 0.070) *
     step(0.068, bv) * step(bv, 0.165);
-  // AND-only position gates so UV reuse elsewhere (and the arch) stay still.
-  float onFront = step(1.15, position.z);
-  float awayFromGate = step(0.55, abs(position.x));
-  float flagMask = island * onFront * awayFromGate;
-  if (flagMask > 0.5) {
-    // Free edge hangs down (low Y / low V); top stays pinned.
-    float hang = max(
-      clamp((0.92 - position.y) / 0.55, 0.0, 1.0),
-      clamp((0.152 - bv) / 0.072, 0.0, 1.0)
-    );
-    hang *= flagMask;
-    float phase = position.x * 10.0 + position.y * 7.0 + bu * 40.0;
+  float flagMask = spatial * island;
+  if (flagMask > 0.05) {
+    // DEBUG: permanent push toward camera so we can see if mask hits.
+    transformed.z += 0.45;
+    float hang = clamp((0.92 - position.y) / 0.60, 0.0, 1.0) * flagMask;
+    float phase = position.x * 10.0 + position.y * 7.0;
     float flutter = sin(uWindTime * 3.2 + phase) * 0.8
       + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
     float amp = hang * hang;
-    // Large Z flap toward the play camera so coplanar wall banners read clearly.
-    transformed.z += flutter * amp * 0.22;
-    transformed.x += flutter * amp * 0.10 * sign(position.x + 0.0001);
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.04;
+    transformed.z += flutter * amp * 0.25;
+    transformed.x += flutter * amp * 0.12 * sign(position.x + 0.0001);
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.05;
   }
 }
 `,
