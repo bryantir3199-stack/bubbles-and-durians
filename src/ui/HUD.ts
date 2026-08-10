@@ -67,13 +67,16 @@ export class HUD {
     this.scoreEl.textContent = `Score: ${score}`;
   }
 
-  setCombo(multiplier: number): void {
+  setCombo(multiplier: number, progressShots = 0): void {
     const max = gameConfig.maxCombo;
+    const perLevel = gameConfig.shotsPerComboLevel;
     const level = Math.max(1, Math.min(max, Math.floor(multiplier)));
+    const progress = Math.max(0, Math.min(perLevel, Math.floor(progressShots)));
     this.comboMultEl.textContent = `x${level}`;
-    const fillPct = ((level - 1) / (max - 1)) * 100;
+    // Fill shows progress toward the next combo level (full when maxed)
+    const fillPct = level >= max ? 100 : (progress / perLevel) * 100;
     this.comboFillEl.style.width = `${fillPct}%`;
-    this.comboEl.classList.toggle('active', level > 1);
+    this.comboEl.classList.toggle('active', level > 1 || progress > 0);
     this.comboEl.classList.toggle('max', level >= max);
     this.comboEl.dataset.level = String(level);
   }

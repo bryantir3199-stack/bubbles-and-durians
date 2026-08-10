@@ -20,6 +20,8 @@ export const gameConfig = {
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x). */
   maxCombo: 4,
+  /** Successful durian hits needed to raise combo by one level. */
+  shotsPerComboLevel: 4,
   hitsRequired: {
     durian: 1,
     goldDurian: 4,

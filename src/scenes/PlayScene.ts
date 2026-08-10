@@ -13,6 +13,7 @@ export class PlayScene implements GameScene {
   private mode: GameMode = 'endless';
   private score = 0;
   private combo = 1;
+  private comboShots = 0;
   private lives: number = gameConfig.startLives;
   private timeLeft: number = gameConfig.timedSeconds;
   private ended = false;
@@ -32,6 +33,7 @@ export class PlayScene implements GameScene {
     this.mode = data?.mode ?? 'endless';
     this.score = 0;
     this.combo = 1;
+    this.comboShots = 0;
     this.lives = gameConfig.startLives;
     this.timeLeft = gameConfig.timedSeconds;
     this.ended = false;
@@ -48,7 +50,7 @@ export class PlayScene implements GameScene {
     this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t));
     this.hud = new HUD(this.ctx.uiRoot, this.mode, () => this.onReload());
     this.hud.setScore(this.score);
-    this.hud.setCombo(this.combo);
+    this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
 
@@ -159,17 +161,16 @@ export class PlayScene implements GameScene {
     }
 
     const destroyed = target.applyHit();
+    if (this.isDurianKind(target.kind)) {
+      // Every successful durian hit fills the combo meter
+      this.registerComboShot(clientX, clientY);
+    }
     if (!destroyed) return;
     this.resolveDestroyedTarget(target, clientX, clientY);
   }
 
   private isDurianKind(kind: Target['kind']): boolean {
     return kind === 'durian' || kind === 'goldDurian';
-  }
-
-  private countActiveDurians(): number {
-    if (!this.spawner) return 0;
-    return this.spawner.targets.filter((t) => t.active && this.isDurianKind(t.kind)).length;
   }
 
   private resolveDestroyedTarget(target: Target, clientX: number, clientY: number): void {
@@ -181,11 +182,6 @@ export class PlayScene implements GameScene {
       const points = base * this.combo;
       const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
       this.addScore(points, clientX, clientY, color);
-
-      // Clearing every durian on screen advances the combo (up to 4x)
-      if (this.countActiveDurians() === 0) {
-        this.advanceCombo(clientX, clientY);
-      }
     } else if (kind === 'bubble') {
       this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
@@ -212,17 +208,30 @@ export class PlayScene implements GameScene {
     }
   }
 
-  private advanceCombo(x: number, y: number): void {
-    if (this.combo >= gameConfig.maxCombo) return;
-    this.combo += 1;
-    this.hud?.setCombo(this.combo);
-    this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
+  private registerComboShot(x: number, y: number): void {
+    if (this.combo >= gameConfig.maxCombo) {
+      this.comboShots = gameConfig.shotsPerComboLevel;
+      this.hud?.setCombo(this.combo, this.comboShots);
+      return;
+    }
+
+    this.comboShots += 1;
+    if (this.comboShots >= gameConfig.shotsPerComboLevel) {
+      this.comboShots = 0;
+      this.combo += 1;
+      this.hud?.setCombo(this.combo, this.comboShots);
+      this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
+      return;
+    }
+
+    this.hud?.setCombo(this.combo, this.comboShots);
   }
 
   private resetCombo(): void {
-    if (this.combo <= 1) return;
+    if (this.combo <= 1 && this.comboShots === 0) return;
     this.combo = 1;
-    this.hud?.setCombo(this.combo);
+    this.comboShots = 0;
+    this.hud?.setCombo(this.combo, this.comboShots);
   }
 
   private addScore(delta: number, x: number, y: number, color: string): void {
