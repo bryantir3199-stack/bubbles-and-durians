@@ -1,9 +1,11 @@
 /**
- * Lightweight cartoon SFX via Web Audio (synth + sample).
+ * Lightweight cartoon SFX via Web Audio (samples + synth fallback).
  */
 let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
+let shootBuffers: AudioBuffer[] = [];
+let shootLoad: Promise<AudioBuffer[]> | null = null;
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -16,9 +18,23 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
-/** Decode squish sample early so first kill is snappy. */
+async function loadBuffer(url: string): Promise<AudioBuffer | null> {
+  const ac = getCtx();
+  if (!ac) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.arrayBuffer();
+    return await ac.decodeAudioData(data.slice(0));
+  } catch (err) {
+    console.warn(`Failed to load SFX ${url}`, err);
+    return null;
+  }
+}
+
+/** Decode samples early so first shot / kill is snappy. */
 export async function preloadSfx(): Promise<void> {
-  await ensureSquishBuffer();
+  await Promise.all([ensureSquishBuffer(), ensureShootBuffers()]);
 }
 
 async function ensureSquishBuffer(): Promise<AudioBuffer | null> {
@@ -26,63 +42,57 @@ async function ensureSquishBuffer(): Promise<AudioBuffer | null> {
   if (squishLoad) return squishLoad;
 
   squishLoad = (async () => {
-    const ac = getCtx();
-    if (!ac) return null;
-    try {
-      const res = await fetch('assets/slime-squish.wav');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.arrayBuffer();
-      squishBuffer = await ac.decodeAudioData(data.slice(0));
-      return squishBuffer;
-    } catch (err) {
-      console.warn('Failed to load squish SFX', err);
-      return null;
-    }
+    squishBuffer = await loadBuffer('assets/slime-squish.wav');
+    return squishBuffer;
   })();
 
   return squishLoad;
 }
 
-/** Short cartoony “pew” / pop for shooting. */
-export function playShootSound(): void {
+async function ensureShootBuffers(): Promise<AudioBuffer[]> {
+  if (shootBuffers.length > 0) return shootBuffers;
+  if (shootLoad) return shootLoad;
+
+  shootLoad = (async () => {
+    const loaded = await Promise.all([
+      loadBuffer('assets/munch1.wav'),
+      loadBuffer('assets/munch2.wav'),
+    ]);
+    shootBuffers = loaded.filter((b): b is AudioBuffer => b != null);
+    return shootBuffers;
+  })();
+
+  return shootLoad;
+}
+
+function playBuffer(buffer: AudioBuffer, gainValue = 0.85, rateJitter = 0.16): void {
   const ac = getCtx();
   if (!ac) return;
-  const t0 = ac.currentTime;
-
-  // Descending square “pew”
-  const osc = ac.createOscillator();
+  const src = ac.createBufferSource();
   const gain = ac.createGain();
-  osc.type = 'square';
-  osc.frequency.setValueAtTime(880, t0);
-  osc.frequency.exponentialRampToValueAtTime(180, t0 + 0.12);
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
-  osc.connect(gain);
+  src.buffer = buffer;
+  // Slight pitch variety so rapid plays don’t sound identical
+  src.playbackRate.value = 1 - rateJitter / 2 + Math.random() * rateJitter;
+  gain.gain.value = gainValue;
+  src.connect(gain);
   gain.connect(ac.destination);
-  osc.start(t0);
-  osc.stop(t0 + 0.15);
+  src.start(0);
+}
 
-  // Soft noise click for cartoon punch
-  const nLen = Math.floor(ac.sampleRate * 0.04);
-  const buffer = ac.createBuffer(1, nLen, ac.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < nLen; i++) {
-    data[i] = (Math.random() * 2 - 1) * (1 - i / nLen);
+/** Munch sample for shooting — randomly picks between the two clips. */
+export function playShootSound(): void {
+  const playRandom = (buffers: AudioBuffer[]) => {
+    if (buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)]!;
+    playBuffer(buffer, 0.9, 0.12);
+  };
+
+  if (shootBuffers.length > 0) {
+    playRandom(shootBuffers);
+    return;
   }
-  const noise = ac.createBufferSource();
-  const nGain = ac.createGain();
-  const filter = ac.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 1200;
-  filter.Q.value = 0.8;
-  noise.buffer = buffer;
-  nGain.gain.setValueAtTime(0.18, t0);
-  nGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
-  noise.connect(filter);
-  filter.connect(nGain);
-  nGain.connect(ac.destination);
-  noise.start(t0);
+
+  void ensureShootBuffers().then(playRandom);
 }
 
 /** Dry-fire click when empty. */
@@ -105,27 +115,12 @@ export function playDryFireSound(): void {
 
 /** Slime squish sample when a durian pops. */
 export function playSquishSound(): void {
-  const ac = getCtx();
-  if (!ac) return;
-
-  const play = (buffer: AudioBuffer) => {
-    const src = ac.createBufferSource();
-    const gain = ac.createGain();
-    src.buffer = buffer;
-    // Slight pitch variety so rapid kills don’t sound identical
-    src.playbackRate.value = 0.92 + Math.random() * 0.16;
-    gain.gain.value = 0.85;
-    src.connect(gain);
-    gain.connect(ac.destination);
-    src.start(0);
-  };
-
   if (squishBuffer) {
-    play(squishBuffer);
+    playBuffer(squishBuffer);
     return;
   }
 
   void ensureSquishBuffer().then((buf) => {
-    if (buf) play(buf);
+    if (buf) playBuffer(buf);
   });
 }
