@@ -18,7 +18,7 @@ export function getCastleStage(): CastleStage | null {
  * Masked by atlas UVs (glTF flipY=false) and a front-wall spatial fallback.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV3';
+  material.customProgramCacheKey = () => 'bakedFlagWindV4';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -28,67 +28,37 @@ function applyBakedFlagWind(material: THREE.Material): void {
         '#include <common>',
         /* glsl */ `#include <common>
 uniform float uWindTime;
-varying float vBannerWind;
 `,
       )
       .replace(
         '#include <begin_vertex>',
         /* glsl */ `#include <begin_vertex>
-vBannerWind = 0.0;
 {
-  // Crown banners: UV islands near the top-left of castle_texture (glTF V).
+  float ax = abs(position.x);
+  // Door-flanking crown banners on the front wall of baked2.
+  float spatial =
+    smoothstep(0.55, 0.62, ax) * (1.0 - smoothstep(0.80, 0.88, ax)) *
+    smoothstep(0.32, 0.40, position.y) * (1.0 - smoothstep(0.95, 1.05, position.y)) *
+    smoothstep(1.18, 1.24, position.z);
+  float flagMask = spatial;
+#if defined( USE_UV )
   float bu = uv.x;
   float bv = uv.y;
   float island =
-    step(0.0, bu) * step(bu, 0.068) *
-    step(0.070, bv) * step(bv, 0.160);
-  // Front wall spatial strip (door-flanking banners on baked2).
-  float ax = abs(position.x);
-  float spatial =
-    smoothstep(0.52, 0.60, ax) * (1.0 - smoothstep(0.82, 0.90, ax)) *
-    smoothstep(0.34, 0.42, position.y) * (1.0 - smoothstep(0.92, 1.02, position.y)) *
-    smoothstep(1.15, 1.22, position.z);
-  float flagMask = max(island, spatial);
-  if (flagMask > 0.15) {
-    // Free edge is toward higher V / lower Y.
-    float hang = max(
-      clamp((bv - 0.078) / 0.075, 0.0, 1.0),
-      clamp((0.88 - position.y) / 0.50, 0.0, 1.0)
-    );
-    hang *= flagMask;
-    float phase = bu * 70.0 + bv * 45.0 + position.x * 8.0;
-    float flutter = sin(uWindTime * 3.0 + phase) * 0.65
-      + sin(uWindTime * 4.8 + phase * 1.7) * 0.32;
-    transformed.z += flutter * hang * hang * 0.07;
-    transformed.x += sin(uWindTime * 2.2 + phase * 0.55) * hang * 0.02;
-    vBannerWind = hang;
+    step(0.0, bu) * step(bu, 0.070) *
+    step(0.068, bv) * step(bv, 0.165);
+  flagMask = max(flagMask, island);
+#endif
+  if (flagMask > 0.2) {
+    float hang = clamp((0.92 - position.y) / 0.55, 0.0, 1.0) * flagMask;
+    float phase = position.x * 10.0 + position.y * 7.0;
+    float flutter = sin(uWindTime * 3.2 + phase) * 0.8
+      + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
+    // Local meters → ×100 world scale; ~0.1 ≈ noticeable flap.
+    transformed.z += flutter * hang * hang * 0.1;
+    transformed.x += sin(uWindTime * 2.4 + phase * 0.5) * hang * 0.03;
   }
 }
-`,
-      );
-
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        '#include <common>',
-        /* glsl */ `#include <common>
-uniform float uWindTime;
-varying float vBannerWind;
-`,
-      )
-      .replace(
-        '#include <map_fragment>',
-        /* glsl */ `
-#ifdef USE_MAP
-  vec2 bannerUv = vMapUv;
-  if (vBannerWind > 0.01) {
-    float w = sin(uWindTime * 3.5 + vMapUv.y * 30.0) * 0.005 * vBannerWind
-      + sin(uWindTime * 5.4 + vMapUv.x * 55.0) * 0.0035 * vBannerWind;
-    bannerUv.x += w;
-    bannerUv.y += w * 0.4;
-  }
-  vec4 sampledDiffuseColor = texture2D( map, bannerUv );
-  diffuseColor *= sampledDiffuseColor;
-#endif
 `,
       );
   };
