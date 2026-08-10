@@ -33,13 +33,13 @@ export class Spawner {
     this.running = true;
     this.elapsed = 0;
     // Match the slower cadence (was 700ms / 450ms stagger).
-    this.nextAt = 2800;
+    this.nextAt = 2150;
     this.occupiedWindows.clear();
     this.pathBusy = false;
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
-      }, i * 1800);
+      }, i * 1380);
     }
   }
 

@@ -43,10 +43,10 @@ export let WINDOWS: WindowSpot[] = [
  * Reverse the array for exits.
  */
 export let PATHS: Vec3[] = [
-  { x: -450, y: 42, z: 105 },
-  { x: 0, y: 42, z: 105 },
-  { x: 0, y: 42, z: 60 },
-  { x: 0, y: 42, z: 28 },
+  { x: -450, y: 21, z: 240 },
+  { x: 0, y: 21, z: 240 },
+  { x: 0, y: 21, z: 60 },
+  { x: 0, y: 21, z: 28 },
 ];
 
 /** Door plane Z — open doors while a mover crosses this. */
@@ -90,10 +90,10 @@ function buildGatePath(door: DoorBounds | undefined): Vec3[] {
   const doorZ = door ? (door.minZ + door.maxZ) * 0.5 : 60;
   const doorH = door ? Math.max(8, door.maxY - door.minY) : 86;
   const doorBase = door ? door.minY : 0;
-  const travelY = doorBase + doorH * 0.45;
+  const travelY = (doorBase + doorH * 0.45) * 0.5;
 
-  // Right-angle corner sits just in front of the gate on the center line.
-  const cornerZ = doorZ + 45;
+  // Right-angle corner on the center line, extended toward the camera.
+  const cornerZ = doorZ + 180;
   const insideZ = doorZ - 32;
   const startX = -450; // off-screen left
 

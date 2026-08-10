@@ -8,9 +8,9 @@ export const gameConfig = {
   timedSeconds: 180,
   /** Hard cap — never more than this many live targets */
   maxTargets: 6,
-  /** 75% slower than the original ~950ms cadence (rate ≈ 25%). */
-  spawnIntervalMs: 3800,
-  minSpawnIntervalMs: 2200,
+  /** Prior cadence was 3800/2200; +30% spawn rate → intervals / 1.3. */
+  spawnIntervalMs: 2920,
+  minSpawnIntervalMs: 1690,
   targetSize: 22,
   heartSize: 16,
   goldSize: 24,
