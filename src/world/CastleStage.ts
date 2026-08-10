@@ -26,7 +26,7 @@ export function getCastleStage(): CastleStage | null {
  * uniform object so updates reach the color program, not only the last compile.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV9';
+  material.customProgramCacheKey = () => 'bakedFlagWindV10';
   const windTime = { value: 0 };
   material.userData.uWindTime = windTime;
 
@@ -55,7 +55,7 @@ uniform float uWindTime;
   float awayFromGate = step(0.55, abs(position.x));
   float flagMask = island * onFront * awayFromGate;
   if (flagMask > 0.5) {
-    // Free edge hangs down (low Y / low V); top stays pinned — same as prior castle.
+    // Free edge hangs down (low Y / low V); top stays pinned.
     float hang = max(
       clamp((0.92 - position.y) / 0.55, 0.0, 1.0),
       clamp((0.152 - bv) / 0.072, 0.0, 1.0)
@@ -65,10 +65,10 @@ uniform float uWindTime;
     float flutter = sin(uWindTime * 3.2 + phase) * 0.8
       + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
     float amp = hang * hang;
-    // Z toward camera reads clearly on coplanar wall banners; X adds lateral skew.
-    transformed.z += flutter * amp * 0.12;
-    transformed.x += flutter * amp * 0.07 * sign(position.x + 0.0001);
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.025;
+    // Large Z flap toward the play camera so coplanar wall banners read clearly.
+    transformed.z += flutter * amp * 0.22;
+    transformed.x += flutter * amp * 0.10 * sign(position.x + 0.0001);
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.04;
   }
 }
 `,
