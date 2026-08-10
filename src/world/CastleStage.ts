@@ -17,9 +17,13 @@ export function getCastleStage(): CastleStage | null {
  * Soft wind on the baked-in crown banners (part of `baked2`).
  * UV-island AND front/flank exclusions — same one-mesh approach as the earlier
  * castle, without a broad spatial OR that dragged the gate arch stone.
+ *
+ * Note: three r185 does not `#define USE_UV` for mapped standard materials
+ * (it uses USE_MAP + MAP_UV). The `uv` attribute is still always present, so
+ * do not gate this block on USE_UV or the wind compiles out entirely.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV7';
+  material.customProgramCacheKey = () => 'bakedFlagWindV8';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -34,7 +38,6 @@ uniform float uWindTime;
       .replace(
         '#include <begin_vertex>',
         /* glsl */ `#include <begin_vertex>
-#if defined( USE_UV )
 {
   // Crown-banner atlas islands (glTF flipY=false), including the free bottom edge.
   float bu = uv.x;
@@ -63,7 +66,6 @@ uniform float uWindTime;
     transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.02;
   }
 }
-#endif
 `,
       );
   };
