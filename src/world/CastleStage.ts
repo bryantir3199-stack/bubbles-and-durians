@@ -69,19 +69,23 @@ export class CastleStage {
     castle.updateMatrixWorld(true);
 
     this.root.add(castle);
+    // Read empties before door pivots reparent meshes (same world xforms either way,
+    // but keeps marker sampling tied to the authored hierarchy).
+    castle.updateMatrixWorld(true);
+    this.applyMarkers(castle);
     this.doors.setup(castle);
     setDoorController(this.doors);
-    this.applyMarkers(castle);
   }
 
   /** Read sp* / path* empties (world space) into the spawn layout. */
   private applyMarkers(castle: THREE.Object3D): void {
+    castle.updateMatrixWorld(true);
+
     const spawns: WindowSpot[] = [];
     for (let i = 1; i <= 16; i++) {
       const obj = castle.getObjectByName(`sp${i}`);
       if (!obj) break;
-      const p = worldPos(obj);
-      spawns.push({ id: `sp${i}`, ...p });
+      spawns.push({ id: `sp${i}`, ...worldPos(obj) });
     }
 
     const paths: Vec3[] = [];
