@@ -15,10 +15,10 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Soft wind on the baked-in crown banners (part of `baked2`).
- * Masked by atlas UVs (glTF flipY=false) and a front-wall spatial fallback.
+ * UV-island only — avoids dragging nearby arch / wall verts via a broad spatial mask.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV5';
+  material.customProgramCacheKey = () => 'bakedFlagWindV6';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -33,34 +33,30 @@ uniform float uWindTime;
       .replace(
         '#include <begin_vertex>',
         /* glsl */ `#include <begin_vertex>
-{
-  float ax = abs(position.x);
-  // Door-flanking crown banners on the front wall of baked2.
-  float spatial =
-    smoothstep(0.55, 0.62, ax) * (1.0 - smoothstep(0.80, 0.88, ax)) *
-    smoothstep(0.32, 0.40, position.y) * (1.0 - smoothstep(0.95, 1.05, position.y)) *
-    smoothstep(1.18, 1.24, position.z);
-  float flagMask = spatial;
 #if defined( USE_UV )
+{
+  // Exact crown-banner atlas islands (glTF flipY=false). Two columns each side of the door.
   float bu = uv.x;
   float bv = uv.y;
-  float island =
-    step(0.0, bu) * step(bu, 0.070) *
-    step(0.068, bv) * step(bv, 0.165);
-  flagMask = max(flagMask, island);
-#endif
-  if (flagMask > 0.2) {
-    float hang = clamp((0.92 - position.y) / 0.55, 0.0, 1.0) * flagMask;
-    float phase = position.x * 10.0 + position.y * 7.0;
-    float flutter = sin(uWindTime * 3.2 + phase) * 0.8
-      + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
-    // From the play camera (+Z), lateral X flap reads clearly; Z is mostly foreshortening.
-    float amp = hang * hang;
-    transformed.x += flutter * amp * 0.09 * sign(position.x + 0.0001);
-    transformed.z += flutter * amp * 0.04;
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.02;
+  float rightIsle = step(0.0, bu) * step(bu, 0.032) * step(0.075, bv) * step(bv, 0.158);
+  float leftIsle = step(0.033, bu) * step(bu, 0.068) * step(0.075, bv) * step(bv, 0.158);
+  float island = max(leftIsle, rightIsle);
+  // Keep wind on the front facade banners only (not unrelated UV reuse).
+  float onFront = step(1.15, position.z);
+  float awayFromGate = step(0.55, abs(position.x));
+  float flagMask = island * onFront * awayFromGate;
+  if (flagMask > 0.5) {
+    float hang = clamp((bv - 0.078) / 0.072, 0.0, 1.0);
+    float phase = bu * 70.0 + bv * 40.0;
+    float flutter = sin(uWindTime * 3.2 + phase) * 0.75
+      + sin(uWindTime * 5.1 + phase * 1.6) * 0.35;
+    float amp = hang * hang * flagMask;
+    transformed.x += flutter * amp * 0.08 * sign(position.x + 0.0001);
+    transformed.z += flutter * amp * 0.035;
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.018;
   }
 }
+#endif
 `,
       );
   };
@@ -102,8 +98,8 @@ export class CastleStage {
         mat.metalness = 0;
         mat.roughness = 1;
         mat.envMapIntensity = 0;
-        // Lift baked albedo so daylight reads brighter under ACES exposure.
-        mat.color.multiplyScalar(1.1);
+        // Mild albedo lift under ACES (midway vs the brighter pass).
+        mat.color.multiplyScalar(1.05);
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace;
           mat.map.anisotropy = 1;
@@ -175,15 +171,15 @@ export class CastleStage {
   }
 
   private buildEnvironment(): void {
-    // Bright day sky (slightly cooler cyan so exposure reads clearly).
-    this.scene.background = new THREE.Color(0xa8e4ff);
-    this.scene.fog = new THREE.Fog(0xc5e6f8, 780, 1550);
+    // Day sky — between original deep blue and the high-exposure cyan.
+    this.scene.background = new THREE.Color(0x98d8f5);
+    this.scene.fog = new THREE.Fog(0xb9d9ef, 750, 1500);
 
     this.addClouds();
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(560, 32),
-      new THREE.MeshStandardMaterial({ color: 0x6aab58, metalness: 0, roughness: 0.95 }),
+      new THREE.MeshStandardMaterial({ color: 0x649e54, metalness: 0, roughness: 0.95 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
@@ -193,7 +189,7 @@ export class CastleStage {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(70, 240, 32),
       new THREE.MeshStandardMaterial({
-        color: 0x8bc875,
+        color: 0x7eb86a,
         metalness: 0,
         roughness: 0.95,
         side: THREE.DoubleSide,
@@ -204,10 +200,10 @@ export class CastleStage {
     ring.receiveShadow = true;
     this.root.add(ring);
 
-    this.root.add(new THREE.AmbientLight(0xfff8ee, 0.85));
-    this.root.add(new THREE.HemisphereLight(0xc4e6ff, 0x7aab5a, 0.7));
+    this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
+    this.root.add(new THREE.HemisphereLight(0xb8dfff, 0x6a9a50, 0.55));
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, 2.15);
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
     sun.position.set(160, 320, 180);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -225,7 +221,7 @@ export class CastleStage {
     this.root.add(sun.target);
     sun.target.position.set(0, 40, 40);
 
-    const fill = new THREE.DirectionalLight(0xd8ecff, 0.45);
+    const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
     fill.position.set(-200, 160, 100);
     this.root.add(fill);
   }
