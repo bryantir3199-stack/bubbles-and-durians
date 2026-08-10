@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
-import { WavingFlag, makeFlagTexture } from './WavingFlag';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -15,13 +14,57 @@ export function getCastleStage(): CastleStage | null {
 }
 
 /**
- * Loads castle.glb, wires door pivots + waving flags, daytime sky/clouds,
- * and shadow-casting sun light.
+ * Soft wind on the baked-in banners (painted into `baked2` mesh).
+ * Vertex positions are castle-local (pre-scale meters).
+ */
+function applyBakedFlagWind(material: THREE.Material): void {
+  material.customProgramCacheKey = () => 'bakedFlagWind';
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uWindTime = { value: 0 };
+    material.userData.windShader = shader;
+
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        /* glsl */ `#include <common>
+uniform float uWindTime;
+`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        /* glsl */ `#include <begin_vertex>
+// Four front-wall banners: vertical strips flanking the door on baked2.
+{
+  float ax = abs(position.x);
+  float inner = smoothstep(0.28, 0.34, ax) * (1.0 - smoothstep(0.50, 0.56, ax));
+  float outer = smoothstep(0.58, 0.64, ax) * (1.0 - smoothstep(0.82, 0.90, ax));
+  float bannerX = max(inner, outer);
+  float bannerY = smoothstep(0.52, 0.62, position.y) * (1.0 - smoothstep(1.28, 1.38, position.y));
+  float bannerZ = smoothstep(1.14, 1.22, position.z);
+  float flagMask = bannerX * bannerY * bannerZ;
+  if (flagMask > 0.01) {
+    float hang = clamp((1.28 - position.y) / 0.7, 0.0, 1.0);
+    float phase = position.x * 11.0 + position.y * 6.0;
+    float flutter = sin(uWindTime * 2.8 + phase) * 0.6
+      + sin(uWindTime * 4.4 + phase * 1.7) * 0.32;
+    transformed.z += flutter * hang * hang * flagMask * 0.045;
+    transformed.x += sin(uWindTime * 2.1 + phase * 0.55) * hang * flagMask * 0.012;
+  }
+}
+`,
+      );
+  };
+  material.needsUpdate = true;
+}
+
+/**
+ * Loads castle.glb, wires door pivots, daytime sky/clouds,
+ * shadow-casting sun, and wind on the baked banners.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
   readonly doors = new DoorController();
-  private flags: WavingFlag[] = [];
+  private windMaterials: THREE.Material[] = [];
   private elapsed = 0;
 
   constructor(private scene: THREE.Scene) {
@@ -49,6 +92,8 @@ export class CastleStage {
         mat.metalness = 0;
         mat.roughness = 1;
         mat.envMapIntensity = 0;
+        // Lift baked albedo so daylight reads brighter under ACES exposure.
+        mat.color.multiplyScalar(1.1);
         if (mat.map) {
           mat.map.colorSpace = THREE.SRGBColorSpace;
           mat.map.anisotropy = 1;
@@ -56,6 +101,10 @@ export class CastleStage {
           mat.map.minFilter = THREE.LinearMipmapLinearFilter;
           mat.map.magFilter = THREE.LinearFilter;
           mat.map.needsUpdate = true;
+        }
+        if (obj.name === 'baked2') {
+          applyBakedFlagWind(mat);
+          this.windMaterials.push(mat);
         }
         mat.needsUpdate = true;
       }
@@ -76,7 +125,6 @@ export class CastleStage {
     this.applyMarkers(castle);
     this.doors.setup(castle);
     setDoorController(this.doors);
-    this.placeFlags(castle);
   }
 
   private applyMarkers(castle: THREE.Object3D): void {
@@ -116,49 +164,16 @@ export class CastleStage {
     applyCastleMarkers({ spawns, paths, door });
   }
 
-  /** Cover baked banners with cloth flags that wave in the wind. */
-  private placeFlags(castle: THREE.Object3D): void {
-    castle.updateMatrixWorld(true);
-    const doorL = castle.getObjectByName('baked_door_l');
-    const doorR = castle.getObjectByName('baked_door_r');
-    const doorBox = new THREE.Box3();
-    if (doorL) doorBox.expandByObject(doorL);
-    if (doorR) doorBox.expandByObject(doorR);
-
-    const frontZ = (doorBox.isEmpty() ? 70 : doorBox.max.z) + 3;
-    const topY = doorBox.isEmpty() ? 95 : doorBox.min.y + (doorBox.max.y - doorBox.min.y) * 1.05;
-    const flagW = 30;
-    const flagH = 58;
-    const xOff = 58;
-    const tex = makeFlagTexture();
-
-    const specs: Array<{ x: number; flip: boolean; phase: number }> = [
-      { x: -xOff, flip: false, phase: 0.4 },
-      { x: xOff, flip: true, phase: 1.7 },
-    ];
-
-    for (const s of specs) {
-      const flag = new WavingFlag(flagW, flagH, tex.clone(), s.phase);
-      flag.mesh.position.set(s.x, topY, frontZ);
-      // Outer edge is the pole: left flag pole on −X, right on +X via scale.
-      if (s.flip) {
-        flag.mesh.scale.x = -1;
-        flag.mesh.position.x = s.x;
-      }
-      this.root.add(flag.mesh);
-      this.flags.push(flag);
-    }
-  }
-
   private buildEnvironment(): void {
-    this.scene.background = new THREE.Color(0x87ceeb);
-    this.scene.fog = new THREE.Fog(0xb9d9ef, 720, 1450);
+    // Brighter day sky + lighter haze so the stage reads more exposed.
+    this.scene.background = new THREE.Color(0x9fd8f5);
+    this.scene.fog = new THREE.Fog(0xc5e6f8, 780, 1550);
 
     this.addClouds();
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(560, 32),
-      new THREE.MeshStandardMaterial({ color: 0x5f9b52, metalness: 0, roughness: 0.95 }),
+      new THREE.MeshStandardMaterial({ color: 0x6aab58, metalness: 0, roughness: 0.95 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
@@ -168,7 +183,7 @@ export class CastleStage {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(70, 240, 32),
       new THREE.MeshStandardMaterial({
-        color: 0x7eb86a,
+        color: 0x8bc875,
         metalness: 0,
         roughness: 0.95,
         side: THREE.DoubleSide,
@@ -179,11 +194,10 @@ export class CastleStage {
     ring.receiveShadow = true;
     this.root.add(ring);
 
-    // Slightly lower ambient so sun shadows read clearly.
-    this.root.add(new THREE.AmbientLight(0xfff6e8, 0.55));
-    this.root.add(new THREE.HemisphereLight(0xb8dfff, 0x6a9a50, 0.45));
+    this.root.add(new THREE.AmbientLight(0xfff8ee, 0.85));
+    this.root.add(new THREE.HemisphereLight(0xc4e6ff, 0x7aab5a, 0.7));
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.35);
+    const sun = new THREE.DirectionalLight(0xfff5e0, 2.15);
     sun.position.set(160, 320, 180);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -200,6 +214,10 @@ export class CastleStage {
     this.root.add(sun);
     this.root.add(sun.target);
     sun.target.position.set(0, 40, 40);
+
+    const fill = new THREE.DirectionalLight(0xd8ecff, 0.45);
+    fill.position.set(-200, 160, 100);
+    this.root.add(fill);
   }
 
   private addClouds(): void {
@@ -234,14 +252,20 @@ export class CastleStage {
   update(dt: number): void {
     this.elapsed += dt;
     this.doors.update(dt);
-    for (const f of this.flags) f.update(this.elapsed);
+    for (const mat of this.windMaterials) {
+      const shader = mat.userData.windShader as
+        | { uniforms: { uWindTime: { value: number } } }
+        | undefined;
+      if (shader?.uniforms?.uWindTime) {
+        shader.uniforms.uWindTime.value = this.elapsed;
+      }
+    }
   }
 
   dispose(): void {
     if (stageInstance === this) stageInstance = null;
     this.scene.remove(this.root);
-    for (const f of this.flags) f.dispose();
-    this.flags = [];
+    this.windMaterials = [];
     this.root.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
         if (obj instanceof THREE.Mesh) obj.geometry.dispose();
