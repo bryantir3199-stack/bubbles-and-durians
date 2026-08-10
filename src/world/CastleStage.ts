@@ -191,8 +191,8 @@ export class CastleStage {
   }
 
   private buildEnvironment(): void {
-    // Brighter day sky + lighter haze so the stage reads more exposed.
-    this.scene.background = new THREE.Color(0x9fd8f5);
+    // Bright day sky (slightly cooler cyan so exposure reads clearly).
+    this.scene.background = new THREE.Color(0xa8e4ff);
     this.scene.fog = new THREE.Fog(0xc5e6f8, 780, 1550);
 
     this.addClouds();
