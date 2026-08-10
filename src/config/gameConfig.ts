@@ -6,10 +6,10 @@ export const gameConfig = {
   magazineSize: 7,
   reloadMs: 400,
   timedSeconds: 180,
-  maxTargets: 8,
-  spawnIntervalMs: 850,
-  minSpawnIntervalMs: 400,
-  /** Approximate world-space size for free-roaming targets */
+  /** Hard cap — never more than this many live targets */
+  maxTargets: 6,
+  spawnIntervalMs: 950,
+  minSpawnIntervalMs: 550,
   targetSize: 22,
   heartSize: 16,
   goldSize: 24,
@@ -29,27 +29,6 @@ export const gameConfig = {
     goldDurian: { min: 5500, max: 8500 },
     bubble: { min: 4000, max: 6500 },
     heart: { min: 4000, max: 6000 },
-  },
-  /** Hop around the castle grounds (courtyard + front yard) */
-  roamBounds: {
-    minX: -200,
-    maxX: 200,
-    minZ: -30,
-    maxZ: 190,
-  },
-  /** Resting height of target center above ground */
-  groundY: 14,
-  hop: {
-    heightMin: 28,
-    heightMax: 62,
-    /** Horizontal travel per hop (world units) */
-    distanceMin: 35,
-    distanceMax: 90,
-    durationMin: 0.38,
-    durationMax: 0.62,
-    /** Pause on the ground between hops (seconds) */
-    dwellMin: 0.12,
-    dwellMax: 0.35,
   },
   spawnWeights: {
     endless: {

@@ -9,6 +9,10 @@ const GLB_URL: Record<ModelKey, string> = {
   durian: 'assets/durian.glb',
 };
 
+/** Shared hit-proxy geometry (one for all targets). */
+const proxyGeo = new THREE.SphereGeometry(gameConfig.targetSize * 0.45, 8, 8);
+const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
+
 /**
  * Preloads GLB templates and textures; clones normalized models for targets.
  */
@@ -19,6 +23,10 @@ export class ModelCache {
 
   static get isReady(): boolean {
     return this.ready;
+  }
+
+  static createHitProxy(): THREE.Mesh {
+    return new THREE.Mesh(proxyGeo, proxyMat);
   }
 
   static async preload(): Promise<void> {
@@ -34,6 +42,7 @@ export class ModelCache {
     ]);
 
     goldMap.colorSpace = THREE.SRGBColorSpace;
+    goldMap.anisotropy = 1;
     this.textures.set('goldDurian', goldMap);
 
     this.templates.set('bubble', this.normalizeTemplate(bubbleGltf.scene, gameConfig.targetSize));
@@ -49,42 +58,46 @@ export class ModelCache {
     return tex;
   }
 
-  /** Deep-clone a normalized GLB template for a new target. */
+  /** Clone a normalized GLB; share geometry, clone materials only when needed. */
   static cloneModel(key: ModelKey): THREE.Object3D {
     const template = this.templates.get(key);
     if (!template) throw new Error(`Model not loaded: ${key}`);
     const clone = template.clone(true);
-    clone.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-        const cloned = mats.map((m) => m.clone());
-        obj.material = cloned.length === 1 ? cloned[0]! : cloned;
-      }
-    });
+    // Materials are already MeshBasicMaterial on templates — share them (no per-clone)
     return clone;
   }
 
   private static normalizeTemplate(root: THREE.Object3D, targetSize: number): THREE.Object3D {
-    // Fix embedded texture color spaces
+    // Convert to unlit materials — flat cards don't need PBR
     root.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const mat of mats) {
-        if (
-          (mat instanceof THREE.MeshStandardMaterial ||
-            mat instanceof THREE.MeshPhysicalMaterial ||
-            mat instanceof THREE.MeshBasicMaterial) &&
-          mat.map
-        ) {
-          mat.map.colorSpace = THREE.SRGBColorSpace;
-          mat.map.anisotropy = 8;
-          mat.map.needsUpdate = true;
-          mat.transparent = true;
-          mat.alphaTest = 0.15;
-          mat.side = THREE.DoubleSide;
-          mat.needsUpdate = true;
+      obj.castShadow = false;
+      obj.receiveShadow = false;
+      obj.frustumCulled = true;
+
+      const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const next = srcMats.map((mat) => {
+        const map =
+          mat instanceof THREE.MeshStandardMaterial ||
+          mat instanceof THREE.MeshPhysicalMaterial ||
+          mat instanceof THREE.MeshBasicMaterial
+            ? mat.map
+            : null;
+        if (map) {
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.anisotropy = 1;
+          map.needsUpdate = true;
         }
-      }
+        return new THREE.MeshBasicMaterial({
+          map: map ?? undefined,
+          color: map ? 0xffffff : 0xcccccc,
+          transparent: true,
+          alphaTest: 0.2,
+          depthWrite: true,
+          side: THREE.DoubleSide,
+        });
+      });
+      obj.material = next.length === 1 ? next[0]! : next;
     });
 
     root.updateMatrixWorld(true);
@@ -102,19 +115,11 @@ export class ModelCache {
     centered.getCenter(center);
     root.position.sub(center);
     wrapper.add(root);
-
-    wrapper.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = false;
-      }
-    });
-
     return wrapper;
   }
 
   private static makeHeartTexture(): THREE.Texture {
-    const s = 128;
+    const s = 64;
     const c = document.createElement('canvas');
     c.width = s;
     c.height = s;
@@ -122,7 +127,7 @@ export class ModelCache {
     g.clearRect(0, 0, s, s);
     g.fillStyle = '#ff2d55';
     g.strokeStyle = '#ffffff';
-    g.lineWidth = 6;
+    g.lineWidth = 4;
     g.beginPath();
     const x = s / 2;
     g.moveTo(x, s * 0.88);

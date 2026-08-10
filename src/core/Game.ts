@@ -6,6 +6,7 @@ import { ModeSelectScene } from '../scenes/ModeSelectScene';
 import { PlayScene } from '../scenes/PlayScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
+import { getDoorController } from '../world/DoorController';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -29,11 +30,14 @@ export class Game {
     this.uiRoot.className = 'ui-root';
     container.appendChild(this.uiRoot);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: false,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = false;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'game-canvas';
     container.appendChild(this.canvas);
@@ -78,6 +82,7 @@ export class Game {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - this.last) / 1000);
       this.last = now;
+      getDoorController()?.update(dt);
       this.current?.update(dt);
       this.renderer.render(this.scene, this.camera);
     };

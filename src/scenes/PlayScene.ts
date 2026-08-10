@@ -124,33 +124,27 @@ export class PlayScene implements GameScene {
     this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.ctx.three.camera);
 
+    // Flash (no shadows / no extra work)
     if (this.muzzleLight) {
-      this.muzzleLight.intensity = 4;
-      this.muzzleLight.position.copy(this.ctx.three.camera.position).add(new THREE.Vector3(0, -5, -20));
+      this.muzzleLight.intensity = 3;
+      this.muzzleLight.position.copy(this.ctx.three.camera.position);
       window.setTimeout(() => {
         if (this.muzzleLight) this.muzzleLight.intensity = 0;
-      }, 80);
+      }, 50);
     }
 
-    const hitObjs = this.spawner.targets
-      .filter((t) => t.active)
-      .flatMap((t) => t.hitObjects);
-    const hits = this.raycaster.intersectObjects(hitObjs, true);
+    // Raycast proxies only (non-recursive)
+    const hitObjs = this.spawner.targets.filter((t) => t.active).flatMap((t) => t.hitObjects);
+    const hits = this.raycaster.intersectObjects(hitObjs, false);
     if (hits.length === 0) return;
 
-    hits.sort((a, b) => a.distance - b.distance);
     let target: Target | undefined;
     for (const hit of hits) {
-      let obj: THREE.Object3D | null = hit.object;
-      while (obj) {
-        const t = obj.userData.target as Target | undefined;
-        if (t?.active) {
-          target = t;
-          break;
-        }
-        obj = obj.parent;
+      const t = hit.object.userData.target as Target | undefined;
+      if (t?.active) {
+        target = t;
+        break;
       }
-      if (target) break;
     }
     if (!target || !target.active) return;
 

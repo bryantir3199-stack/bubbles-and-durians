@@ -16,7 +16,7 @@ export class ModeSelectScene implements GameScene {
         <div class="mode-row">
           <button type="button" class="mode-card" data-mode="endless">
             <h2>ENDLESS</h2>
-            <p>3 lives<br/>Bubble hits &amp; escaped durians cost lives<br/>Hearts restore HP<br/>Survive as long as you can</p>
+            <p>3 lives<br/>Bubble hits &amp; escaped durians cost lives<br/>Targets in windows, doors, walls &amp; flybys<br/>Hearts restore HP</p>
           </button>
           <button type="button" class="mode-card timed" data-mode="timed">
             <h2>TIMED</h2>
