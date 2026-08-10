@@ -15,10 +15,11 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Soft wind on the baked-in crown banners (part of `baked2`).
- * UV-island only — avoids dragging nearby arch / wall verts via a broad spatial mask.
+ * UV-island AND front/flank exclusions — same one-mesh approach as the earlier
+ * castle, without a broad spatial OR that dragged the gate arch stone.
  */
 function applyBakedFlagWind(material: THREE.Material): void {
-  material.customProgramCacheKey = () => 'bakedFlagWindV6';
+  material.customProgramCacheKey = () => 'bakedFlagWindV7';
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWindTime = { value: 0 };
     material.userData.windShader = shader;
@@ -35,25 +36,31 @@ uniform float uWindTime;
         /* glsl */ `#include <begin_vertex>
 #if defined( USE_UV )
 {
-  // Exact crown-banner atlas islands (glTF flipY=false). Two columns each side of the door.
+  // Crown-banner atlas islands (glTF flipY=false), including the free bottom edge.
   float bu = uv.x;
   float bv = uv.y;
-  float rightIsle = step(0.0, bu) * step(bu, 0.032) * step(0.075, bv) * step(bv, 0.158);
-  float leftIsle = step(0.033, bu) * step(bu, 0.068) * step(0.075, bv) * step(bv, 0.158);
-  float island = max(leftIsle, rightIsle);
-  // Keep wind on the front facade banners only (not unrelated UV reuse).
+  float island =
+    step(0.0, bu) * step(bu, 0.070) *
+    step(0.068, bv) * step(bv, 0.165);
+  // AND-only position gates so UV reuse elsewhere (and the arch) stay still.
   float onFront = step(1.15, position.z);
   float awayFromGate = step(0.55, abs(position.x));
   float flagMask = island * onFront * awayFromGate;
   if (flagMask > 0.5) {
-    float hang = clamp((bv - 0.078) / 0.072, 0.0, 1.0);
-    float phase = bu * 70.0 + bv * 40.0;
-    float flutter = sin(uWindTime * 3.2 + phase) * 0.75
-      + sin(uWindTime * 5.1 + phase * 1.6) * 0.35;
-    float amp = hang * hang * flagMask;
-    transformed.x += flutter * amp * 0.08 * sign(position.x + 0.0001);
-    transformed.z += flutter * amp * 0.035;
-    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.018;
+    // Free edge hangs down (low Y / low V); top stays pinned — same as prior castle.
+    float hang = max(
+      clamp((0.92 - position.y) / 0.55, 0.0, 1.0),
+      clamp((0.152 - bv) / 0.072, 0.0, 1.0)
+    );
+    hang *= flagMask;
+    float phase = position.x * 10.0 + position.y * 7.0 + bu * 40.0;
+    float flutter = sin(uWindTime * 3.2 + phase) * 0.8
+      + sin(uWindTime * 5.1 + phase * 1.6) * 0.4;
+    float amp = hang * hang;
+    // Lateral X flap reads from the play camera (+Z).
+    transformed.x += flutter * amp * 0.09 * sign(position.x + 0.0001);
+    transformed.z += flutter * amp * 0.04;
+    transformed.y += sin(uWindTime * 2.6 + phase * 0.8) * amp * 0.02;
   }
 }
 #endif
