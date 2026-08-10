@@ -286,55 +286,52 @@
       .crosshair {
         position: fixed;
         top: 0; left: 0;
-        width: 36px;
-        height: 36px;
-        border: 2px solid #fff;
-        border-radius: 50%;
+        width: 56px;
+        height: 56px;
+        border: none;
+        border-radius: 0;
         pointer-events: none;
-        box-shadow: 0 0 0 1px #000;
+        box-shadow: none;
+        background: url('/assets/reticle.png') center / contain no-repeat;
         transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%);
       }
-      .crosshair::before, .crosshair::after {
-        content: '';
-        position: absolute;
-        background: #fff;
-        box-shadow: 0 0 0 1px #000;
-      }
-      .crosshair::before {
-        width: 2px; height: 10px; left: 50%; top: -2px;
-        transform: translateX(-50%);
-        box-shadow: 0 28px 0 #fff, 0 0 0 1px #000, 0 28px 0 1px #000;
-      }
-      .crosshair::after {
-        height: 2px; width: 10px; top: 50%; left: -2px;
-        transform: translateY(-50%);
-        box-shadow: 28px 0 0 #fff, 0 0 0 1px #000, 28px 0 0 1px #000;
-      }
-      .crosshair::marker { display: none; }
+      .crosshair::before, .crosshair::after { content: none; }
       .crosshair.kick {
         animation: crosshairKick 0.16s ease-out;
       }
       @keyframes crosshairKick {
         0% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
-        35% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1.55); }
+        35% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(0.5); }
         100% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
       }
-      .muzzle-flash {
+      .crumb {
         position: fixed;
-        width: 56px;
-        height: 56px;
+        width: var(--s, 5px);
+        height: var(--s, 4px);
         margin: 0;
-        transform: translate(-50%, -50%) scale(0.4);
-        border-radius: 50%;
+        left: 0;
+        top: 0;
+        border-radius: 40% 55% 45% 60%;
         pointer-events: none;
         z-index: 18;
-        background: radial-gradient(circle, #fff7c2 0%, #ffb84a 35%, rgba(255, 120, 40, 0.35) 60%, transparent 72%);
+        background: var(--c, #d8b07a);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
         opacity: 1;
-        transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
+        animation: crumbFall var(--dur, 0.55s) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
       }
-      .muzzle-flash.go {
-        transform: translate(-50%, -50%) scale(1.8);
-        opacity: 0;
+      @keyframes crumbFall {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%)
+            translate(var(--dx, 0px), var(--dy, 40px))
+            rotate(var(--rot, 180deg))
+            scale(0.6);
+        }
       }
       .floater {
         position: fixed;
