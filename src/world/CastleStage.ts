@@ -14,6 +14,9 @@ const ASSET = {
  * Door swing stays procedural (DoorController, opens inward) — the GLB has no
  * animation clips. Flags are baked into the castle mesh (adjusted in castle4);
  * there are no separate flag objects or clips to retarget.
+ *
+ * Moving targets travel path* empties only; doors open only on path segments
+ * that cross the gate.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
@@ -88,12 +91,22 @@ export class CastleStage {
       paths.push(worldPos(obj));
     }
 
+    let doorZ: number | undefined;
+    const doorL = castle.getObjectByName('baked_door_l');
+    const doorR = castle.getObjectByName('baked_door_r');
+    if (doorL || doorR) {
+      const box = new THREE.Box3();
+      if (doorL) box.expandByObject(doorL);
+      if (doorR) box.expandByObject(doorR);
+      doorZ = (box.min.z + box.max.z) * 0.5;
+    }
+
     if (spawns.length === 0 && paths.length === 0) {
       console.warn('CastleStage: no sp*/path* empties found; using fallback spawnLayout');
       return;
     }
 
-    applyCastleMarkers({ spawns, paths });
+    applyCastleMarkers({ spawns, paths, doorZ });
   }
 
   private buildEnvironment(): void {

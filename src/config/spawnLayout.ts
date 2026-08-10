@@ -1,12 +1,12 @@
 /**
  * Spawn points / paths for castle routes.
  *
- * Prefer empties embedded in castle.glb (sp1–sp6, path1–path4), applied after
- * CastleStage scales (×100) and ground-centers the model. Fallbacks below match
- * the previous hand-tuned layout if markers are missing.
+ * Empties from castle.glb (after ×100 scale + ground-centering):
+ * - sp1…spN → static hold / window spots
+ * - path1…pathN → ordered waypoints for moving targets (travel these only)
  */
 
-export type SpawnPattern = 'window' | 'door' | 'wall' | 'frontSlide';
+export type SpawnPattern = 'window' | 'path';
 
 export interface WindowSpot {
   id: string;
@@ -21,26 +21,7 @@ export interface Vec3 {
   z: number;
 }
 
-export interface WallLane {
-  y: number;
-  z: number;
-  minX: number;
-  maxX: number;
-}
-
-export interface FrontLane {
-  y: number;
-  z: number;
-  minX: number;
-  maxX: number;
-}
-
-export interface DoorLane {
-  inside: Vec3;
-  outside: Vec3;
-}
-
-/** Four facade windows (towers + wings) — overwritten when castle empties load. */
+/** Static hold spots — overwritten when castle empties load. */
 export let WINDOWS: WindowSpot[] = [
   { id: 'left-tower', x: -155, y: 125, z: 74 },
   { id: 'left-wing', x: -75, y: 135, z: 74 },
@@ -48,99 +29,87 @@ export let WINDOWS: WindowSpot[] = [
   { id: 'right-tower', x: 155, y: 125, z: 74 },
 ];
 
-/** Gate transit (path1 → path2 when markers present). */
-export let DOOR: DoorLane = {
-  inside: { x: 0, y: 28, z: 25 },
-  outside: { x: 0, y: 28, z: 130 },
-};
+/**
+ * Ordered path waypoints (path1 → path2 → …). Moving targets travel this
+ * polyline only (or reversed). Overwritten when castle empties load.
+ */
+export let PATHS: Vec3[] = [
+  { x: 0, y: 28, z: 25 },
+  { x: 0, y: 28, z: 90 },
+  { x: 0, y: 28, z: 130 },
+];
 
-/** Battlement / wall-top lane (sp6 + X span when markers present). */
-export let WALL_TOP: WallLane = {
-  y: 248,
-  z: 48,
-  minX: -200,
-  maxX: 200,
-};
-
-/** Horizontal pass in front of the castle (path3/path4 + X span). */
-export let FRONT_SLIDE: FrontLane = {
-  y: 55,
-  z: 175,
-  minX: -420,
-  maxX: 420,
-};
+/** Approximate door plane Z (world) — used to decide which path segment opens doors. */
+export let DOOR_PLANE_Z = 60;
 
 export const PATTERN_WEIGHTS: Record<SpawnPattern, number> = {
-  window: 34,
-  door: 22,
-  wall: 22,
-  frontSlide: 22,
+  window: 45,
+  path: 55,
 };
 
 export interface CastleMarkers {
   spawns: WindowSpot[];
   paths: Vec3[];
+  /** Optional world-space door plane Z from door meshes. */
+  doorZ?: number;
 }
 
 /**
- * Apply empties from castle.glb:
- * - sp1…spN → window / hold spawn spots
- * - path1 → door inside, path2 → door outside
- * - path3 (and path4 if distinct) → front-slide lane height/depth
- * - sp6 (highest spawn) also seeds wall-top Y/Z; X span from side spawns
+ * Apply empties from castle.glb.
+ * Consecutive duplicate path points are collapsed.
  */
 export function applyCastleMarkers(markers: CastleMarkers): void {
   if (markers.spawns.length > 0) {
     WINDOWS = markers.spawns.map((s) => ({ ...s }));
   }
 
-  const paths = markers.paths;
-  if (paths.length >= 2) {
-    const inside = paths[0]!;
-    const mid = paths[1]!;
-    // path3+ is further into the courtyard (higher Z). Keep mid height so the
-    // exit isn't slammed to the ground empty's Y.
-    const outside =
-      paths.length >= 3
-        ? { x: paths[2]!.x, y: mid.y, z: paths[2]!.z }
-        : { ...mid };
-    DOOR = {
-      inside: { ...inside },
-      outside,
-    };
-  }
-
-  const sideXs = markers.spawns.map((s) => s.x);
-  const spanFromSpawns =
-    sideXs.length >= 2
-      ? { minX: Math.min(...sideXs), maxX: Math.max(...sideXs) }
-      : { minX: WALL_TOP.minX, maxX: WALL_TOP.maxX };
-
-  // Prefer the highest spawn (typically sp6 / roof) for the wall-top lane.
-  if (markers.spawns.length > 0) {
-    const roof = markers.spawns.reduce((a, b) => (b.y > a.y ? b : a));
-    WALL_TOP = {
-      y: roof.y,
-      z: roof.z,
-      minX: spanFromSpawns.minX,
-      maxX: spanFromSpawns.maxX,
-    };
-  }
-
-  if (paths.length >= 3) {
-    const front = paths[2]!;
-    const frontB = paths[3] && pointsDiffer(paths[2]!, paths[3]!) ? paths[3]! : null;
-    // Empties may sit on the ground plane; lift so target centers aren't buried.
-    const frontY = front.y < 20 ? Math.max(front.y, 40) : front.y;
-    FRONT_SLIDE = {
-      y: frontY,
-      z: front.z,
-      minX: frontB ? Math.min(front.x, frontB.x) : Math.min(-420, spanFromSpawns.minX * 2.2),
-      maxX: frontB ? Math.max(front.x, frontB.x) : Math.max(420, spanFromSpawns.maxX * 2.2),
-    };
+  if (markers.paths.length > 0) {
+    const deduped: Vec3[] = [];
+    for (const p of markers.paths) {
+      const prev = deduped[deduped.length - 1];
+      if (!prev || pointsDiffer(prev, p)) deduped.push({ ...p });
+    }
+    if (deduped.length >= 2) {
+      PATHS = deduped;
+      if (typeof markers.doorZ === 'number' && Number.isFinite(markers.doorZ)) {
+        DOOR_PLANE_Z = markers.doorZ;
+      } else {
+        // Prefer a segment that straddles a facade-like Z; else midpoint of longest span.
+        let chosen: number | null = null;
+        for (let i = 0; i < deduped.length - 1; i++) {
+          const lo = Math.min(deduped[i]!.z, deduped[i + 1]!.z);
+          const hi = Math.max(deduped[i]!.z, deduped[i + 1]!.z);
+          if (lo < 55 && hi > 55) {
+            chosen = 55;
+            break;
+          }
+        }
+        if (chosen == null) {
+          let best = 0;
+          let bestDz = -1;
+          for (let i = 0; i < deduped.length - 1; i++) {
+            const dz = Math.abs(deduped[i + 1]!.z - deduped[i]!.z);
+            if (dz > bestDz) {
+              bestDz = dz;
+              best = i;
+            }
+          }
+          chosen = (deduped[best]!.z + deduped[best + 1]!.z) * 0.5;
+        }
+        DOOR_PLANE_Z = chosen;
+      }
+    }
   }
 }
 
 function pointsDiffer(a: Vec3, b: Vec3, eps = 0.5): boolean {
   return Math.abs(a.x - b.x) > eps || Math.abs(a.y - b.y) > eps || Math.abs(a.z - b.z) > eps;
+}
+
+/** True if the segment a→b crosses (or ends at) the door plane. */
+export function segmentCrossesDoor(a: Vec3, b: Vec3, doorZ = DOOR_PLANE_Z): boolean {
+  const da = a.z - doorZ;
+  const db = b.z - doorZ;
+  // Different sides of the door plane, or either endpoint very near it.
+  return da * db <= 0 || Math.abs(da) < 8 || Math.abs(db) < 8;
 }

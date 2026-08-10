@@ -67,6 +67,37 @@ export class ModelCache {
     return clone;
   }
 
+  /**
+   * Durian GLB with the gold texture swapped onto materials (cloned mats so the
+   * shared template stays green).
+   */
+  static cloneGoldDurian(): THREE.Object3D {
+    const clone = this.cloneModel('durian');
+    const gold = this.getTexture('goldDurian');
+    clone.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const src = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const next = src.map((mat) => {
+        const m = (mat as THREE.MeshBasicMaterial).clone();
+        m.map = gold;
+        m.color.setHex(0xffffff);
+        m.needsUpdate = true;
+        return m;
+      });
+      obj.material = next.length === 1 ? next[0]! : next;
+    });
+    return clone;
+  }
+
+  /** Dispose materials cloned for a gold durian instance. */
+  static disposeGoldMaterials(root: THREE.Object3D): void {
+    root.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) m.dispose();
+    });
+  }
+
   private static normalizeTemplate(root: THREE.Object3D, targetSize: number): THREE.Object3D {
     // Convert to unlit materials — flat cards don't need PBR
     root.traverse((obj) => {

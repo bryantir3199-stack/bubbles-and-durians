@@ -2,9 +2,8 @@ import * as THREE from 'three';
 import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
-  DOOR,
-  FRONT_SLIDE,
-  WALL_TOP,
+  PATHS,
+  segmentCrossesDoor,
   type SpawnPattern,
   type WindowSpot,
 } from '../config/spawnLayout';
@@ -22,14 +21,15 @@ export interface TargetSpawnSpec {
   /** Window slot id when pattern === 'window' */
   windowId?: string;
   windowSpot?: WindowSpot;
-  /** Door: true = exit castle, false = enter */
-  doorExit?: boolean;
-  /** Wall / frontSlide direction */
-  goRight?: boolean;
+  /**
+   * Path direction: true = PATHS forward (typically inside → outside / exit),
+   * false = reversed (enter).
+   */
+  pathForward?: boolean;
 }
 
 /**
- * Pattern-based target: windows, door transit, wall-top slide, front L↔R pass.
+ * Pattern-based target: static window holds, or travel along castle path empties.
  */
 export class Target {
   readonly kind: TargetKind;
@@ -44,12 +44,12 @@ export class Target {
   private age = 0;
   private cleared = false;
   private escaped = false;
-  private baseScale = 1;
   private hpDots: THREE.Mesh[] = [];
   private onEscape: ((t: Target) => void) | null = null;
   private onFreeSlot: (() => void) | null = null;
   private visual: THREE.Object3D;
   private spriteMat: THREE.SpriteMaterial | null = null;
+  private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
   private fadeDur = 0.15;
@@ -57,6 +57,9 @@ export class Target {
   private warned = false;
   private slotFreed = false;
 
+  private waypoints: THREE.Vector3[] = [];
+  private segment = 0;
+  private segmentNeedsDoor: boolean[] = [];
   private from = new THREE.Vector3();
   private to = new THREE.Vector3();
   private moveT = 0;
@@ -94,13 +97,18 @@ export class Target {
     const lifeRange = gameConfig.lifetimeMs[kind];
     this.lifetime = randBetween(lifeRange.min, lifeRange.max);
 
-    if (kind === 'bubble' || kind === 'durian') {
-      this.visual = ModelCache.cloneModel(kind);
+    if (kind === 'bubble') {
+      this.visual = ModelCache.cloneModel('bubble');
       this.root.add(this.visual);
-      this.baseScale = 1;
+    } else if (kind === 'durian') {
+      this.visual = ModelCache.cloneModel('durian');
+      this.root.add(this.visual);
+    } else if (kind === 'goldDurian') {
+      this.visual = ModelCache.cloneGoldDurian();
+      this.ownsGoldMaterials = true;
+      this.root.add(this.visual);
     } else {
-      const map =
-        kind === 'goldDurian' ? ModelCache.getTexture('goldDurian') : ModelCache.getTexture('heart');
+      const map = ModelCache.getTexture('heart');
       this.spriteMat = new THREE.SpriteMaterial({
         map,
         transparent: true,
@@ -109,8 +117,7 @@ export class Target {
         opacity: 1,
       });
       const sprite = new THREE.Sprite(this.spriteMat);
-      const size = kind === 'heart' ? gameConfig.heartSize : gameConfig.goldSize;
-      this.baseScale = size;
+      const size = gameConfig.heartSize;
       sprite.scale.set(size, size, 1);
       this.visual = sprite;
       this.root.add(sprite);
@@ -132,6 +139,11 @@ export class Target {
     return !this.cleared && !this.escaped && !this.fading;
   }
 
+  /** Still occupying a slot on screen (including fade-out). */
+  get onScreen(): boolean {
+    return !!this.root.parent;
+  }
+
   get position(): THREE.Vector3 {
     return this.root.position;
   }
@@ -148,43 +160,54 @@ export class Target {
       return;
     }
 
-    if (spec.pattern === 'door') {
-      const exit = spec.doorExit !== false;
-      const a = exit ? DOOR.inside : DOOR.outside;
-      const b = exit ? DOOR.outside : DOOR.inside;
-      this.from.set(a.x, a.y, a.z);
-      this.to.set(b.x, b.y, b.z);
-      this.root.position.copy(this.from);
-      this.moveDur = randBetween(1.4, 2.0);
+    // Travel exclusively along castle path empties.
+    const pts = PATHS.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+    if (pts.length < 2) {
+      // Degenerate fallback: hold at first point / origin
+      const p = pts[0] ?? new THREE.Vector3();
+      this.from.copy(p);
+      this.to.copy(p);
+      this.root.position.copy(p);
+      this.phase = 'hold';
+      this.holdLeft = this.lifetime / 1000;
+      return;
+    }
+
+    const forward = spec.pathForward !== false;
+    this.waypoints = forward ? pts : [...pts].reverse();
+    this.segmentNeedsDoor = [];
+    for (let i = 0; i < this.waypoints.length - 1; i++) {
+      const a = this.waypoints[i]!;
+      const b = this.waypoints[i + 1]!;
+      this.segmentNeedsDoor.push(
+        segmentCrossesDoor(
+          { x: a.x, y: a.y, z: a.z },
+          { x: b.x, y: b.y, z: b.z },
+        ),
+      );
+    }
+
+    this.segment = 0;
+    this.beginSegment(0);
+  }
+
+  private beginSegment(index: number): void {
+    this.segment = index;
+    this.from.copy(this.waypoints[index]!);
+    this.to.copy(this.waypoints[index + 1]!);
+    this.root.position.copy(this.from);
+    const dist = this.from.distanceTo(this.to);
+    this.moveDur = randBetween(1.2, 1.8) * Math.max(0.55, dist / 120);
+    this.moveT = 0;
+    this.bobAmp = 2;
+
+    if (this.segmentNeedsDoor[index]) {
       this.phase = 'waitDoor';
       this.retainDoor();
-      return;
-    }
-
-    if (spec.pattern === 'wall') {
-      const right = spec.goRight !== false;
-      const x0 = right ? WALL_TOP.minX : WALL_TOP.maxX;
-      const x1 = right ? WALL_TOP.maxX : WALL_TOP.minX;
-      this.from.set(x0, WALL_TOP.y, WALL_TOP.z);
-      this.to.set(x1, WALL_TOP.y, WALL_TOP.z);
-      this.root.position.copy(this.from);
-      this.moveDur = randBetween(3.2, 4.5);
+    } else {
       this.phase = 'move';
-      this.bobAmp = 2;
-      return;
+      this.releaseDoor();
     }
-
-    // frontSlide
-    const right = spec.goRight !== false;
-    const x0 = right ? FRONT_SLIDE.minX : FRONT_SLIDE.maxX;
-    const x1 = right ? FRONT_SLIDE.maxX : FRONT_SLIDE.minX;
-    const y = FRONT_SLIDE.y + randBetween(-12, 18);
-    this.from.set(x0, y, FRONT_SLIDE.z);
-    this.to.set(x1, y, FRONT_SLIDE.z);
-    this.root.position.copy(this.from);
-    this.moveDur = randBetween(3.5, 5.0);
-    this.phase = 'move';
-    this.bobAmp = 4;
   }
 
   private retainDoor(): void {
@@ -221,9 +244,10 @@ export class Target {
     if (this.hpDots.length === 0) return;
     const spacing = 5;
     const startX = -((this.maxHits - 1) * spacing) / 2;
+    const y = gameConfig.targetSize * 0.55;
     this.hpDots.forEach((dot, i) => {
       (dot.material as THREE.MeshBasicMaterial).color.setHex(i < this.hitsLeft ? 0xffd700 : 0x444444);
-      dot.position.set(startX + i * spacing, this.baseScale * 0.55, 2);
+      dot.position.set(startX + i * spacing, y, 2);
       dot.visible = this.active;
     });
   }
@@ -264,13 +288,13 @@ export class Target {
       this.root.position.lerpVectors(this.from, this.to, ease);
       this.root.position.y += Math.sin(u * Math.PI) * this.bobAmp * 0.15;
       if (u >= 1) {
-        if (this.pattern === 'door') {
-          // Brief pause outside/inside then leave
+        this.releaseDoor();
+        if (this.segment + 1 < this.waypoints.length - 1) {
+          this.beginSegment(this.segment + 1);
+        } else {
+          // Reached end of path — brief pause then leave
           this.phase = 'hold';
           this.holdLeft = 0.35;
-          this.releaseDoor();
-        } else {
-          this.finishEscape();
         }
       }
     } else if (this.phase === 'hold') {
@@ -279,9 +303,7 @@ export class Target {
         this.root.position.y = this.from.y + Math.sin(this.age / 220) * this.bobAmp;
       }
       if (this.holdLeft <= 0) {
-        if (this.pattern === 'window' || this.pattern === 'door') {
-          this.finishEscape();
-        }
+        this.finishEscape();
       }
     }
 
@@ -325,6 +347,10 @@ export class Target {
       (d.material as THREE.Material).dispose();
     }
     this.hpDots = [];
+    if (this.ownsGoldMaterials) {
+      ModelCache.disposeGoldMaterials(this.visual);
+      this.ownsGoldMaterials = false;
+    }
     this.root.parent?.remove(this.root);
     this.spriteMat?.dispose();
   }
