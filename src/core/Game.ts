@@ -43,7 +43,7 @@ export class Game {
     container.appendChild(this.canvas);
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 1, 2000);
-    this.camera.position.set(0, 140, 460);
+    this.camera.position.set(0, 140, 560);
     this.camera.lookAt(0, 110, 40);
 
     const gameRef = this;

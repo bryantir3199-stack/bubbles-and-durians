@@ -16,7 +16,7 @@ export const gameConfig = {
   goldSize: 24,
   points: {
     durian: 1,
-    goldDurian: 3,
+    goldDurian: 7,
     bubble: -1,
   },
   hitsRequired: {

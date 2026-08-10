@@ -39,7 +39,7 @@ export class PlayScene implements GameScene {
     }, 4500);
 
     // Static camera — no aim parallax
-    this.ctx.three.camera.position.set(0, 140, 460);
+    this.ctx.three.camera.position.set(0, 140, 560);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
     this.ammo = new AmmoSystem();

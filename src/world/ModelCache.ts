@@ -73,10 +73,13 @@ export class ModelCache {
    */
   static cloneGoldDurian(): THREE.Object3D {
     const clone = this.cloneModel('durian');
-    // Gold texture is authored flipped vs the green map — rotate UVs 180°.
+    // Upright (180° rot) + horizontal mirror vs the green map orientation.
     const gold = this.getTexture('goldDurian').clone();
+    gold.wrapS = THREE.RepeatWrapping;
+    gold.wrapT = THREE.RepeatWrapping;
     gold.center.set(0.5, 0.5);
     gold.rotation = Math.PI;
+    gold.repeat.x = -1;
     gold.needsUpdate = true;
     clone.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;

@@ -21,7 +21,7 @@ export class TitleScene implements GameScene {
     bindClick(ui, '[data-action="play"]', () => this.ctx.goto('modeSelect'));
     bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));
 
-    this.ctx.three.camera.position.set(0, 140, 460);
+    this.ctx.three.camera.position.set(0, 140, 560);
     this.ctx.three.camera.lookAt(0, 110, 40);
   }
 

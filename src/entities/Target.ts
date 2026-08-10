@@ -70,6 +70,9 @@ export class Target {
   private doorRetained = false;
   private bobAmp = 0;
   private bobBaseY = 0;
+  /** Hit-flash timer (seconds) for gold durian feedback. */
+  private hitFlash = 0;
+  private flashMats: { mat: THREE.MeshBasicMaterial; r: number; g: number; b: number }[] = [];
 
   constructor(
     scene: THREE.Scene,
@@ -268,11 +271,48 @@ export class Target {
     this.hitsLeft -= 1;
     this.root.scale.setScalar(1.12);
     this.layoutHpDots();
+    if (this.kind === 'goldDurian') this.triggerHitFlash();
     if (this.hitsLeft <= 0) this.cleared = true;
     return this.hitsLeft <= 0;
   }
 
+  private triggerHitFlash(): void {
+    if (this.flashMats.length === 0) {
+      this.visual.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const m of mats) {
+          if (m instanceof THREE.MeshBasicMaterial) {
+            this.flashMats.push({ mat: m, r: m.color.r, g: m.color.g, b: m.color.b });
+          }
+        }
+      });
+    }
+    this.hitFlash = 0.14;
+    for (const entry of this.flashMats) {
+      // Hot white/yellow multiply over the gold map.
+      entry.mat.color.setRGB(4, 3.6, 1.6);
+    }
+  }
+
   update(dt: number): void {
+    if (this.hitFlash > 0) {
+      this.hitFlash = Math.max(0, this.hitFlash - dt);
+      const t = this.hitFlash / 0.14;
+      for (const entry of this.flashMats) {
+        entry.mat.color.setRGB(
+          entry.r + (4 - entry.r) * t,
+          entry.g + (3.6 - entry.g) * t,
+          entry.b + (1.6 - entry.b) * t,
+        );
+      }
+      if (this.hitFlash === 0) {
+        for (const entry of this.flashMats) {
+          entry.mat.color.setRGB(entry.r, entry.g, entry.b);
+        }
+      }
+    }
+
     if (this.fading) {
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);

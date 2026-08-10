@@ -45,7 +45,7 @@ export class LeaderboardScene implements GameScene {
     });
     bindClick(ui, '[data-action="back"]', () => this.ctx.goto('title'));
 
-    this.ctx.three.camera.position.set(0, 140, 460);
+    this.ctx.three.camera.position.set(0, 140, 560);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
     void this.loadScores();
