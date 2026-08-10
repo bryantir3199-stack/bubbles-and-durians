@@ -12,8 +12,8 @@ const ASSET = {
  * and sets up a cheap night backdrop.
  *
  * Door swing stays procedural (DoorController, opens inward). Flags are baked
- * into the castle mesh. Window holds use sp* empties; movers use a rebuilt
- * center-line gate path (layout matched to path* empties, not their raw coords).
+ * into the castle mesh. Window holds use sp* empties; movers use a continuous
+ * gate path: off-screen front-left → door → inside (before the back wall).
  */
 export class CastleStage {
   readonly root = new THREE.Group();

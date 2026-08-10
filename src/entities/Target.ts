@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
+  DOOR_PLANE_Z,
   PATHS,
-  segmentCrossesDoor,
+  nearDoorPlane,
   type SpawnPattern,
   type WindowSpot,
 } from '../config/spawnLayout';
@@ -15,6 +16,8 @@ function randBetween(min: number, max: number): number {
 }
 
 const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
+/** Constant speed along the gate path (world units / second). */
+const PATH_SPEED = 95;
 
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
@@ -22,14 +25,14 @@ export interface TargetSpawnSpec {
   windowId?: string;
   windowSpot?: WindowSpot;
   /**
-   * Path direction: true = PATHS forward (typically inside → outside / exit),
-   * false = reversed (enter).
+   * Path direction: true = PATHS forward (off-screen → inside / enter),
+   * false = reversed (inside → off-screen / exit).
    */
   pathForward?: boolean;
 }
 
 /**
- * Pattern-based target: static window holds, or travel along castle path empties.
+ * Pattern-based target: static window holds, or continuous gate-path travel.
  */
 export class Target {
   readonly kind: TargetKind;
@@ -58,16 +61,15 @@ export class Target {
   private slotFreed = false;
 
   private waypoints: THREE.Vector3[] = [];
-  private segment = 0;
-  private segmentNeedsDoor: boolean[] = [];
+  private cumLen: number[] = [0];
+  private pathLen = 0;
+  private pathTraveled = 0;
   private from = new THREE.Vector3();
-  private to = new THREE.Vector3();
-  private moveT = 0;
-  private moveDur = 1;
-  private phase: 'waitDoor' | 'move' | 'hold' | 'done' = 'move';
+  private phase: 'move' | 'hold' | 'done' = 'move';
   private holdLeft = 0;
   private doorRetained = false;
   private bobAmp = 0;
+  private bobBaseY = 0;
 
   constructor(
     scene: THREE.Scene,
@@ -152,7 +154,7 @@ export class Target {
     if (spec.pattern === 'window' && spec.windowSpot) {
       const p = spec.windowSpot;
       this.from.set(p.x, p.y, p.z);
-      this.to.copy(this.from);
+      this.bobBaseY = p.y;
       this.root.position.copy(this.from);
       this.phase = 'hold';
       this.holdLeft = this.lifetime / 1000;
@@ -160,55 +162,62 @@ export class Target {
       return;
     }
 
-    // Travel exclusively along castle path empties.
     const pts = PATHS.map((p) => new THREE.Vector3(p.x, p.y, p.z));
     if (pts.length < 2) {
-      // Degenerate fallback: hold at first point / origin
       const p = pts[0] ?? new THREE.Vector3();
       this.from.copy(p);
-      this.to.copy(p);
       this.root.position.copy(p);
       this.phase = 'hold';
       this.holdLeft = this.lifetime / 1000;
       return;
     }
 
+    // Forward = enter (off-screen → inside); reverse = exit.
     const forward = spec.pathForward !== false;
     this.waypoints = forward ? pts : [...pts].reverse();
-    this.segmentNeedsDoor = [];
-    for (let i = 0; i < this.waypoints.length - 1; i++) {
-      const a = this.waypoints[i]!;
-      const b = this.waypoints[i + 1]!;
-      this.segmentNeedsDoor.push(
-        segmentCrossesDoor(
-          { x: a.x, y: a.y, z: a.z },
-          { x: b.x, y: b.y, z: b.z },
-        ),
-      );
+    this.cumLen = [0];
+    this.pathLen = 0;
+    for (let i = 1; i < this.waypoints.length; i++) {
+      this.pathLen += this.waypoints[i - 1]!.distanceTo(this.waypoints[i]!);
+      this.cumLen.push(this.pathLen);
     }
-
-    this.segment = 0;
-    this.beginSegment(0);
+    this.pathTraveled = 0;
+    this.bobAmp = 0;
+    this.phase = 'move';
+    this.placeOnPath(0);
+    // Open doors while approaching — never pause for them.
+    this.retainDoor();
   }
 
-  private beginSegment(index: number): void {
-    this.segment = index;
-    this.from.copy(this.waypoints[index]!);
-    this.to.copy(this.waypoints[index + 1]!);
-    this.root.position.copy(this.from);
-    const dist = this.from.distanceTo(this.to);
-    // Duration scales with path length so depth travel reads at a steady pace.
-    this.moveDur = Math.max(1.6, dist / 70);
-    this.moveT = 0;
-    // No vertical bob on path travel — motion should read as closer/further.
-    this.bobAmp = 0;
+  /** Constant-speed placement along the polyline. */
+  private placeOnPath(distance: number): void {
+    if (this.waypoints.length === 0) return;
+    if (distance <= 0) {
+      this.root.position.copy(this.waypoints[0]!);
+      return;
+    }
+    if (distance >= this.pathLen) {
+      this.root.position.copy(this.waypoints[this.waypoints.length - 1]!);
+      return;
+    }
+    for (let i = 1; i < this.cumLen.length; i++) {
+      if (distance <= this.cumLen[i]!) {
+        const start = this.cumLen[i - 1]!;
+        const end = this.cumLen[i]!;
+        const u = end > start ? (distance - start) / (end - start) : 1;
+        this.root.position.lerpVectors(this.waypoints[i - 1]!, this.waypoints[i]!, u);
+        return;
+      }
+    }
+  }
 
-    if (this.segmentNeedsDoor[index]) {
-      this.phase = 'waitDoor';
+  private syncDoorForPosition(): void {
+    if (nearDoorPlane(this.root.position.z, DOOR_PLANE_Z, 40)) {
       this.retainDoor();
-    } else {
-      this.phase = 'move';
-      this.releaseDoor();
+    } else if (this.doorRetained) {
+      // Past the gate hall — close when clearly clear of the door plane.
+      const z = this.root.position.z;
+      if (Math.abs(z - DOOR_PLANE_Z) > 45) this.releaseDoor();
     }
   }
 
@@ -277,32 +286,20 @@ export class Target {
     this.age += dt * 1000;
     const pop = this.age < 180 ? 0.55 + 0.55 * Math.sin((this.age / 180) * Math.PI) : 1;
 
-    if (this.phase === 'waitDoor') {
-      const doors = getDoorController();
-      if (!doors || doors.isOpenEnough) {
-        this.phase = 'move';
-        this.moveT = 0;
-      }
-    } else if (this.phase === 'move') {
-      this.moveT += dt / this.moveDur;
-      const u = Math.min(1, this.moveT);
-      const ease = u * u * (3 - 2 * u);
-      this.root.position.lerpVectors(this.from, this.to, ease);
-      this.root.position.y += Math.sin(u * Math.PI) * this.bobAmp * 0.15;
-      if (u >= 1) {
+    if (this.phase === 'move') {
+      this.pathTraveled += PATH_SPEED * dt;
+      if (this.pathTraveled >= this.pathLen) {
+        this.placeOnPath(this.pathLen);
         this.releaseDoor();
-        if (this.segment + 1 < this.waypoints.length - 1) {
-          this.beginSegment(this.segment + 1);
-        } else {
-          // Reached end of path — brief pause then leave
-          this.phase = 'hold';
-          this.holdLeft = 0.35;
-        }
+        this.finishEscape();
+      } else {
+        this.placeOnPath(this.pathTraveled);
+        this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
       this.holdLeft -= dt;
       if (this.pattern === 'window') {
-        this.root.position.y = this.from.y + Math.sin(this.age / 220) * this.bobAmp;
+        this.root.position.y = this.bobBaseY + Math.sin(this.age / 220) * this.bobAmp;
       }
       if (this.holdLeft <= 0) {
         this.finishEscape();
@@ -311,16 +308,18 @@ export class Target {
 
     this.root.scale.setScalar(pop);
 
-    if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
-      const on = Math.sin(this.age / 60) > 0;
-      if (on !== this.warned) {
-        this.warned = on;
-        this.visual.visible = on;
+    // Path movers keep going until the route ends — don't cut them mid-path.
+    if (this.pattern !== 'path') {
+      if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
+        const on = Math.sin(this.age / 60) > 0;
+        if (on !== this.warned) {
+          this.warned = on;
+          this.visual.visible = on;
+        }
       }
-    }
-
-    if (this.age >= this.lifetime && this.phase !== 'done') {
-      this.finishEscape();
+      if (this.age >= this.lifetime && this.phase !== 'done') {
+        this.finishEscape();
+      }
     }
   }
 

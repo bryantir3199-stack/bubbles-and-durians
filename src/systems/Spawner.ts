@@ -121,7 +121,8 @@ export class Spawner {
       return { pattern: 'window', windowId: spot.id, windowSpot: spot };
     }
 
-    return { pattern: 'path', pathForward: Math.random() < 0.55 };
+    return { pattern: 'path', pathForward: Math.random() < 0.55 }; // usually enter from front-left
+
   }
 
   private releaseSpec(spec: TargetSpawnSpec): void {
