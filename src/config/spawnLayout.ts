@@ -39,12 +39,12 @@ export let WINDOWS: WindowSpot[] = [
 ];
 
 /**
- * Enter direction: off-screen front-left → door → inside (before back wall).
+ * Enter direction: off-screen left → right-angle in front of gate → inside.
  * Reverse the array for exits.
  */
 export let PATHS: Vec3[] = [
-  { x: -450, y: 42, z: 200 },
-  { x: -60, y: 42, z: 140 },
+  { x: -450, y: 42, z: 105 },
+  { x: 0, y: 42, z: 105 },
   { x: 0, y: 42, z: 60 },
   { x: 0, y: 42, z: 28 },
 ];
@@ -75,8 +75,16 @@ export function applyCastleMarkers(markers: CastleMarkers): void {
 }
 
 /**
- * Off-screen front-left → approach → door threshold → inside the gate hall
- * (short of the back wall visible through the arch).
+ * Off-screen left → right-angle corner in front of the gate → through the door
+ * → stop inside (before the back wall).
+ *
+ * Top-down (X right, Z toward camera/front):
+ *
+ *   start ──────────● corner
+ *                   │
+ *                   │ gate
+ *                   ▼
+ *                 inside
  */
 function buildGatePath(door: DoorBounds | undefined): Vec3[] {
   const doorZ = door ? (door.minZ + door.maxZ) * 0.5 : 60;
@@ -84,14 +92,14 @@ function buildGatePath(door: DoorBounds | undefined): Vec3[] {
   const doorBase = door ? door.minY : 0;
   const travelY = doorBase + doorH * 0.45;
 
-  // Stay inside the archway volume — do not push past the interior back wall.
+  // Right-angle corner sits just in front of the gate on the center line.
+  const cornerZ = doorZ + 45;
   const insideZ = doorZ - 32;
-  const frontZ = doorZ + 140;
-  const approachZ = doorZ + 80;
+  const startX = -450; // off-screen left
 
   return [
-    { x: -450, y: travelY, z: frontZ }, // off-screen, front-left
-    { x: -70, y: travelY, z: approachZ }, // swing in toward the gate
+    { x: startX, y: travelY, z: cornerZ }, // off-screen left, same depth as corner
+    { x: 0, y: travelY, z: cornerZ }, // right-angle corner in front of gate
     { x: 0, y: travelY, z: doorZ }, // door threshold
     { x: 0, y: travelY, z: insideZ }, // inside, before back wall
   ];

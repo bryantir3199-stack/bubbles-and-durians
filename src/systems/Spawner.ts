@@ -20,6 +20,8 @@ export class Spawner {
   private running = false;
   readonly targets: Target[] = [];
   private occupiedWindows = new Set<string>();
+  /** Only one mover may occupy the gate path at a time. */
+  private pathBusy = false;
 
   constructor(
     private scene: THREE.Scene,
@@ -33,6 +35,7 @@ export class Spawner {
     // Match the slower cadence (was 700ms / 450ms stagger).
     this.nextAt = 2800;
     this.occupiedWindows.clear();
+    this.pathBusy = false;
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
@@ -67,6 +70,7 @@ export class Spawner {
     for (const t of this.targets) t.destroy();
     this.targets.length = 0;
     this.occupiedWindows.clear();
+    this.pathBusy = false;
   }
 
   /**
@@ -97,7 +101,7 @@ export class Spawner {
   private pickSpec(): TargetSpawnSpec | null {
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
       if (p === 'window') return this.occupiedWindows.size < WINDOWS.length;
-      if (p === 'path') return PATHS.length >= 2;
+      if (p === 'path') return !this.pathBusy && PATHS.length >= 2;
       return false;
     });
     if (patterns.length === 0) return null;
@@ -121,13 +125,15 @@ export class Spawner {
       return { pattern: 'window', windowId: spot.id, windowSpot: spot };
     }
 
-    return { pattern: 'path', pathForward: Math.random() < 0.55 }; // usually enter from front-left
-
+    this.pathBusy = true;
+    return { pattern: 'path', pathForward: Math.random() < 0.55 };
   }
 
   private releaseSpec(spec: TargetSpawnSpec): void {
     if (spec.pattern === 'window' && spec.windowId) {
       this.occupiedWindows.delete(spec.windowId);
+    } else if (spec.pattern === 'path') {
+      this.pathBusy = false;
     }
   }
 
