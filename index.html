@@ -258,6 +258,7 @@
         border-radius: 50%;
         pointer-events: none;
         box-shadow: 0 0 0 1px #000;
+        transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%);
       }
       .crosshair::before, .crosshair::after {
         content: '';
@@ -276,6 +277,31 @@
         box-shadow: 28px 0 0 #fff, 0 0 0 1px #000, 28px 0 0 1px #000;
       }
       .crosshair::marker { display: none; }
+      .crosshair.kick {
+        animation: crosshairKick 0.16s ease-out;
+      }
+      @keyframes crosshairKick {
+        0% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
+        35% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1.55); }
+        100% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
+      }
+      .muzzle-flash {
+        position: fixed;
+        width: 56px;
+        height: 56px;
+        margin: 0;
+        transform: translate(-50%, -50%) scale(0.4);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 18;
+        background: radial-gradient(circle, #fff7c2 0%, #ffb84a 35%, rgba(255, 120, 40, 0.35) 60%, transparent 72%);
+        opacity: 1;
+        transition: transform 0.18s ease-out, opacity 0.18s ease-out;
+      }
+      .muzzle-flash.go {
+        transform: translate(-50%, -50%) scale(1.8);
+        opacity: 0;
+      }
       .floater {
         position: fixed;
         transform: translate(-50%, -50%);

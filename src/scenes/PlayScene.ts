@@ -7,6 +7,7 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
+import { playDryFireSound, playShootSound } from '../audio/sfx';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -23,6 +24,8 @@ export class PlayScene implements GameScene {
   private unsubs: Array<() => void> = [];
   private muzzleLight: THREE.PointLight | null = null;
   private escapesArmed = false;
+  private camKick = 0;
+  private camBase = new THREE.Vector3(0, 140, 560);
 
   constructor(private ctx: SceneContext) {}
 
@@ -39,7 +42,9 @@ export class PlayScene implements GameScene {
     }, 4500);
 
     // Static camera — no aim parallax
-    this.ctx.three.camera.position.set(0, 140, 560);
+    this.camBase.set(0, 140, 560);
+    this.camKick = 0;
+    this.ctx.three.camera.position.copy(this.camBase);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
     this.ammo = new AmmoSystem();
@@ -81,6 +86,17 @@ export class PlayScene implements GameScene {
     if (this.ended) return;
     this.spawner?.update(dt);
 
+    if (this.camKick > 0) {
+      this.camKick = Math.max(0, this.camKick - dt * 9);
+      const k = this.camKick;
+      this.ctx.three.camera.position.set(
+        this.camBase.x,
+        this.camBase.y + k * 2.5,
+        this.camBase.z + k * 6,
+      );
+      this.ctx.three.camera.lookAt(0, 110, 40);
+    }
+
     if (this.mode === 'timed') {
       this.timeLeft -= dt;
       this.hud?.setTimer(this.timeLeft);
@@ -116,21 +132,26 @@ export class PlayScene implements GameScene {
 
     if (!this.ammo.canShoot()) {
       this.hud.flashDryFire();
+      playDryFireSound();
       return;
     }
     if (!this.ammo.tryShoot()) return;
+
+    playShootSound();
+    this.hud.playShootAnim(clientX, clientY);
+    this.camKick = 1;
 
     this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
     this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.ctx.three.camera);
 
-    // Flash (no shadows / no extra work)
+    // Muzzle light pop
     if (this.muzzleLight) {
-      this.muzzleLight.intensity = 3;
+      this.muzzleLight.intensity = 4.5;
       this.muzzleLight.position.copy(this.ctx.three.camera.position);
       window.setTimeout(() => {
         if (this.muzzleLight) this.muzzleLight.intensity = 0;
-      }, 50);
+      }, 55);
     }
 
     // Raycast proxies only (non-recursive)

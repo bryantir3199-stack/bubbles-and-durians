@@ -2,24 +2,30 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
+import { WavingFlag, makeFlagTexture } from './WavingFlag';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
 };
 
+let stageInstance: CastleStage | null = null;
+
+export function getCastleStage(): CastleStage | null {
+  return stageInstance;
+}
+
 /**
- * Loads castle.glb (embedded textures + spawn empties), wires door pivots,
- * and sets up a daytime sky with soft clouds.
- *
- * Door swing stays procedural (DoorController, opens inward). Flags are baked
- * into the castle mesh. Window holds use sp* empties; movers use a continuous
- * gate path: off-screen front-left → door → inside (before the back wall).
+ * Loads castle.glb, wires door pivots + waving flags, daytime sky/clouds,
+ * and shadow-casting sun light.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
   readonly doors = new DoorController();
+  private flags: WavingFlag[] = [];
+  private elapsed = 0;
 
   constructor(private scene: THREE.Scene) {
+    stageInstance = this;
     this.scene.add(this.root);
     this.buildEnvironment();
   }
@@ -31,8 +37,8 @@ export class CastleStage {
 
     castle.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      obj.castShadow = false;
-      obj.receiveShadow = false;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
       obj.frustumCulled = true;
 
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -70,12 +76,9 @@ export class CastleStage {
     this.applyMarkers(castle);
     this.doors.setup(castle);
     setDoorController(this.doors);
+    this.placeFlags(castle);
   }
 
-  /**
-   * Window spots from sp* empties; gate path rebuilt from door bounds using the
-   * path* empty layout (inside → door → outside) as a depth hint only.
-   */
   private applyMarkers(castle: THREE.Object3D): void {
     castle.updateMatrixWorld(true);
 
@@ -113,36 +116,92 @@ export class CastleStage {
     applyCastleMarkers({ spawns, paths, door });
   }
 
+  /** Cover baked banners with cloth flags that wave in the wind. */
+  private placeFlags(castle: THREE.Object3D): void {
+    castle.updateMatrixWorld(true);
+    const doorL = castle.getObjectByName('baked_door_l');
+    const doorR = castle.getObjectByName('baked_door_r');
+    const doorBox = new THREE.Box3();
+    if (doorL) doorBox.expandByObject(doorL);
+    if (doorR) doorBox.expandByObject(doorR);
+
+    const frontZ = (doorBox.isEmpty() ? 70 : doorBox.max.z) + 3;
+    const topY = doorBox.isEmpty() ? 95 : doorBox.min.y + (doorBox.max.y - doorBox.min.y) * 1.05;
+    const flagW = 30;
+    const flagH = 58;
+    const xOff = 58;
+    const tex = makeFlagTexture();
+
+    const specs: Array<{ x: number; flip: boolean; phase: number }> = [
+      { x: -xOff, flip: false, phase: 0.4 },
+      { x: xOff, flip: true, phase: 1.7 },
+    ];
+
+    for (const s of specs) {
+      const flag = new WavingFlag(flagW, flagH, tex.clone(), s.phase);
+      flag.mesh.position.set(s.x, topY, frontZ);
+      // Outer edge is the pole: left flag pole on −X, right on +X via scale.
+      if (s.flip) {
+        flag.mesh.scale.x = -1;
+        flag.mesh.position.x = s.x;
+      }
+      this.root.add(flag.mesh);
+      this.flags.push(flag);
+    }
+  }
+
   private buildEnvironment(): void {
-    // Daytime sky + soft distance haze
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(0xb9d9ef, 720, 1450);
 
     this.addClouds();
 
     const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(560, 24),
-      new THREE.MeshBasicMaterial({ color: 0x5f9b52 }),
+      new THREE.CircleGeometry(560, 32),
+      new THREE.MeshStandardMaterial({ color: 0x5f9b52, metalness: 0, roughness: 0.95 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
+    ground.receiveShadow = true;
     this.root.add(ground);
 
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(70, 240, 32),
-      new THREE.MeshBasicMaterial({ color: 0x7eb86a, side: THREE.DoubleSide }),
+      new THREE.MeshStandardMaterial({
+        color: 0x7eb86a,
+        metalness: 0,
+        roughness: 0.95,
+        side: THREE.DoubleSide,
+      }),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
+    ring.receiveShadow = true;
     this.root.add(ring);
 
-    this.root.add(new THREE.AmbientLight(0xfff6e8, 1.35));
-    const sun = new THREE.DirectionalLight(0xfffaf0, 1.15);
-    sun.position.set(120, 280, 160);
+    // Slightly lower ambient so sun shadows read clearly.
+    this.root.add(new THREE.AmbientLight(0xfff6e8, 0.55));
+    this.root.add(new THREE.HemisphereLight(0xb8dfff, 0x6a9a50, 0.45));
+
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.35);
+    sun.position.set(160, 320, 180);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.00025;
+    sun.shadow.normalBias = 0.035;
+    const cam = sun.shadow.camera;
+    cam.near = 40;
+    cam.far = 900;
+    cam.left = -320;
+    cam.right = 320;
+    cam.top = 280;
+    cam.bottom = -120;
+    cam.updateProjectionMatrix();
     this.root.add(sun);
+    this.root.add(sun.target);
+    sun.target.position.set(0, 40, 40);
   }
 
-  /** Soft billboard clouds scattered across the daytime sky. */
   private addClouds(): void {
     const tex = makeCloudTexture();
     const placements: Array<[number, number, number, number]> = [
@@ -173,17 +232,23 @@ export class CastleStage {
   }
 
   update(dt: number): void {
+    this.elapsed += dt;
     this.doors.update(dt);
+    for (const f of this.flags) f.update(this.elapsed);
   }
 
   dispose(): void {
+    if (stageInstance === this) stageInstance = null;
     this.scene.remove(this.root);
+    for (const f of this.flags) f.dispose();
+    this.flags = [];
     this.root.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
         if (obj instanceof THREE.Mesh) obj.geometry.dispose();
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
         for (const m of mats) {
-          if (m.map) m.map.dispose();
+          const map = (m as THREE.MeshStandardMaterial).map;
+          if (map) map.dispose();
           m.dispose();
         }
       }
@@ -197,7 +262,6 @@ function worldPos(obj: THREE.Object3D): Vec3 {
   return { x: v.x, y: v.y, z: v.z };
 }
 
-/** Procedural soft white cloud sprite (shared by all cloud billboards). */
 function makeCloudTexture(): THREE.CanvasTexture {
   const w = 256;
   const h = 128;

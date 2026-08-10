@@ -115,8 +115,8 @@ export class ModelCache {
     // Convert to unlit materials — flat cards don't need PBR
     root.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      obj.castShadow = false;
-      obj.receiveShadow = false;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
       obj.frustumCulled = true;
 
       const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
