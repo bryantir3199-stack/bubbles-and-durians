@@ -1,20 +1,33 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 
+/** Wind-up chattering-teeth ammo pip — bold denture silhouette. */
 const TOOTH_SVG = `
-  <svg class="hud-tooth-icon" viewBox="0 0 40 40" aria-hidden="true">
-    <ellipse cx="20" cy="22" rx="14" ry="12" fill="#ff7eb6" stroke="#2a1018" stroke-width="2.2"/>
-    <path d="M8 18c2-6 6-9 12-9s10 3 12 9" fill="#ff9ec8" stroke="#2a1018" stroke-width="2"/>
-    <path d="M11 20v10c0 2.2 1.6 3.4 3.2 2.6 1.4-.7 2.2-2.4 2.2-4.2V19.2
-             M17.5 19.2v11c0 2 1.4 3.2 2.6 2.4 1.2-.8 2-2.4 2-4.2V19
-             M23.5 19v11.2c0 2 1.5 3.2 2.8 2.4 1.2-.8 2-2.5 2-4.4V20"
-          fill="#fffdf8" stroke="#2a1018" stroke-width="1.7" stroke-linejoin="round"/>
-    <circle cx="14.5" cy="15.5" r="1.6" fill="#2a1018"/>
-    <circle cx="25.5" cy="15.5" r="1.6" fill="#2a1018"/>
-    <path d="M15 26c2.2 2.4 7.8 2.4 10 0" fill="none" stroke="#c2185b" stroke-width="1.8" stroke-linecap="round"/>
-    <g transform="translate(28,8) rotate(28)">
-      <rect x="0" y="0" width="5" height="10" rx="1.5" fill="#ff3b4a" stroke="#2a1018" stroke-width="1.4"/>
-      <path d="M2.5 10v6" stroke="#ff3b4a" stroke-width="2.2" stroke-linecap="round"/>
+  <svg class="hud-tooth-icon" viewBox="0 0 52 52" aria-hidden="true">
+    <!-- upper gum -->
+    <path d="M6 18c0-8 8-14 20-14s20 6 20 14v6c0 3-4 5-20 5S6 27 6 24z"
+          fill="#ff6aa2" stroke="#1a1018" stroke-width="2.6" stroke-linejoin="round"/>
+    <!-- upper teeth -->
+    <rect x="11" y="20" width="7" height="13" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <rect x="20" y="19" width="8" height="15" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <rect x="30.5" y="20" width="7" height="13" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <!-- lower gum -->
+    <path d="M9 36c0 7 7 11 17 11s17-4 17-11c0-2.5-4-4-17-4S9 33.5 9 36z"
+          fill="#ff4f90" stroke="#1a1018" stroke-width="2.6" stroke-linejoin="round"/>
+    <!-- lower teeth -->
+    <rect x="13" y="30" width="6.5" height="9" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <rect x="21.5" y="29" width="7.5" height="10" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <rect x="31" y="30" width="6.5" height="9" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
+    <!-- eyes -->
+    <circle cx="16.5" cy="14" r="2.3" fill="#1a1018"/>
+    <circle cx="31.5" cy="14" r="2.3" fill="#1a1018"/>
+    <!-- smile line -->
+    <path d="M17 26.5c3 1.8 11 1.8 14 0" fill="none" stroke="#c2185b" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- wind-up key -->
+    <g transform="translate(40 4) rotate(20)">
+      <circle cx="6" cy="6" r="5" fill="none" stroke="#ff2436" stroke-width="3"/>
+      <circle cx="6" cy="6" r="1.8" fill="#ff2436"/>
+      <path d="M6 11v8" stroke="#ff2436" stroke-width="3" stroke-linecap="round"/>
     </g>
   </svg>
 `;
@@ -31,8 +44,10 @@ export class HUD {
   private timerEl: HTMLElement | null = null;
   private timerMinEl: HTMLElement | null = null;
   private timerSecEl: HTMLElement | null = null;
+  private reloadBtn: HTMLButtonElement;
   private reloadHint: HTMLElement;
   private onReload: () => void;
+  private lastComboLevel = 1;
 
   constructor(parent: HTMLElement, mode: GameMode, onReload: () => void) {
     this.onReload = onReload;
@@ -90,7 +105,7 @@ export class HUD {
               <div class="hud-ammo-icons">${teeth}</div>
             </div>
           </div>
-          <button type="button" class="hud-reload-btn" title="Reload (R / Space)">RELOAD</button>
+          <button type="button" class="hud-reload-btn" hidden title="Reload (R / Space)">RELOAD</button>
         </div>
 
         <div class="hud-right">
@@ -112,13 +127,14 @@ export class HUD {
     this.timerEl = this.root.querySelector('.hud-time');
     this.timerMinEl = this.root.querySelector('.hud-time-min');
     this.timerSecEl = this.root.querySelector('.hud-time-sec');
+    this.reloadBtn = this.root.querySelector('.hud-reload-btn')!;
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
 
     if (mode === 'timed') {
       this.setTimer(gameConfig.timedSeconds);
     }
 
-    this.root.querySelector('.hud-reload-btn')!.addEventListener('click', (e) => {
+    this.reloadBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.onReload();
     });
@@ -133,8 +149,6 @@ export class HUD {
   setScore(score: number): void {
     this.scoreEl.textContent = String(score);
   }
-
-  private lastComboLevel = 1;
 
   setCombo(multiplier: number, progressShots = 0): void {
     const max = gameConfig.maxCombo;
@@ -162,7 +176,6 @@ export class HUD {
 
   setAmmo(current: number, max: number, reloading: boolean): void {
     const icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
-    // Rebuild icon row if magazine size ever differs from rendered count
     if (icons.length !== max) {
       this.ammoIconsEl.innerHTML = Array.from({ length: max }, () =>
         `<span class="hud-tooth filled">${TOOTH_SVG}</span>`,
@@ -174,13 +187,10 @@ export class HUD {
     });
     this.ammoPanel.classList.toggle('reloading', reloading);
     this.ammoPanel.classList.toggle('empty', !reloading && current === 0);
-    this.ammoPanel.classList.remove('warn');
-    if (reloading) {
-      this.ammoPanel.classList.add('warn');
-      this.reloadHint.hidden = true;
-    } else {
-      this.reloadHint.hidden = current !== 0;
-    }
+    this.ammoPanel.classList.toggle('warn', reloading);
+    // Match reference art: only surface RELOAD when the mag is empty / mid-reload
+    this.reloadBtn.hidden = !(reloading || current === 0);
+    this.reloadHint.hidden = reloading || current !== 0;
   }
 
   setTimer(secondsLeft: number): void {
@@ -198,7 +208,6 @@ export class HUD {
     window.setTimeout(() => this.ammoPanel.classList.remove('flash'), 250);
   }
 
-  /** Crosshair shrink kick at the aim point. */
   playShootAnim(): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
     if (ch) {
@@ -209,7 +218,6 @@ export class HUD {
     }
   }
 
-  /** Food-crumb burst — only for successful durian hits. */
   spawnCrumbs(clientX: number, clientY: number): void {
     const colors = ['#e8c89a', '#d2a36a', '#c48a4a', '#f0d6b0', '#a8743c', '#fff1d6'];
     const count = 10 + Math.floor(Math.random() * 5);
@@ -218,10 +226,10 @@ export class HUD {
       crumb.className = 'crumb';
       crumb.style.left = `${clientX}px`;
       crumb.style.top = `${clientY}px`;
-      const size = 8 + Math.random() * 12;
-      const dx = (Math.random() - 0.5) * 140;
-      const dy = 55 + Math.random() * 120;
-      const dur = 0.5 + Math.random() * 0.45;
+      const size = 3 + Math.random() * 5;
+      const dx = (Math.random() - 0.5) * 56;
+      const dy = 28 + Math.random() * 54;
+      const dur = 0.4 + Math.random() * 0.35;
       const rot = (Math.random() - 0.5) * 420;
       crumb.style.setProperty('--s', `${size.toFixed(1)}px`);
       crumb.style.setProperty('--dx', `${dx.toFixed(1)}px`);
@@ -236,7 +244,6 @@ export class HUD {
 
   /** Soap-bubble pop burst — radial droplets + expanding ring. */
   spawnBubblePop(clientX: number, clientY: number): void {
-    // High-contrast colors so the burst reads against the sky
     const colors = ['#ff4d8d', '#2ec7ff', '#ffffff', '#ff8fc4', '#5ee1ff', '#ffe566'];
     const host = document.body;
 
