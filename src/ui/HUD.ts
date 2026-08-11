@@ -33,6 +33,7 @@ export class HUD {
       mode === 'timed'
         ? `
       <div class="hud-panel hud-time" aria-label="Time">
+        <span class="hud-panel-label hud-time-label">TIME</span>
         <div class="hud-time-value">
           <span class="hud-time-sec">180</span>
           <span class="hud-time-dot">.</span>
@@ -51,12 +52,14 @@ export class HUD {
             <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
           </div>
           <div class="hud-panel hud-score" aria-label="Score">
+            <span class="hud-panel-label hud-score-label">SCORE</span>
             <span class="hud-score-num">0</span>
           </div>
         </div>
 
         <div class="hud-center">
           <div class="hud-panel hud-ammo" aria-label="Ammo">
+            <span class="hud-panel-label hud-ammo-label">AMMO</span>
             <div class="hud-ammo-icons">${teeth}</div>
           </div>
         </div>

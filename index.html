@@ -243,6 +243,37 @@
         image-rendering: auto;
       }
 
+      /* Panel title labels (separate from baked-in art) */
+      .hud-panel-label {
+        position: absolute;
+        z-index: 1;
+        font: 800 clamp(11px, 1.7vw, 18px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+        user-select: none;
+        white-space: nowrap;
+        paint-order: stroke fill;
+      }
+      .hud-score-label {
+        left: 14.8%;
+        top: 7.3%;
+        color: #fff;
+        -webkit-text-stroke: 2.5px #1a1018;
+      }
+      .hud-ammo-label {
+        left: 50%;
+        top: 7.3%;
+        transform: translateX(-50%);
+        color: #1a1018;
+        -webkit-text-stroke: 2.5px #fff;
+      }
+      .hud-time-label {
+        right: 19%;
+        top: 7.3%;
+        color: #1a1018;
+        -webkit-text-stroke: 2.5px #fff;
+      }
+
       /* SCORE — flush left edge of screen */
       .hud-score {
         width: clamp(150px, 21vw, 270px);
