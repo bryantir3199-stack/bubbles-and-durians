@@ -357,29 +357,30 @@
         width: min(390px, 42vw);
         height: clamp(52px, 7.1vw, 90px);
         background-image: url('/assets/hud/ammo.png');
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        padding: 0 6.5% clamp(10px, 1.4vw, 18px);
+        /* Icons are absolutely placed so the AMMO label cannot skew centering */
+        display: block;
         overflow: hidden;
         box-sizing: border-box;
       }
       .hud-ammo-icons {
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        bottom: clamp(10px, 1.4vw, 18px);
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: clamp(2px, 0.45vw, 6px);
-        width: 100%;
+        justify-content: center;
+        gap: clamp(6px, 1.1vw, 14px);
         min-height: 0;
-        margin-bottom: 2px;
+        margin: 0;
+        pointer-events: none;
       }
       .hud-tooth {
         display: grid;
         place-items: center;
-        flex: 1 1 0;
-        width: auto;
-        max-width: 36px;
-        height: clamp(21px, 3.15vw, 34px);
+        flex: 0 0 auto;
+        width: clamp(22px, 3.4vw, 36px);
+        height: clamp(22px, 3.4vw, 36px);
         aspect-ratio: 1;
         transition: transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
       }
@@ -682,11 +683,12 @@
         .hud-score,
         .hud-time,
         .hud-lives { width: clamp(105px, 28.5vw, 150px); height: clamp(42px, 10.5vw, 60px); }
-        .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); padding: 0 7% 8px; }
+        .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); }
+        .hud-ammo-icons { left: 7%; right: 7%; bottom: 8px; gap: 5px; }
         .hud-panel-label { font-size: 13px; }
         .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
         .hud-combo-text { font-size: 10px; }
-        .hud-tooth { height: 20px; max-width: 28px; }
+        .hud-tooth { width: 20px; height: 20px; }
       }
     </style>
   </head>
