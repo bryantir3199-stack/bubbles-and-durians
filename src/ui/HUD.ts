@@ -148,32 +148,42 @@ export class HUD {
 
   /** Soap-bubble pop burst — radial droplets + expanding ring. */
   spawnBubblePop(clientX: number, clientY: number): void {
-    const colors = ['#b8f0ff', '#8ad4ff', '#ffe0f2', '#ffffff', '#c9f7ff', '#ffb8d9'];
+    // High-contrast colors so the burst reads against the sky
+    const colors = ['#ff4d8d', '#2ec7ff', '#ffffff', '#ff8fc4', '#5ee1ff', '#ffe566'];
+    const host = document.body;
+
+    const flash = document.createElement('div');
+    flash.className = 'bubble-pop-flash';
+    flash.style.left = `${clientX}px`;
+    flash.style.top = `${clientY}px`;
+    host.appendChild(flash);
+    window.setTimeout(() => flash.remove(), 280);
+
     const ring = document.createElement('div');
     ring.className = 'bubble-pop-ring';
     ring.style.left = `${clientX}px`;
     ring.style.top = `${clientY}px`;
-    this.root.appendChild(ring);
-    window.setTimeout(() => ring.remove(), 420);
+    host.appendChild(ring);
+    window.setTimeout(() => ring.remove(), 480);
 
-    const count = 12 + Math.floor(Math.random() * 6);
+    const count = 16 + Math.floor(Math.random() * 8);
     for (let i = 0; i < count; i++) {
       const drop = document.createElement('div');
       drop.className = 'bubble-pop';
       drop.style.left = `${clientX}px`;
       drop.style.top = `${clientY}px`;
-      const size = 6 + Math.random() * 10;
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.45;
-      const dist = 48 + Math.random() * 72;
+      const size = 10 + Math.random() * 14;
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const dist = 70 + Math.random() * 110;
       const dx = Math.cos(angle) * dist;
       const dy = Math.sin(angle) * dist;
-      const dur = 0.35 + Math.random() * 0.25;
+      const dur = 0.45 + Math.random() * 0.3;
       drop.style.setProperty('--s', `${size.toFixed(1)}px`);
       drop.style.setProperty('--dx', `${dx.toFixed(1)}px`);
       drop.style.setProperty('--dy', `${dy.toFixed(1)}px`);
       drop.style.setProperty('--dur', `${dur.toFixed(2)}s`);
       drop.style.setProperty('--c', colors[Math.floor(Math.random() * colors.length)]!);
-      this.root.appendChild(drop);
+      host.appendChild(drop);
       window.setTimeout(() => drop.remove(), Math.ceil(dur * 1000) + 40);
     }
   }
