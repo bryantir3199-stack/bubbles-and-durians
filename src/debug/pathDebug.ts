@@ -37,15 +37,27 @@ export function createPathDebugGroup(): THREE.Group {
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
     const line = new THREE.Line(
       geo,
-      new THREE.LineBasicMaterial({ color, depthTest: true }),
+      new THREE.LineBasicMaterial({
+        color,
+        depthTest: false,
+        transparent: true,
+        opacity: index < GATE_LANE_COUNT ? 0.55 : 0.95,
+      }),
     );
+    line.renderOrder = 10;
     root.add(line);
 
     const sphereGeo = new THREE.SphereGeometry(4, 8, 8);
-    const sphereMat = new THREE.MeshBasicMaterial({ color });
+    const sphereMat = new THREE.MeshBasicMaterial({
+      color,
+      depthTest: false,
+      transparent: true,
+      opacity: 0.95,
+    });
     for (const p of pts) {
       const s = new THREE.Mesh(sphereGeo, sphereMat);
       s.position.copy(p);
+      s.renderOrder = 11;
       root.add(s);
     }
 
@@ -53,16 +65,11 @@ export function createPathDebugGroup(): THREE.Group {
     const start = pts[0]!;
     const marker = new THREE.Mesh(
       new THREE.SphereGeometry(7, 8, 8),
-      new THREE.MeshBasicMaterial({ color }),
+      new THREE.MeshBasicMaterial({ color, depthTest: false }),
     );
     marker.position.set(start.x, start.y + 14, start.z);
+    marker.renderOrder = 12;
     root.add(marker);
-
-    // Dim gate lanes slightly vs dome lanes when both are shown.
-    if (index < GATE_LANE_COUNT) {
-      (line.material as THREE.LineBasicMaterial).opacity = 0.55;
-      (line.material as THREE.LineBasicMaterial).transparent = true;
-    }
   });
 
   return root;
