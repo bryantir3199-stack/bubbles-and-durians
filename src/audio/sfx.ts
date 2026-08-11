@@ -10,6 +10,8 @@ let glitterBuffer: AudioBuffer | null = null;
 let glitterLoad: Promise<AudioBuffer | null> | null = null;
 let reloadBuffer: AudioBuffer | null = null;
 let reloadLoad: Promise<AudioBuffer | null> | null = null;
+let dryFireBuffer: AudioBuffer | null = null;
+let dryFireLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
 
@@ -45,6 +47,7 @@ export async function preloadSfx(): Promise<void> {
     ensurePopBuffer(),
     ensureGlitterBuffer(),
     ensureReloadBuffer(),
+    ensureDryFireBuffer(),
     ensureShootBuffers(),
   ]);
 }
@@ -95,6 +98,18 @@ async function ensureReloadBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return reloadLoad;
+}
+
+async function ensureDryFireBuffer(): Promise<AudioBuffer | null> {
+  if (dryFireBuffer) return dryFireBuffer;
+  if (dryFireLoad) return dryFireLoad;
+
+  dryFireLoad = (async () => {
+    dryFireBuffer = await loadBuffer('assets/dry-fire.wav');
+    return dryFireBuffer;
+  })();
+
+  return dryFireLoad;
 }
 
 async function ensureShootBuffers(): Promise<AudioBuffer[]> {
@@ -149,22 +164,16 @@ export function playShootSound(): void {
   void ensureShootBuffers().then(playRandom);
 }
 
-/** Dry-fire click when empty. */
+/** Empty-magazine click when the player shoots with no ammo. */
 export function playDryFireSound(): void {
-  const ac = getCtx();
-  if (!ac) return;
-  const t0 = ac.currentTime;
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(140, t0);
-  osc.frequency.exponentialRampToValueAtTime(60, t0 + 0.08);
-  gain.gain.setValueAtTime(0.12, t0);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  osc.start(t0);
-  osc.stop(t0 + 0.1);
+  if (dryFireBuffer) {
+    playBuffer(dryFireBuffer, 0.85, 0.08);
+    return;
+  }
+
+  void ensureDryFireBuffer().then((buf) => {
+    if (buf) playBuffer(buf, 0.85, 0.08);
+  });
 }
 
 /** Slime squish sample when a durian pops. */
