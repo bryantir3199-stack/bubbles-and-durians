@@ -1,5 +1,5 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { clearUI, panel, bindClick } from '../ui/dom';
+import { clearUI, panel } from '../ui/dom';
 
 export class TitleScene implements GameScene {
   readonly id = 'title' as const;
@@ -9,17 +9,27 @@ export class TitleScene implements GameScene {
   enter(_data?: SceneData): void {
     clearUI(this.ctx.uiRoot);
     const ui = panel(
-      'menu title',
-      `<div class="menu-card">
-        <img class="logo" src="assets/logo.png" alt="Bubbles & Durians" />
-        <p class="tagline">Shoot durians, dodge bubbles — free-roaming castle gallery!</p>
-        <button type="button" class="btn primary" data-action="play">PLAY</button>
-        <button type="button" class="btn" data-action="lb">LEADERBOARDS</button>
+      'menu title-splash',
+      `<div class="title-splash-content">
+        <img class="title-logo" src="assets/logo.png" alt="Bubbles & Durians" />
+        <p class="click-anywhere">CLICK ANYWHERE</p>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
-    bindClick(ui, '[data-action="play"]', () => this.ctx.goto('modeSelect'));
-    bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));
+
+    const advance = () => this.ctx.goto('modeSelect');
+    ui.addEventListener('click', advance);
+    ui.addEventListener('keydown', (e: Event) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        advance();
+      }
+    });
+    ui.tabIndex = 0;
+    ui.setAttribute('role', 'button');
+    ui.setAttribute('aria-label', 'Click anywhere to open the main menu');
+    ui.focus({ preventScroll: true });
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);

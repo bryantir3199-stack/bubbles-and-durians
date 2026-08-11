@@ -43,7 +43,7 @@ export class LeaderboardScene implements GameScene {
         this.ctx.goto('leaderboard', { mode });
       });
     });
-    bindClick(ui, '[data-action="back"]', () => this.ctx.goto('title'));
+    bindClick(ui, '[data-action="back"]', () => this.ctx.goto('modeSelect'));
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);

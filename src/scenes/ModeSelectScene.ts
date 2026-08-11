@@ -10,20 +10,14 @@ export class ModeSelectScene implements GameScene {
   enter(_data?: SceneData): void {
     clearUI(this.ctx.uiRoot);
     const ui = panel(
-      'menu mode-select',
-      `<div class="menu-wide">
-        <h1>SELECT MODE</h1>
-        <div class="mode-row">
-          <button type="button" class="mode-card" data-mode="endless">
-            <h2>ENDLESS</h2>
-            <p>3 lives<br/>Bubble hits &amp; escaped durians cost lives<br/>4 durian hits → 2x–4x combo<br/>Hearts restore HP</p>
-          </button>
-          <button type="button" class="mode-card timed" data-mode="timed">
-            <h2>TIMED</h2>
-            <p>3 minute clock<br/>Same ammo, bubbles &amp; combos<br/>Bubbles cost points (no lives)<br/>No escape penalty or hearts</p>
-          </button>
-        </div>
-        <button type="button" class="btn muted-btn" data-action="back">BACK</button>
+      'menu main-menu',
+      `<div class="main-menu-content">
+        <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
+        <nav class="main-menu-nav" aria-label="Main menu">
+          <button type="button" class="menu-option timed" data-mode="timed">TIMED MODE</button>
+          <button type="button" class="menu-option endless" data-mode="endless">ENDLESS MODE</button>
+          <button type="button" class="menu-option" data-action="lb">VIEW LEADERBOARD</button>
+        </nav>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
@@ -35,7 +29,7 @@ export class ModeSelectScene implements GameScene {
         this.ctx.goto('play', { mode });
       });
     });
-    bindClick(ui, '[data-action="back"]', () => this.ctx.goto('title'));
+    bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
