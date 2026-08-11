@@ -247,7 +247,7 @@
       .hud-panel-label {
         position: absolute;
         z-index: 1;
-        font: 800 clamp(11px, 1.7vw, 18px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(14px, 2.2vw, 24px)/1 'Baloo 2', 'Fredoka', sans-serif;
         letter-spacing: 0.04em;
         pointer-events: none;
         user-select: none;
@@ -256,13 +256,22 @@
       }
       .hud-score-label {
         left: 14.8%;
-        top: 7.3%;
-        color: #fff;
-        -webkit-text-stroke: 2.5px #1a1018;
+        top: 6.5%;
+        color: #1a1018;
+        -webkit-text-stroke: 0;
+        text-shadow:
+          -2px -2px 0 #fff,
+           0px -2px 0 #fff,
+           2px -2px 0 #fff,
+          -2px  0px 0 #fff,
+           2px  0px 0 #fff,
+          -2px  2px 0 #fff,
+           0px  2px 0 #fff,
+           2px  2px 0 #fff;
       }
       .hud-ammo-label {
         left: 50%;
-        top: 7.3%;
+        top: 6.5%;
         transform: translateX(-50%);
         color: #1a1018;
         -webkit-text-stroke: 0;
@@ -278,7 +287,7 @@
       }
       .hud-time-label {
         right: 19%;
-        top: 7.3%;
+        top: 6.5%;
         color: #1a1018;
         -webkit-text-stroke: 0;
         text-shadow:
@@ -303,7 +312,7 @@
         padding: 0 clamp(14px, 2.25vw, 27px) clamp(10px, 1.5vw, 21px) 0;
       }
       .hud-score-num {
-        font: 800 clamp(21px, 3.4vw, 36px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(26px, 4.2vw, 44px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
@@ -415,11 +424,11 @@
         paint-order: stroke fill;
       }
       .hud-time-sec {
-        font: 800 clamp(18px, 3vw, 32px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(22px, 3.6vw, 40px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
       .hud-time-dot,
       .hud-time-ms {
-        font: 800 clamp(12px, 2vw, 20px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(15px, 2.4vw, 25px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
       .hud-time.critical {
         animation: criticalPulse 0.6s ease-in-out infinite;
@@ -674,7 +683,7 @@
         .hud-time,
         .hud-lives { width: clamp(105px, 28.5vw, 150px); height: clamp(42px, 10.5vw, 60px); }
         .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); padding: 0 7% 8px; }
-        .hud-panel-label { font-size: 10px; -webkit-text-stroke-width: 2px; }
+        .hud-panel-label { font-size: 13px; }
         .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
         .hud-combo-text { font-size: 10px; }
         .hud-tooth { height: 20px; max-width: 28px; }
