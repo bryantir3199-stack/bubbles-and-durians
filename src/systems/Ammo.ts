@@ -1,4 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
+import { playReloadShellSound } from '../audio/sfx';
 
 type AmmoListener = (current: number, max: number, reloading: boolean) => void;
 
@@ -7,6 +8,8 @@ export class AmmoSystem {
   private reloading = false;
   private reloadTimer: number | null = null;
   private listeners = new Set<AmmoListener>();
+  /** Ammo count when the current reload began (for low→high pitch steps). */
+  private reloadFrom = 0;
 
   constructor() {
     this.ammo = gameConfig.magazineSize;
@@ -52,6 +55,7 @@ export class AmmoSystem {
     if (this.reloading) return false;
     if (this.ammo >= gameConfig.magazineSize) return false;
 
+    this.reloadFrom = this.ammo;
     this.reloading = true;
     this.emit();
     this.clearReloadTimer();
@@ -64,6 +68,10 @@ export class AmmoSystem {
       this.reloadTimer = null;
       if (this.ammo < gameConfig.magazineSize) {
         this.ammo += 1;
+        const shellsToFill = gameConfig.magazineSize - this.reloadFrom;
+        const step = this.ammo - this.reloadFrom; // 1..shellsToFill
+        const progress01 = shellsToFill <= 1 ? 1 : (step - 1) / (shellsToFill - 1);
+        playReloadShellSound(progress01);
         this.emit();
       }
       if (this.ammo >= gameConfig.magazineSize) {

@@ -8,6 +8,8 @@ let popBuffer: AudioBuffer | null = null;
 let popLoad: Promise<AudioBuffer | null> | null = null;
 let glitterBuffer: AudioBuffer | null = null;
 let glitterLoad: Promise<AudioBuffer | null> | null = null;
+let reloadBuffer: AudioBuffer | null = null;
+let reloadLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
 
@@ -42,6 +44,7 @@ export async function preloadSfx(): Promise<void> {
     ensureSquishBuffer(),
     ensurePopBuffer(),
     ensureGlitterBuffer(),
+    ensureReloadBuffer(),
     ensureShootBuffers(),
   ]);
 }
@@ -82,6 +85,18 @@ async function ensureGlitterBuffer(): Promise<AudioBuffer | null> {
   return glitterLoad;
 }
 
+async function ensureReloadBuffer(): Promise<AudioBuffer | null> {
+  if (reloadBuffer) return reloadBuffer;
+  if (reloadLoad) return reloadLoad;
+
+  reloadLoad = (async () => {
+    reloadBuffer = await loadBuffer('assets/reload-tick.wav');
+    return reloadBuffer;
+  })();
+
+  return reloadLoad;
+}
+
 async function ensureShootBuffers(): Promise<AudioBuffer[]> {
   if (shootBuffers.length > 0) return shootBuffers;
   if (shootLoad) return shootLoad;
@@ -98,14 +113,20 @@ async function ensureShootBuffers(): Promise<AudioBuffer[]> {
   return shootLoad;
 }
 
-function playBuffer(buffer: AudioBuffer, gainValue = 0.85, rateJitter = 0.16): void {
+function playBuffer(
+  buffer: AudioBuffer,
+  gainValue = 0.85,
+  rateJitter = 0.16,
+  playbackRate?: number,
+): void {
   const ac = getCtx();
   if (!ac) return;
   const src = ac.createBufferSource();
   const gain = ac.createGain();
   src.buffer = buffer;
-  // Slight pitch variety so rapid plays don’t sound identical
-  src.playbackRate.value = 1 - rateJitter / 2 + Math.random() * rateJitter;
+  // Fixed rate when provided; otherwise slight pitch variety so rapid plays don’t sound identical
+  src.playbackRate.value =
+    playbackRate ?? 1 - rateJitter / 2 + Math.random() * rateJitter;
   gain.gain.value = gainValue;
   src.connect(gain);
   gain.connect(ac.destination);
@@ -179,5 +200,25 @@ export function playGlitterSound(): void {
 
   void ensureGlitterBuffer().then((buf) => {
     if (buf) playBuffer(buf, 0.75, 0.06);
+  });
+}
+
+/**
+ * One tick per shell restored during reload.
+ * @param progress01 0 = first shell (low pitch), 1 = last shell (high pitch)
+ */
+export function playReloadShellSound(progress01: number): void {
+  const t = Math.max(0, Math.min(1, progress01));
+  // Rising click ladder across the reload sequence.
+  const rate = 0.72 + t * 0.58;
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.7, 0, rate);
+
+  if (reloadBuffer) {
+    play(reloadBuffer);
+    return;
+  }
+
+  void ensureReloadBuffer().then((buf) => {
+    if (buf) play(buf);
   });
 }
