@@ -262,7 +262,7 @@
       .hud-combo {
         position: absolute;
         left: clamp(6px, 1.1vw, 15px);
-        bottom: calc(100% + 14px);
+        bottom: calc(100% + 32px);
         width: clamp(82px, 12vw, 150px);
         height: clamp(27px, 3.75vw, 44px);
         background: url('/assets/hud/combo.png') center / 100% 100% no-repeat;
@@ -299,21 +299,24 @@
         display: flex;
         align-items: flex-end;
         justify-content: center;
-        padding: 0 8% clamp(9px, 1.35vw, 18px);
+        padding: 0 5.5% clamp(8px, 1.2vw, 16px);
       }
       .hud-ammo-icons {
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: clamp(2px, 0.45vw, 6px);
+        justify-content: space-between;
+        gap: clamp(2px, 0.5vw, 8px);
         width: 100%;
-        min-height: 40%;
+        min-height: 48%;
       }
       .hud-tooth {
         display: grid;
         place-items: center;
-        width: clamp(21px, 3.15vw, 36px);
-        height: clamp(21px, 3.15vw, 36px);
+        flex: 1 1 0;
+        width: auto;
+        max-width: 52px;
+        height: clamp(28px, 4.8vw, 46px);
+        aspect-ratio: 1;
         transition: transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
       }
       .hud-tooth-icon {
@@ -564,9 +567,9 @@
         .hud-time,
         .hud-lives { width: clamp(105px, 28.5vw, 150px); height: clamp(42px, 10.5vw, 60px); }
         .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); }
-        .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 10px); }
+        .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
         .hud-combo-text { font-size: 10px; }
-        .hud-tooth { width: 20px; height: 20px; }
+        .hud-tooth { height: 24px; max-width: 36px; }
       }
     </style>
   </head>
