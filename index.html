@@ -312,12 +312,15 @@
         position: absolute;
         right: clamp(14px, 2.25vw, 27px);
         /*
-          Lower-body band is ~34% (nudge floor) → 100% (panel bottom).
-          Place the glyph center at the midpoint (~67%) so top/bottom gaps match.
-          Extra 3% offsets Baloo ink sitting high in the em-box.
+          Center in the light face of the lower body only:
+          nudge floor ~34% → face/bevel seam ~90%. Flex-centers for equal gaps.
         */
-        top: 70%;
-        transform: translateY(-50%);
+        top: 34%;
+        bottom: 10%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        box-sizing: border-box;
         font: 800 clamp(26px, 4.2vw, 44px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
@@ -424,15 +427,15 @@
         position: absolute;
         left: clamp(12px, 2vw, 24px);
         /*
-          Lower-body band is ~34% (nudge floor) → 100% (panel bottom).
-          Place the value center at the midpoint (~67%) so top/bottom gaps match.
-          Extra 3% offsets Baloo ink sitting high in the em-box.
+          Center in the light face of the lower body only:
+          nudge floor ~34% → face/bevel seam ~90%. Flex-centers for equal gaps.
         */
-        top: 70%;
-        transform: translateY(-50%);
+        top: 34%;
+        bottom: 10%;
         display: flex;
-        align-items: baseline;
+        align-items: center;
         gap: 0;
+        box-sizing: border-box;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
