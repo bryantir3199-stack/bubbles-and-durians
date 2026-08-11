@@ -35,19 +35,23 @@ export class ModelCache {
     const loader = new GLTFLoader();
     const texLoader = new THREE.TextureLoader();
 
-    const [bubbleGltf, durianGltf, goldMap] = await Promise.all([
+    const [bubbleGltf, durianGltf, goldMap, heartMap] = await Promise.all([
       loader.loadAsync(GLB_URL.bubble),
       loader.loadAsync(GLB_URL.durian),
       texLoader.loadAsync('assets/gold-durian.png'),
+      texLoader.loadAsync('assets/hud/heart.png'),
     ]);
 
     goldMap.colorSpace = THREE.SRGBColorSpace;
     goldMap.anisotropy = 1;
     this.textures.set('goldDurian', goldMap);
 
+    heartMap.colorSpace = THREE.SRGBColorSpace;
+    heartMap.anisotropy = 1;
+    this.textures.set('heart', heartMap);
+
     this.templates.set('bubble', this.normalizeTemplate(bubbleGltf.scene, gameConfig.targetSize));
     this.templates.set('durian', this.normalizeTemplate(durianGltf.scene, gameConfig.targetSize));
-    this.textures.set('heart', this.makeHeartTexture());
 
     this.ready = true;
   }
@@ -160,28 +164,5 @@ export class ModelCache {
     root.position.sub(center);
     wrapper.add(root);
     return wrapper;
-  }
-
-  private static makeHeartTexture(): THREE.Texture {
-    const s = 64;
-    const c = document.createElement('canvas');
-    c.width = s;
-    c.height = s;
-    const g = c.getContext('2d')!;
-    g.clearRect(0, 0, s, s);
-    g.fillStyle = '#ff2d55';
-    g.strokeStyle = '#ffffff';
-    g.lineWidth = 4;
-    g.beginPath();
-    const x = s / 2;
-    g.moveTo(x, s * 0.88);
-    g.bezierCurveTo(x - s * 0.55, s * 0.55, x - s * 0.45, s * 0.12, x, s * 0.32);
-    g.bezierCurveTo(x + s * 0.45, s * 0.12, x + s * 0.55, s * 0.55, x, s * 0.88);
-    g.closePath();
-    g.fill();
-    g.stroke();
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
   }
 }

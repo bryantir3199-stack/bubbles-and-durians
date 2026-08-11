@@ -3,6 +3,7 @@ import type { GameMode } from '../config/gameConfig';
 import { playCountdownTickSound } from '../audio/sfx';
 
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
+const HEART_IMG = `<img class="hud-heart-icon" src="/assets/hud/heart.png" alt="" draggable="false" />`;
 
 export class HUD {
   private root: HTMLElement;
@@ -33,6 +34,7 @@ export class HUD {
       mode === 'timed'
         ? `
       <div class="hud-panel hud-time" aria-label="Time">
+        <span class="hud-panel-label hud-time-label">TIME</span>
         <div class="hud-time-value">
           <span class="hud-time-sec">180</span>
           <span class="hud-time-dot">.</span>
@@ -41,6 +43,7 @@ export class HUD {
       </div>`
         : `
       <div class="hud-panel hud-lives" aria-label="Lives">
+        <span class="hud-panel-label hud-lives-label">LIVES</span>
         <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
       </div>`;
 
@@ -51,12 +54,14 @@ export class HUD {
             <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
           </div>
           <div class="hud-panel hud-score" aria-label="Score">
+            <span class="hud-panel-label hud-score-label">SCORE</span>
             <span class="hud-score-num">0</span>
           </div>
         </div>
 
         <div class="hud-center">
           <div class="hud-panel hud-ammo" aria-label="Ammo">
+            <span class="hud-panel-label hud-ammo-label">AMMO</span>
             <div class="hud-ammo-icons">${teeth}</div>
           </div>
         </div>
@@ -89,8 +94,10 @@ export class HUD {
 
   private hearts(lives: number): string {
     const n = Math.max(0, lives);
-    if (n === 0) return '<span class="hud-heart empty">0</span>';
-    return Array.from({ length: n }, () => '<span class="hud-heart">♥</span>').join('');
+    if (n === 0) return '<span class="hud-heart empty"><span class="hud-heart-zero">0</span></span>';
+    return Array.from({ length: n }, () =>
+      `<span class="hud-heart filled">${HEART_IMG}</span>`,
+    ).join('');
   }
 
   setScore(score: number): void {
