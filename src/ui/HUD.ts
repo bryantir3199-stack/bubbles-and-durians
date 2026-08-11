@@ -1,140 +1,189 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 
+const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
+
 export class HUD {
   private root: HTMLElement;
   private scoreEl: HTMLElement;
-  private livesEl: HTMLElement;
-  private ammoEl: HTMLElement;
+  private livesEl: HTMLElement | null = null;
+  private livesPanel: HTMLElement | null = null;
+  private ammoIconsEl: HTMLElement;
+  private ammoPanel: HTMLElement;
   private comboEl: HTMLElement;
   private comboMultEl: HTMLElement;
-  private comboFillEl: HTMLElement;
   private timerEl: HTMLElement | null = null;
+  private timerMinEl: HTMLElement | null = null;
+  private timerSecEl: HTMLElement | null = null;
   private reloadHint: HTMLElement;
-  private onReload: () => void;
+  private lastComboLevel = 1;
 
-  constructor(parent: HTMLElement, mode: GameMode, onReload: () => void) {
-    this.onReload = onReload;
+  constructor(parent: HTMLElement, mode: GameMode, _onReload: () => void) {
     this.root = document.createElement('div');
     this.root.className = 'hud';
-    this.root.innerHTML = `
-      <div class="hud-bar">
-        <span class="hud-score">Score: 0</span>
-        <span class="hud-lives">${this.livesLabel(gameConfig.startLives)}</span>
-        <span class="hud-ammo">Ammo: ${gameConfig.magazineSize}/${gameConfig.magazineSize}</span>
-        ${mode === 'timed' ? `<span class="hud-timer">${this.formatTime(gameConfig.timedSeconds)}</span>` : ''}
-        <div class="hud-combo" aria-label="Combo meter">
-          <span class="hud-combo-label">Combo</span>
-          <div class="hud-combo-track">
-            <div class="hud-combo-fill" style="width: 0%"></div>
-          </div>
-          <span class="hud-combo-mult">x1</span>
+
+    const teeth = Array.from({ length: gameConfig.magazineSize }, () =>
+      `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
+    ).join('');
+
+    const rightPanel =
+      mode === 'timed'
+        ? `
+      <div class="hud-panel hud-time" aria-label="Time">
+        <div class="hud-time-value">
+          <span class="hud-time-min">3</span>
+          <span class="hud-time-sec">00</span>
         </div>
-        <button type="button" class="hud-reload-btn">RELOAD</button>
+      </div>`
+        : `
+      <div class="hud-panel hud-lives" aria-label="Lives">
+        <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
+      </div>`;
+
+    this.root.innerHTML = `
+      <div class="hud-dock">
+        <div class="hud-left">
+          <div class="hud-combo" aria-label="Combo" hidden>
+            <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
+          </div>
+          <div class="hud-panel hud-score" aria-label="Score">
+            <span class="hud-score-num">0</span>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <div class="hud-panel hud-ammo" aria-label="Ammo">
+            <div class="hud-ammo-icons">${teeth}</div>
+          </div>
+        </div>
+
+        <div class="hud-right">
+          ${rightPanel}
+        </div>
       </div>
       <div class="hud-reload-hint" hidden>RELOAD! (R / Space)</div>
       <div class="crosshair" aria-hidden="true"></div>
     `;
     parent.appendChild(this.root);
 
-    this.scoreEl = this.root.querySelector('.hud-score')!;
-    this.livesEl = this.root.querySelector('.hud-lives')!;
-    this.ammoEl = this.root.querySelector('.hud-ammo')!;
+    this.scoreEl = this.root.querySelector('.hud-score-num')!;
+    this.livesPanel = this.root.querySelector('.hud-lives');
+    this.livesEl = this.root.querySelector('.hud-lives-value');
+    this.ammoIconsEl = this.root.querySelector('.hud-ammo-icons')!;
+    this.ammoPanel = this.root.querySelector('.hud-ammo')!;
     this.comboEl = this.root.querySelector('.hud-combo')!;
     this.comboMultEl = this.root.querySelector('.hud-combo-mult')!;
-    this.comboFillEl = this.root.querySelector('.hud-combo-fill')!;
-    this.timerEl = this.root.querySelector('.hud-timer');
+    this.timerEl = this.root.querySelector('.hud-time');
+    this.timerMinEl = this.root.querySelector('.hud-time-min');
+    this.timerSecEl = this.root.querySelector('.hud-time-sec');
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
 
-    this.root.querySelector('.hud-reload-btn')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.onReload();
-    });
+    if (mode === 'timed') {
+      this.setTimer(gameConfig.timedSeconds);
+    }
   }
 
-  private livesLabel(lives: number): string {
-    return `Lives: ${'♥'.repeat(Math.max(0, lives))}${lives === 0 ? '0' : ''}`;
-  }
-
-  private formatTime(seconds: number): string {
-    const s = Math.max(0, Math.ceil(seconds));
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return `Time: ${m}:${r.toString().padStart(2, '0')}`;
+  private hearts(lives: number): string {
+    const n = Math.max(0, lives);
+    if (n === 0) return '<span class="hud-heart empty">0</span>';
+    return Array.from({ length: n }, () => '<span class="hud-heart">♥</span>').join('');
   }
 
   setScore(score: number): void {
-    this.scoreEl.textContent = `Score: ${score}`;
+    this.scoreEl.textContent = String(score);
   }
 
   setCombo(multiplier: number, progressShots = 0): void {
     const max = gameConfig.maxCombo;
-    const perLevel = gameConfig.shotsPerComboLevel;
     const level = Math.max(1, Math.min(max, Math.floor(multiplier)));
-    const progress = Math.max(0, Math.min(perLevel, Math.floor(progressShots)));
-    this.comboMultEl.textContent = `x${level}`;
-    // Fill shows progress toward the next combo level (full when maxed)
-    const fillPct = level >= max ? 100 : (progress / perLevel) * 100;
-    this.comboFillEl.style.width = `${fillPct}%`;
-    this.comboEl.classList.toggle('active', level > 1 || progress > 0);
+    const progress = Math.max(0, Math.floor(progressShots));
+    const active = level > 1 || progress > 0;
+    this.comboMultEl.textContent = `${level}X`;
+    this.comboEl.hidden = !active;
+    this.comboEl.classList.toggle('active', active);
     this.comboEl.classList.toggle('max', level >= max);
     this.comboEl.dataset.level = String(level);
+    if (active && level !== this.lastComboLevel) {
+      this.comboEl.classList.remove('pop');
+      void this.comboEl.offsetWidth;
+      this.comboEl.classList.add('pop');
+    }
+    this.lastComboLevel = level;
   }
 
   setLives(lives: number): void {
-    this.livesEl.textContent = this.livesLabel(lives);
+    if (!this.livesEl) return;
+    this.livesEl.innerHTML = this.hearts(lives);
+    this.livesPanel?.classList.toggle('critical', lives <= 1);
   }
 
   setAmmo(current: number, max: number, reloading: boolean): void {
-    if (reloading) {
-      this.ammoEl.textContent = 'Ammo: Reloading…';
-      this.ammoEl.classList.add('warn');
-      this.reloadHint.hidden = true;
-    } else {
-      this.ammoEl.textContent = `Ammo: ${current}/${max}`;
-      this.ammoEl.classList.toggle('empty', current === 0);
-      this.ammoEl.classList.remove('warn');
-      this.reloadHint.hidden = current !== 0;
+    let icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
+    if (icons.length !== max) {
+      this.ammoIconsEl.innerHTML = Array.from({ length: max }, () =>
+        `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
+      ).join('');
+      icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
     }
+
+    icons.forEach((el, i) => {
+      const nowFilled = i < current;
+      const wasEmpty = el.classList.contains('empty');
+      el.classList.toggle('filled', nowFilled);
+      el.classList.toggle('empty', !nowFilled);
+      // Pop in only when a previously-empty pip fills (reload animation)
+      if (nowFilled && wasEmpty) {
+        el.classList.remove('pop-in');
+        void (el as HTMLElement).offsetWidth;
+        el.classList.add('pop-in');
+      }
+    });
+
+    this.ammoPanel.classList.toggle('reloading', reloading);
+    // Keep ammo panel visually stable — no layout-shifting empty/warn styles
+    this.ammoPanel.classList.remove('empty', 'warn');
+    // Center hint only when dry (not while refill animation is running)
+    this.reloadHint.hidden = reloading || current !== 0;
   }
 
   setTimer(secondsLeft: number): void {
-    if (!this.timerEl) return;
-    this.timerEl.textContent = this.formatTime(secondsLeft);
+    if (!this.timerMinEl || !this.timerSecEl || !this.timerEl) return;
+    const s = Math.max(0, Math.ceil(secondsLeft));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    this.timerMinEl.textContent = String(m);
+    this.timerSecEl.textContent = r.toString().padStart(2, '0');
     this.timerEl.classList.toggle('critical', secondsLeft <= 10);
   }
 
   flashDryFire(): void {
-    this.ammoEl.classList.add('flash');
-    window.setTimeout(() => this.ammoEl.classList.remove('flash'), 250);
+    this.ammoPanel.classList.add('flash');
+    window.setTimeout(() => this.ammoPanel.classList.remove('flash'), 250);
   }
 
-  /** Crosshair shrink kick at the aim point. */
   playShootAnim(): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
     if (ch) {
       ch.classList.remove('kick');
-      // Retrigger CSS animation
       void ch.offsetWidth;
       ch.classList.add('kick');
       window.setTimeout(() => ch.classList.remove('kick'), 180);
     }
   }
 
-  /** Food-crumb burst — only for successful durian hits. */
   spawnCrumbs(clientX: number, clientY: number): void {
     const colors = ['#e8c89a', '#d2a36a', '#c48a4a', '#f0d6b0', '#a8743c', '#fff1d6'];
-    const count = 10 + Math.floor(Math.random() * 5);
+    const count = 14 + Math.floor(Math.random() * 8);
     for (let i = 0; i < count; i++) {
       const crumb = document.createElement('div');
       crumb.className = 'crumb';
       crumb.style.left = `${clientX}px`;
       crumb.style.top = `${clientY}px`;
-      const size = 8 + Math.random() * 12;
-      const dx = (Math.random() - 0.5) * 140;
-      const dy = 55 + Math.random() * 120;
-      const dur = 0.5 + Math.random() * 0.45;
-      const rot = (Math.random() - 0.5) * 420;
+      const size = 10 + Math.random() * 16;
+      const dx = (Math.random() - 0.5) * 200;
+      const dy = 50 + Math.random() * 160;
+      const dur = 0.55 + Math.random() * 0.5;
+      const rot = (Math.random() - 0.5) * 520;
       crumb.style.setProperty('--s', `${size.toFixed(1)}px`);
       crumb.style.setProperty('--dx', `${dx.toFixed(1)}px`);
       crumb.style.setProperty('--dy', `${dy.toFixed(1)}px`);
@@ -148,7 +197,6 @@ export class HUD {
 
   /** Soap-bubble pop burst — radial droplets + expanding ring. */
   spawnBubblePop(clientX: number, clientY: number): void {
-    // High-contrast colors so the burst reads against the sky
     const colors = ['#ff4d8d', '#2ec7ff', '#ffffff', '#ff8fc4', '#5ee1ff', '#ffe566'];
     const host = document.body;
 

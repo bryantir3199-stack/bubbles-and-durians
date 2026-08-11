@@ -4,7 +4,8 @@ export const gameConfig = {
   startLives: 3,
   maxLives: 5,
   magazineSize: 7,
-  reloadMs: 400,
+  /** Delay between each ammo pip filling during reload. */
+  reloadShellMs: 85,
   timedSeconds: 180,
   /** Hard cap — never more than this many live targets */
   maxTargets: 6,

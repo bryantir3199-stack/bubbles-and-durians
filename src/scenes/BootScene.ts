@@ -32,7 +32,7 @@ export class BootScene implements GameScene {
     bar.style.width = '100%';
     this.ctx.markStageReady();
 
-    this.ctx.three.camera.position.set(0, 140, 560);
+    this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
     window.setTimeout(() => this.ctx.goto('title'), 200);
