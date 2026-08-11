@@ -4,6 +4,8 @@
 let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
+let popBuffer: AudioBuffer | null = null;
+let popLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
 
@@ -34,7 +36,7 @@ async function loadBuffer(url: string): Promise<AudioBuffer | null> {
 
 /** Decode samples early so first shot / kill is snappy. */
 export async function preloadSfx(): Promise<void> {
-  await Promise.all([ensureSquishBuffer(), ensureShootBuffers()]);
+  await Promise.all([ensureSquishBuffer(), ensurePopBuffer(), ensureShootBuffers()]);
 }
 
 async function ensureSquishBuffer(): Promise<AudioBuffer | null> {
@@ -47,6 +49,18 @@ async function ensureSquishBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return squishLoad;
+}
+
+async function ensurePopBuffer(): Promise<AudioBuffer | null> {
+  if (popBuffer) return popBuffer;
+  if (popLoad) return popLoad;
+
+  popLoad = (async () => {
+    popBuffer = await loadBuffer('assets/bubble-pop.wav');
+    return popBuffer;
+  })();
+
+  return popLoad;
 }
 
 async function ensureShootBuffers(): Promise<AudioBuffer[]> {
@@ -122,5 +136,17 @@ export function playSquishSound(): void {
 
   void ensureSquishBuffer().then((buf) => {
     if (buf) playBuffer(buf);
+  });
+}
+
+/** Bubble pop sample when a bubble is shot. */
+export function playPopSound(): void {
+  if (popBuffer) {
+    playBuffer(popBuffer, 0.95, 0.1);
+    return;
+  }
+
+  void ensurePopBuffer().then((buf) => {
+    if (buf) playBuffer(buf, 0.95, 0.1);
   });
 }
