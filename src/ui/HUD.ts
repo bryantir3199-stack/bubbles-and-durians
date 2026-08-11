@@ -43,6 +43,7 @@ export class HUD {
       </div>`
         : `
       <div class="hud-panel hud-lives" aria-label="Lives">
+        <span class="hud-panel-label hud-lives-label">LIVES</span>
         <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
       </div>`;
 
