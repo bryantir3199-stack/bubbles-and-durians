@@ -36,8 +36,8 @@ export class Spawner {
   start(): void {
     this.running = true;
     this.elapsed = 0;
-    // Match the slower cadence (was 700ms / 450ms stagger).
-    this.nextAt = 2150;
+    // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
+    this.nextAt = 1920;
     this.occupiedWindows.clear();
     this.busyPaths.clear();
     this.windowCooldownUntil.clear();
@@ -45,7 +45,7 @@ export class Spawner {
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
-      }, i * 1380);
+      }, i * 1230);
     }
   }
 

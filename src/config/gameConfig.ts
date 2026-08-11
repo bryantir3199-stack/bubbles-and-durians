@@ -9,9 +9,9 @@ export const gameConfig = {
   timedSeconds: 180,
   /** Hard cap — never more than this many live targets */
   maxTargets: 6,
-  /** Prior cadence was 3800/2200; +30% spawn rate → intervals / 1.3. */
-  spawnIntervalMs: 2920,
-  minSpawnIntervalMs: 1690,
+  /** Prior cadence was 2920/1690; ~12% faster spawn rate → intervals / 1.12. */
+  spawnIntervalMs: 2610,
+  minSpawnIntervalMs: 1510,
   /**
    * After a target leaves a window/path, keep that slot unavailable so the
    * next spawn cannot pop in the same place immediately.
@@ -41,17 +41,18 @@ export const gameConfig = {
     bubble: { min: 4000, max: 6500 },
     heart: { min: 4000, max: 6000 },
   },
+  /** Durian : bubble : gold = 6 : 3 : 1 (hearts only in endless). */
   spawnWeights: {
     endless: {
-      durian: 55,
-      goldDurian: 12,
-      bubble: 25,
-      heart: 8,
+      durian: 6,
+      goldDurian: 1,
+      bubble: 3,
+      heart: 1,
     },
     timed: {
-      durian: 58,
-      goldDurian: 15,
-      bubble: 27,
+      durian: 6,
+      goldDurian: 1,
+      bubble: 3,
       heart: 0,
     },
   },
