@@ -41,6 +41,12 @@ export class Spawner {
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
   private readonly closeOnly: boolean;
+  /** Endless: cumulative spawn-rate multiplier (1 = base cadence). */
+  private endlessRateMult = 1;
+  /** Endless: index of the active 10s time block. */
+  private endlessBlockIndex = 0;
+  /** Last logged spawn interval (ms) — used to avoid spam in DEV. */
+  private lastLoggedIntervalMs = -1;
 
   constructor(
     private scene: THREE.Scene,
@@ -57,6 +63,9 @@ export class Spawner {
     this.elapsed = 0;
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
+    this.endlessRateMult = 1;
+    this.endlessBlockIndex = 0;
+    this.lastLoggedIntervalMs = -1;
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
     this.busyPaths.clear();
@@ -68,13 +77,18 @@ export class Spawner {
         if (this.running) this.trySpawn();
       }, i * 1230);
     }
+    this.logSpawnRate(this.computeInterval(undefined), 'start');
   }
 
   stop(): void {
     this.running = false;
   }
 
-  update(dt: number): void {
+  /**
+   * @param dt — frame delta in seconds
+   * @param timeLeftSeconds — timed-mode seconds remaining (ignored in endless)
+   */
+  update(dt: number, timeLeftSeconds?: number): void {
     if (!this.running) return;
     this.elapsed += dt * 1000;
 
@@ -83,13 +97,29 @@ export class Spawner {
       if (!this.targets[i]!.root.parent) this.targets.splice(i, 1);
     }
 
+    if (this.mode === 'endless') {
+      this.updateEndlessTimeBlocks();
+    }
+
+    // Timed final boost: once remaining time enters the window, tighten the
+    // pending next-spawn wait so the +50% rate kicks in immediately.
+    if (
+      this.mode === 'timed' &&
+      timeLeftSeconds !== undefined &&
+      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+    ) {
+      const boosted = this.computeInterval(timeLeftSeconds);
+      if (this.nextAt - this.elapsed > boosted) {
+        this.nextAt = this.elapsed + boosted;
+        this.logSpawnRate(boosted, 'timed-final-boost');
+      }
+    }
+
     if (this.elapsed >= this.nextAt) {
       this.trySpawn();
-      const progress = Math.min(1, this.elapsed / 120_000);
-      const interval =
-        gameConfig.spawnIntervalMs -
-        (gameConfig.spawnIntervalMs - gameConfig.minSpawnIntervalMs) * progress;
+      const interval = this.computeInterval(timeLeftSeconds);
       this.nextAt = this.elapsed + interval;
+      this.logSpawnRate(interval, 'schedule');
     }
   }
 
@@ -102,6 +132,104 @@ export class Spawner {
     this.windowCooldownUntil.clear();
     this.closeCooldownUntil.clear();
     this.pathCooldownUntil.clear();
+  }
+
+  /** Base ramp (2610 → 1510 over first 120s of spawner elapsed). */
+  private baseIntervalMs(): number {
+    const progress = Math.min(1, this.elapsed / 120_000);
+    return (
+      gameConfig.spawnIntervalMs -
+      (gameConfig.spawnIntervalMs - gameConfig.minSpawnIntervalMs) * progress
+    );
+  }
+
+  /**
+   * Effective spawn interval after mode-specific rate modifiers.
+   * Higher spawn rate → shorter interval.
+   */
+  private computeInterval(timeLeftSeconds?: number): number {
+    let interval = this.baseIntervalMs();
+    let rateMult = 1;
+
+    if (this.mode === 'timed') {
+      if (
+        timeLeftSeconds !== undefined &&
+        timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+      ) {
+        rateMult *= gameConfig.timedFinalSpawnRateMult;
+      }
+    } else {
+      rateMult *= this.endlessRateMult;
+    }
+
+    return interval / rateMult;
+  }
+
+  /**
+   * Endless: every 10s time block, randomly keep / raise / lower spawn rate
+   * by a random 25–75%.
+   */
+  private updateEndlessTimeBlocks(): void {
+    const blockMs = gameConfig.endlessSpawnBlockMs;
+    const blockIndex = Math.floor(this.elapsed / blockMs);
+    while (this.endlessBlockIndex < blockIndex) {
+      this.endlessBlockIndex += 1;
+      this.rollEndlessRateChange();
+    }
+  }
+
+  private rollEndlessRateChange(): void {
+    const roll = Math.random();
+    let decision: 'same' | 'increase' | 'decrease';
+    if (roll < 1 / 3) decision = 'same';
+    else if (roll < 2 / 3) decision = 'increase';
+    else decision = 'decrease';
+
+    if (decision !== 'same') {
+      const span =
+        gameConfig.endlessSpawnRateChangeMax - gameConfig.endlessSpawnRateChangeMin;
+      const change =
+        gameConfig.endlessSpawnRateChangeMin + Math.random() * span;
+      if (decision === 'increase') {
+        this.endlessRateMult *= 1 + change;
+      } else {
+        this.endlessRateMult *= 1 - change;
+      }
+      this.endlessRateMult = Math.min(
+        gameConfig.endlessSpawnRateMultMax,
+        Math.max(gameConfig.endlessSpawnRateMultMin, this.endlessRateMult),
+      );
+
+      // If rate went up, don't wait out the old slower interval.
+      const interval = this.computeInterval();
+      if (this.nextAt - this.elapsed > interval) {
+        this.nextAt = this.elapsed + interval;
+      }
+    }
+
+    this.logSpawnRate(this.computeInterval(), `endless-block:${decision}`);
+  }
+
+  private logSpawnRate(intervalMs: number, reason: string): void {
+    if (!import.meta.env.DEV) return;
+    // Skip near-identical reschedules to keep the console readable.
+    if (Math.abs(intervalMs - this.lastLoggedIntervalMs) < 1 && reason === 'schedule') {
+      return;
+    }
+    this.lastLoggedIntervalMs = intervalMs;
+    // eslint-disable-next-line no-console
+    console.log('[spawn-rate]', {
+      mode: this.mode,
+      reason,
+      spawnRate: Number((1000 / intervalMs).toFixed(3)),
+      intervalMs: Math.round(intervalMs),
+      ...(this.mode === 'endless'
+        ? {
+            rateMult: Number(this.endlessRateMult.toFixed(3)),
+            block: this.endlessBlockIndex,
+          }
+        : {}),
+    });
   }
 
   /**

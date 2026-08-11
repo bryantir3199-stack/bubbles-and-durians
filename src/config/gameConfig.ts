@@ -12,6 +12,18 @@ export const gameConfig = {
   /** Prior cadence was 2920/1690; ~12% faster spawn rate → intervals / 1.12. */
   spawnIntervalMs: 2610,
   minSpawnIntervalMs: 1510,
+  /** Timed mode: last N seconds get a spawn-rate boost. */
+  timedFinalBoostSeconds: 30,
+  /** Timed mode: multiply spawn rate by this during the final boost window (1.5 = +50%). */
+  timedFinalSpawnRateMult: 1.5,
+  /** Endless mode: length of each spawn-rate time block (ms). */
+  endlessSpawnBlockMs: 10_000,
+  /** Endless mode: random rate change magnitude range when a block rolls up/down. */
+  endlessSpawnRateChangeMin: 0.25,
+  endlessSpawnRateChangeMax: 0.75,
+  /** Endless mode: clamp on the cumulative spawn-rate multiplier. */
+  endlessSpawnRateMultMin: 0.25,
+  endlessSpawnRateMultMax: 4,
   /**
    * After a target leaves a window/path, keep that slot unavailable so the
    * next spawn cannot pop in the same place immediately.
