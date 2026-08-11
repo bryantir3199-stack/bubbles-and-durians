@@ -461,27 +461,41 @@
         width: clamp(150px, 21vw, 270px);
         height: clamp(54px, 7.5vw, 98px);
         background-image: url('/assets/hud/lives.png');
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-        padding: 0 0 clamp(10px, 1.5vw, 21px) clamp(14px, 2.25vw, 27px);
+        display: block;
       }
       .hud-lives-value {
+        position: absolute;
+        left: clamp(14px, 2.25vw, 27px);
+        /* Match score/time: center in light lower body below the LIVES nudge */
+        top: 34%;
+        bottom: 10%;
         display: flex;
         align-items: center;
-        gap: 2px;
-        font-size: clamp(17px, 3vw, 27px);
+        gap: clamp(2px, 0.4vw, 6px);
+        box-sizing: border-box;
         line-height: 1;
       }
       .hud-heart {
-        color: #fff;
-        text-shadow:
-          -2px -2px 0 #1a1018,
-           2px -2px 0 #1a1018,
-          -2px  2px 0 #1a1018,
-           2px  2px 0 #1a1018;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: clamp(22px, 3.4vw, 34px);
+        height: clamp(22px, 3.4vw, 34px);
       }
-      .hud-heart.empty { color: #ffe0ea; font-size: 0.9em; }
+      .hud-heart-icon {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        pointer-events: none;
+        user-select: none;
+      }
+      .hud-heart-zero {
+        font: 800 clamp(22px, 3.6vw, 40px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        color: #fff;
+        -webkit-text-stroke: 3px #1a1018;
+        paint-order: stroke fill;
+      }
       .hud-lives.critical { animation: criticalPulse 0.6s ease-in-out infinite; }
 
       .hud-reload-hint {
@@ -706,6 +720,7 @@
         .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
         .hud-combo-text { font-size: 10px; }
         .hud-tooth { width: 20px; height: 20px; }
+        .hud-heart { width: 20px; height: 20px; }
       }
     </style>
   </head>
