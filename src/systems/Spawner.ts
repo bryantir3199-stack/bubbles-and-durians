@@ -1,6 +1,7 @@
 import type { GameMode, TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
+  CLOSE_SPOTS,
   PATTERN_WEIGHTS,
   GATE_LANE_COUNT,
   GATE_PATHS,
@@ -18,7 +19,8 @@ export interface SpawnerOptions {
 }
 
 /**
- * Spawns up to maxTargets pattern-based targets (window holds + path travel).
+ * Spawns up to maxTargets pattern-based targets (window holds + path travel
+ * + occasional close-camera rises).
  */
 export class Spawner {
   private elapsed = 0;
@@ -26,10 +28,13 @@ export class Spawner {
   private running = false;
   readonly targets: Target[] = [];
   private occupiedWindows = new Set<string>();
+  private occupiedClose = new Set<string>();
   /** One mover per travel lane (gate L + dome wall U). */
   private busyPaths = new Set<number>();
   /** Window id → earliest elapsed ms when it may be reused. */
   private windowCooldownUntil = new Map<string, number>();
+  /** Close-slot id → earliest elapsed ms when it may be reused. */
+  private closeCooldownUntil = new Map<string, number>();
   /** Path index → earliest elapsed ms when it may be reused. */
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
@@ -49,8 +54,10 @@ export class Spawner {
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
     this.occupiedWindows.clear();
+    this.occupiedClose.clear();
     this.busyPaths.clear();
     this.windowCooldownUntil.clear();
+    this.closeCooldownUntil.clear();
     this.pathCooldownUntil.clear();
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
@@ -86,8 +93,10 @@ export class Spawner {
     for (const t of this.targets) t.destroy();
     this.targets.length = 0;
     this.occupiedWindows.clear();
+    this.occupiedClose.clear();
     this.busyPaths.clear();
     this.windowCooldownUntil.clear();
+    this.closeCooldownUntil.clear();
     this.pathCooldownUntil.clear();
   }
 
@@ -121,6 +130,11 @@ export class Spawner {
     return until === undefined || this.elapsed >= until;
   }
 
+  private closeReady(id: string): boolean {
+    const until = this.closeCooldownUntil.get(id);
+    return until === undefined || this.elapsed >= until;
+  }
+
   private pathReady(index: number): boolean {
     const until = this.pathCooldownUntil.get(index);
     return until === undefined || this.elapsed >= until;
@@ -128,6 +142,10 @@ export class Spawner {
 
   private freeWindows() {
     return WINDOWS.filter((w) => !this.occupiedWindows.has(w.id) && this.windowReady(w.id));
+  }
+
+  private freeCloseSpots() {
+    return CLOSE_SPOTS.filter((s) => !this.occupiedClose.has(s.id) && this.closeReady(s.id));
   }
 
   private freePathIndices(): number[] {
@@ -147,9 +165,11 @@ export class Spawner {
 
   private pickSpec(): TargetSpawnSpec | null {
     const freeWindows = this.domeOnly ? [] : this.freeWindows();
+    const freeClose = this.domeOnly ? [] : this.freeCloseSpots();
     const freePaths = this.freePathIndices();
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
       if (p === 'window') return freeWindows.length > 0;
+      if (p === 'close') return freeClose.length > 0;
       if (p === 'path') return freePaths.length > 0;
       return false;
     });
@@ -174,6 +194,14 @@ export class Spawner {
       return { pattern: 'window', windowId: spot.id, windowSpot: spot };
     }
 
+    if (chosen === 'close') {
+      if (freeClose.length === 0) return null;
+      const spot = freeClose[Math.floor(Math.random() * freeClose.length)]!;
+      this.occupiedClose.add(spot.id);
+      this.closeCooldownUntil.delete(spot.id);
+      return { pattern: 'close', windowId: spot.id, windowSpot: spot };
+    }
+
     if (freePaths.length === 0) return null;
     const pathIndex = freePaths[Math.floor(Math.random() * freePaths.length)]!;
     this.busyPaths.add(pathIndex);
@@ -186,6 +214,9 @@ export class Spawner {
     if (spec.pattern === 'window' && spec.windowId) {
       this.occupiedWindows.delete(spec.windowId);
       this.windowCooldownUntil.set(spec.windowId, coolUntil);
+    } else if (spec.pattern === 'close' && spec.windowId) {
+      this.occupiedClose.delete(spec.windowId);
+      this.closeCooldownUntil.set(spec.windowId, coolUntil);
     } else if (spec.pattern === 'path' && spec.pathIndex !== undefined) {
       this.busyPaths.delete(spec.pathIndex);
       this.pathCooldownUntil.set(spec.pathIndex, coolUntil);
