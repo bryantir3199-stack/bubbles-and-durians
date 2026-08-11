@@ -45,6 +45,8 @@ export class Spawner {
   private endlessRateMult = 1;
   /** Endless: index of the active 10s time block. */
   private endlessBlockIndex = 0;
+  /** Endless: consecutive blocks spent at the capped streak rate (+100%). */
+  private endlessStreakCount = 0;
   /** Last logged rate label — used to avoid spam in DEV. */
   private lastLoggedLabel = '';
 
@@ -65,6 +67,7 @@ export class Spawner {
     this.nextAt = 1920;
     this.endlessRateMult = 1;
     this.endlessBlockIndex = 0;
+    this.endlessStreakCount = 0;
     this.lastLoggedLabel = '';
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
@@ -165,9 +168,10 @@ export class Spawner {
   }
 
   /**
-   * Endless: every 10s time block after the opening grace period, pick one of
-   * the allowed rate levels (original / +55% / −25%). +55% cannot appear in
-   * consecutive blocks. The first N blocks always stay at original.
+   * Endless: every 10s time block after the opening grace period, pick a
+   * weighted rate level (original / +55% / +100% / −25%). Original is more
+   * common. +100% may appear at most N consecutive blocks. The first grace
+   * blocks always stay at original.
    */
   private updateEndlessTimeBlocks(): void {
     const blockMs = gameConfig.endlessSpawnBlockMs;
@@ -181,13 +185,29 @@ export class Spawner {
   }
 
   private rollEndlessRateChange(): void {
-    const noRepeat = gameConfig.endlessSpawnRateNoRepeat;
-    const levels = gameConfig.endlessSpawnRateLevels.filter(
-      (level) => !(this.endlessRateMult === noRepeat && level === noRepeat),
+    const streakMult = gameConfig.endlessSpawnRateMaxStreakMult;
+    const maxStreak = gameConfig.endlessSpawnRateMaxStreak;
+    const options = gameConfig.endlessSpawnRateOptions.filter(
+      (opt) =>
+        !(
+          opt.mult === streakMult &&
+          this.endlessStreakCount >= maxStreak
+        ),
     );
-    const next = levels[Math.floor(Math.random() * levels.length)] ?? 1;
+    const totalWeight = options.reduce((sum, opt) => sum + opt.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let next = 1;
+    for (const opt of options) {
+      roll -= opt.weight;
+      if (roll <= 0) {
+        next = opt.mult;
+        break;
+      }
+    }
+
     const prev = this.endlessRateMult;
     this.endlessRateMult = next;
+    this.endlessStreakCount = next === streakMult ? this.endlessStreakCount + 1 : 0;
 
     // If rate went up, don't wait out the old slower interval.
     if (next > prev) {
@@ -200,11 +220,11 @@ export class Spawner {
     this.logSpawnRateLabel(this.rateLabel());
   }
 
-  /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%"). */
+  /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%", "100%"). */
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
       if (this.endlessRateMult === 1) return 'original';
-      // 1.55 → "55%" (increase), 0.75 → "25%" (decrease)
+      // 2 → "100%", 1.55 → "55%" (increase); 0.75 → "25%" (decrease)
       if (this.endlessRateMult > 1) {
         return `${Math.round((this.endlessRateMult - 1) * 100)}%`;
       }
