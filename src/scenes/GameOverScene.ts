@@ -46,7 +46,7 @@ export class GameOverScene implements GameScene {
     bindClick(ui, '[data-action="skip"]', () => {
       this.ctx.goto('leaderboard', { mode: this.mode, highlightScore: this.score });
     });
-    bindClick(ui, '[data-action="menu"]', () => this.ctx.goto('title'));
+    bindClick(ui, '[data-action="menu"]', () => this.ctx.goto('modeSelect'));
 
     this.onKey = (event: KeyboardEvent) => {
       if (this.submitting) return;

@@ -6,7 +6,7 @@
     <title>Bubbles &amp; Durians</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Cinzel:wght@600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet" />
     <style>
       :root {
         --ink: #e8f0fa;
@@ -16,6 +16,7 @@
         --accent-hot: #3a9fff;
         --danger: #ff6b8a;
         --gold: #ffe566;
+        --title-serif: 'Cinzel', 'Times New Roman', serif;
       }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body {
@@ -45,8 +46,10 @@
       }
       .ui-root button,
       .ui-root .mode-card,
+      .ui-root .menu-option,
       .ui-root .tab,
-      .ui-root .name-field {
+      .ui-root .name-field,
+      .ui-root .title-splash {
         pointer-events: auto;
       }
 
@@ -59,6 +62,94 @@
         justify-content: center;
         background: radial-gradient(ellipse at center, rgba(5, 10, 24, 0.25), rgba(5, 8, 18, 0.55));
         pointer-events: auto;
+      }
+      .menu.title-splash,
+      .menu.main-menu {
+        background:
+          linear-gradient(180deg, rgba(6, 10, 18, 0.28) 0%, rgba(6, 10, 18, 0.45) 100%),
+          url('/assets/title-bg.jpg') center / cover no-repeat;
+        cursor: pointer;
+      }
+      .menu.main-menu {
+        cursor: default;
+      }
+      .title-splash-content,
+      .main-menu-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        width: min(720px, 92vw);
+        padding: 24px 16px;
+        animation: titleRise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      .title-logo,
+      .main-menu-logo {
+        width: min(420px, 72vw);
+        height: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55));
+        animation: logoFloat 3.2s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .main-menu-logo {
+        width: min(280px, 52vw);
+        margin-bottom: 28px;
+      }
+      .click-anywhere {
+        margin-top: 28px;
+        font: 700 clamp(22px, 4.2vw, 36px) / 1.15 var(--title-serif);
+        letter-spacing: 0.18em;
+        color: #f4e6c8;
+        text-shadow:
+          0 0 18px rgba(255, 214, 140, 0.35),
+          0 2px 0 #1a1208,
+          0 6px 18px rgba(0, 0, 0, 0.65);
+        animation: clickPulse 1.8s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .main-menu-nav {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+        width: min(380px, 86vw);
+      }
+      .menu-option {
+        display: block;
+        width: 100%;
+        padding: 16px 22px;
+        font: 700 clamp(18px, 3.2vw, 24px) / 1.2 var(--title-serif);
+        letter-spacing: 0.12em;
+        color: #f7e9cf;
+        background: rgba(10, 16, 28, 0.55);
+        border: 2px solid rgba(244, 230, 200, 0.75);
+        border-radius: 4px;
+        cursor: pointer;
+        text-shadow: 0 2px 0 #120c06, 0 4px 12px rgba(0, 0, 0, 0.45);
+        transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+      }
+      .menu-option:hover,
+      .menu-option:focus-visible {
+        background: rgba(28, 42, 68, 0.72);
+        border-color: #ffe7a8;
+        transform: translateY(-2px);
+        outline: none;
+      }
+      .menu-option.timed { color: #ffe566; }
+      .menu-option.endless { color: #9fd0ff; }
+      @keyframes titleRise {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes logoFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(10px); }
+      }
+      @keyframes clickPulse {
+        0%, 100% { opacity: 0.72; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.03); }
       }
       .menu-card, .menu-wide {
         text-align: center;
@@ -76,11 +167,7 @@
         object-fit: contain;
         margin-bottom: 8px;
         filter: drop-shadow(0 8px 16px rgba(0,0,0,0.45));
-        animation: floaty 2.2s ease-in-out infinite;
-      }
-      @keyframes floaty {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(8px); }
+        animation: logoFloat 2.2s ease-in-out infinite;
       }
       h1 {
         font-size: clamp(28px, 5vw, 42px);
