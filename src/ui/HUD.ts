@@ -1,36 +1,7 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 
-/** Wind-up chattering-teeth ammo pip — bold denture silhouette. */
-const TOOTH_SVG = `
-  <svg class="hud-tooth-icon" viewBox="0 0 52 52" aria-hidden="true">
-    <!-- upper gum -->
-    <path d="M6 18c0-8 8-14 20-14s20 6 20 14v6c0 3-4 5-20 5S6 27 6 24z"
-          fill="#ff6aa2" stroke="#1a1018" stroke-width="2.6" stroke-linejoin="round"/>
-    <!-- upper teeth -->
-    <rect x="11" y="20" width="7" height="13" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <rect x="20" y="19" width="8" height="15" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <rect x="30.5" y="20" width="7" height="13" rx="2.2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <!-- lower gum -->
-    <path d="M9 36c0 7 7 11 17 11s17-4 17-11c0-2.5-4-4-17-4S9 33.5 9 36z"
-          fill="#ff4f90" stroke="#1a1018" stroke-width="2.6" stroke-linejoin="round"/>
-    <!-- lower teeth -->
-    <rect x="13" y="30" width="6.5" height="9" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <rect x="21.5" y="29" width="7.5" height="10" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <rect x="31" y="30" width="6.5" height="9" rx="2" fill="#fffef8" stroke="#1a1018" stroke-width="2"/>
-    <!-- eyes -->
-    <circle cx="16.5" cy="14" r="2.3" fill="#1a1018"/>
-    <circle cx="31.5" cy="14" r="2.3" fill="#1a1018"/>
-    <!-- smile line -->
-    <path d="M17 26.5c3 1.8 11 1.8 14 0" fill="none" stroke="#c2185b" stroke-width="1.8" stroke-linecap="round"/>
-    <!-- wind-up key -->
-    <g transform="translate(40 4) rotate(20)">
-      <circle cx="6" cy="6" r="5" fill="none" stroke="#ff2436" stroke-width="3"/>
-      <circle cx="6" cy="6" r="1.8" fill="#ff2436"/>
-      <path d="M6 11v8" stroke="#ff2436" stroke-width="3" stroke-linecap="round"/>
-    </g>
-  </svg>
-`;
+const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
 
 export class HUD {
   private root: HTMLElement;
@@ -55,29 +26,21 @@ export class HUD {
     this.root.className = 'hud';
 
     const teeth = Array.from({ length: gameConfig.magazineSize }, () =>
-      `<span class="hud-tooth filled">${TOOTH_SVG}</span>`,
+      `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
     ).join('');
 
     const rightPanel =
       mode === 'timed'
         ? `
       <div class="hud-panel hud-time" aria-label="Time">
-        <div class="hud-panel-base"></div>
-        <div class="hud-panel-body">
-          <span class="hud-panel-label">TIME</span>
-          <div class="hud-time-value">
-            <span class="hud-time-min">3</span>
-            <span class="hud-time-sec">00</span>
-          </div>
+        <div class="hud-time-value">
+          <span class="hud-time-min">3</span>
+          <span class="hud-time-sec">00</span>
         </div>
       </div>`
         : `
       <div class="hud-panel hud-lives" aria-label="Lives">
-        <div class="hud-panel-base"></div>
-        <div class="hud-panel-body">
-          <span class="hud-panel-label">LIVES</span>
-          <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
-        </div>
+        <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
       </div>`;
 
     this.root.innerHTML = `
@@ -87,23 +50,13 @@ export class HUD {
             <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
           </div>
           <div class="hud-panel hud-score" aria-label="Score">
-            <div class="hud-panel-base"></div>
-            <div class="hud-panel-body">
-              <span class="hud-panel-label">SCORE</span>
-              <span class="hud-score-value">
-                <span class="hud-score-num">0</span>
-              </span>
-            </div>
+            <span class="hud-score-num">0</span>
           </div>
         </div>
 
         <div class="hud-center">
           <div class="hud-panel hud-ammo" aria-label="Ammo">
-            <div class="hud-panel-base"></div>
-            <div class="hud-panel-body">
-              <span class="hud-panel-label">AMMO</span>
-              <div class="hud-ammo-icons">${teeth}</div>
-            </div>
+            <div class="hud-ammo-icons">${teeth}</div>
           </div>
           <button type="button" class="hud-reload-btn" hidden title="Reload (R / Space)">RELOAD</button>
         </div>
@@ -178,7 +131,7 @@ export class HUD {
     const icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
     if (icons.length !== max) {
       this.ammoIconsEl.innerHTML = Array.from({ length: max }, () =>
-        `<span class="hud-tooth filled">${TOOTH_SVG}</span>`,
+        `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
       ).join('');
     }
     this.ammoIconsEl.querySelectorAll('.hud-tooth').forEach((el, i) => {
@@ -188,7 +141,6 @@ export class HUD {
     this.ammoPanel.classList.toggle('reloading', reloading);
     this.ammoPanel.classList.toggle('empty', !reloading && current === 0);
     this.ammoPanel.classList.toggle('warn', reloading);
-    // Match reference art: only surface RELOAD when the mag is empty / mid-reload
     this.reloadBtn.hidden = !(reloading || current === 0);
     this.reloadHint.hidden = reloading || current !== 0;
   }
