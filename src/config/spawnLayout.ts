@@ -129,31 +129,30 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
  * Index 0 = CCW (left wall first), index 1 = CW (right wall first).
  * Slight radial inset so both lanes can run at once.
  *
- * Crest top ~Y 132 / outer lip X ±107 / Z −60…70. Dome ledge ~X ±97.
- * Targets are ~34 wide, so lane centers sit on/just outside the outer lip
- * (halfX ≥ ~114) so their inner half clears the dome tiles.
+ * Raycasted crest top: Y ≈ 132.2, outer lip X ≈ ±105–107, front Z ≈ 67–70.
+ * Lane centers sit on that lip (not the inset dome ledge at Y ≈ 156 / ±97).
  */
 function buildDomeWallPaths(): Vec3[][] {
-  // Target center: crest mesh is Y 132.2 — keep centers near the wall top.
-  const y = 133;
-  const gap = 30; // opening behind the dome (almost closes the O)
+  // Target centers just above merlon tops (Y 132.2).
+  const y = 134;
+  const gap = 32;
 
-  // Outer lane on/just outside the crest lip so 34-unit targets clear the dome.
+  // Outer lip of the keep crest — in front of / beside the dome, not through it.
   const outer = rectUPath({
     y,
-    halfX: 124,
-    frontZ: 74,
-    backZ: -60,
+    halfX: 110,
+    frontZ: 69,
+    backZ: -55,
     gap,
     ccw: true,
   });
-  // Inner twin still on the outer crest band (not the inset roof under the dome).
+  // Second lane, slight inset still on the crest band.
   const inner = rectUPath({
     y: y - 1,
-    halfX: 116,
-    frontZ: 70,
-    backZ: -56,
-    gap: gap - 4,
+    halfX: 104,
+    frontZ: 66,
+    backZ: -51,
+    gap: gap - 6,
     ccw: false,
   });
 
@@ -169,17 +168,20 @@ function rectUPath(opts: {
   ccw: boolean;
 }): Vec3[] {
   const { y, halfX, frontZ, backZ, gap, ccw } = opts;
+  // Explicit 90° corners + mid-edge points so the U reads as straight segments.
   // CCW: emerge behind-left → left → front → right → tuck behind-right
   const ccwPts: Vec3[] = [
     { x: -gap, y, z: backZ },
     { x: -halfX, y, z: backZ },
+    { x: -halfX, y, z: (backZ + frontZ) * 0.5 },
     { x: -halfX, y, z: frontZ },
+    { x: 0, y, z: frontZ },
     { x: halfX, y, z: frontZ },
+    { x: halfX, y, z: (backZ + frontZ) * 0.5 },
     { x: halfX, y, z: backZ },
     { x: gap, y, z: backZ },
   ];
   if (ccw) return ccwPts;
-  // CW = reverse order (different travel direction on the twin lane).
   return [...ccwPts].reverse();
 }
 
