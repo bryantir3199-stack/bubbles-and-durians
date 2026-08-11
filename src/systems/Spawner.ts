@@ -45,8 +45,8 @@ export class Spawner {
   private endlessRateMult = 1;
   /** Endless: index of the active 10s time block. */
   private endlessBlockIndex = 0;
-  /** Last logged spawn interval (ms) — used to avoid spam in DEV. */
-  private lastLoggedIntervalMs = -1;
+  /** Last logged rate label — used to avoid spam in DEV. */
+  private lastLoggedLabel = '';
 
   constructor(
     private scene: THREE.Scene,
@@ -65,7 +65,7 @@ export class Spawner {
     this.nextAt = 1920;
     this.endlessRateMult = 1;
     this.endlessBlockIndex = 0;
-    this.lastLoggedIntervalMs = -1;
+    this.lastLoggedLabel = '';
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
     this.busyPaths.clear();
@@ -77,7 +77,7 @@ export class Spawner {
         if (this.running) this.trySpawn();
       }, i * 1230);
     }
-    this.logSpawnRate(this.computeInterval(undefined), 'start');
+    this.logSpawnRateLabel(this.rateLabel(undefined));
   }
 
   stop(): void {
@@ -111,15 +111,14 @@ export class Spawner {
       const boosted = this.computeInterval(timeLeftSeconds);
       if (this.nextAt - this.elapsed > boosted) {
         this.nextAt = this.elapsed + boosted;
-        this.logSpawnRate(boosted, 'timed-final-boost');
       }
+      this.logSpawnRateLabel(this.rateLabel(timeLeftSeconds));
     }
 
     if (this.elapsed >= this.nextAt) {
       this.trySpawn();
       const interval = this.computeInterval(timeLeftSeconds);
       this.nextAt = this.elapsed + interval;
-      this.logSpawnRate(interval, 'schedule');
     }
   }
 
@@ -195,32 +194,30 @@ export class Spawner {
       }
     }
 
-    this.logSpawnRate(
-      this.computeInterval(),
-      `endless-block:${Math.round(next * 100)}%`,
-    );
+    this.logSpawnRateLabel(this.rateLabel());
   }
 
-  private logSpawnRate(intervalMs: number, reason: string): void {
-    if (!import.meta.env.DEV) return;
-    // Skip near-identical reschedules to keep the console readable.
-    if (Math.abs(intervalMs - this.lastLoggedIntervalMs) < 1 && reason === 'schedule') {
-      return;
+  /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%"). */
+  private rateLabel(timeLeftSeconds?: number): string {
+    if (this.mode === 'endless') {
+      if (this.endlessRateMult === 1) return 'original';
+      return `${Math.round(this.endlessRateMult * 100)}%`;
     }
-    this.lastLoggedIntervalMs = intervalMs;
+    if (
+      timeLeftSeconds !== undefined &&
+      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+    ) {
+      return `${Math.round(gameConfig.timedFinalSpawnRateMult * 100)}%`;
+    }
+    return 'original';
+  }
+
+  private logSpawnRateLabel(label: string): void {
+    if (!import.meta.env.DEV) return;
+    if (label === this.lastLoggedLabel) return;
+    this.lastLoggedLabel = label;
     // eslint-disable-next-line no-console
-    console.log('[spawn-rate]', {
-      mode: this.mode,
-      reason,
-      spawnRate: Number((1000 / intervalMs).toFixed(3)),
-      intervalMs: Math.round(intervalMs),
-      ...(this.mode === 'endless'
-        ? {
-            rateMult: Number(this.endlessRateMult.toFixed(3)),
-            block: this.endlessBlockIndex,
-          }
-        : {}),
-    });
+    console.log(`[spawn-rate] ${label}`);
   }
 
   /**
