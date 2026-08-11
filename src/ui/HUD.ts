@@ -130,10 +130,10 @@ export class HUD {
       crumb.className = 'crumb';
       crumb.style.left = `${clientX}px`;
       crumb.style.top = `${clientY}px`;
-      const size = 3 + Math.random() * 5;
-      const dx = (Math.random() - 0.5) * 56;
-      const dy = 28 + Math.random() * 54;
-      const dur = 0.4 + Math.random() * 0.35;
+      const size = 8 + Math.random() * 12;
+      const dx = (Math.random() - 0.5) * 140;
+      const dy = 55 + Math.random() * 120;
+      const dur = 0.5 + Math.random() * 0.45;
       const rot = (Math.random() - 0.5) * 420;
       crumb.style.setProperty('--s', `${size.toFixed(1)}px`);
       crumb.style.setProperty('--dx', `${dx.toFixed(1)}px`);
