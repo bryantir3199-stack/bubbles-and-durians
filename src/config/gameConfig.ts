@@ -18,7 +18,7 @@ export const gameConfig = {
   points: {
     durian: 1,
     goldDurian: 7,
-    bubble: -1,
+    bubble: -10,
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x). */
   maxCombo: 4,

@@ -349,27 +349,28 @@
 
       /* TIME — flush right edge of screen */
       .hud-time {
-        width: clamp(150px, 21vw, 270px);
+        width: clamp(165px, 23vw, 290px);
         height: clamp(54px, 7.5vw, 98px);
         background-image: url('/assets/hud/time.png');
         display: flex;
         align-items: flex-end;
         justify-content: flex-start;
-        padding: 0 0 clamp(10px, 1.5vw, 21px) clamp(14px, 2.25vw, 27px);
+        padding: 0 0 clamp(10px, 1.5vw, 21px) clamp(12px, 2vw, 24px);
       }
       .hud-time-value {
         display: flex;
         align-items: baseline;
-        gap: 5px;
+        gap: 0;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
       }
-      .hud-time-min {
-        font: 800 clamp(21px, 3.4vw, 36px)/1 'Baloo 2', 'Fredoka', sans-serif;
-      }
       .hud-time-sec {
-        font: 800 clamp(14px, 2.25vw, 22px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(18px, 3vw, 32px)/1 'Baloo 2', 'Fredoka', sans-serif;
+      }
+      .hud-time-dot,
+      .hud-time-ms {
+        font: 800 clamp(12px, 2vw, 20px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
       .hud-time.critical {
         animation: criticalPulse 0.6s ease-in-out infinite;
