@@ -18,12 +18,13 @@ export const gameConfig = {
   timedFinalSpawnRateMult: 1.5,
   /** Endless mode: length of each spawn-rate time block (ms). */
   endlessSpawnBlockMs: 10_000,
-  /** Endless mode: random rate change magnitude range when a block rolls up/down. */
-  endlessSpawnRateChangeMin: 0.25,
-  endlessSpawnRateChangeMax: 0.75,
-  /** Endless mode: clamp on the cumulative spawn-rate multiplier. */
-  endlessSpawnRateMultMin: 0.25,
-  endlessSpawnRateMultMax: 4,
+  /**
+   * Endless mode: allowed spawn-rate multipliers vs the base cadence.
+   * 1 = original, 0.55 = 55%, 0.25 = 25%. 55% may not repeat in consecutive blocks.
+   */
+  endlessSpawnRateLevels: [0.25, 1, 0.55] as const,
+  /** Endless mode: rate level that cannot appear in two consecutive time blocks. */
+  endlessSpawnRateNoRepeat: 0.55,
   /**
    * After a target leaves a window/path, keep that slot unavailable so the
    * next spawn cannot pop in the same place immediately.

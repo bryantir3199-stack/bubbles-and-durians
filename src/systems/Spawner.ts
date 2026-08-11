@@ -41,7 +41,7 @@ export class Spawner {
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
   private readonly closeOnly: boolean;
-  /** Endless: cumulative spawn-rate multiplier (1 = base cadence). */
+  /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
   /** Endless: index of the active 10s time block. */
   private endlessBlockIndex = 0;
@@ -166,8 +166,8 @@ export class Spawner {
   }
 
   /**
-   * Endless: every 10s time block, randomly keep / raise / lower spawn rate
-   * by a random 25–75%.
+   * Endless: every 10s time block, pick one of the allowed rate levels
+   * (25% / original / 55%). 55% cannot appear in consecutive blocks.
    */
   private updateEndlessTimeBlocks(): void {
     const blockMs = gameConfig.endlessSpawnBlockMs;
@@ -179,35 +179,26 @@ export class Spawner {
   }
 
   private rollEndlessRateChange(): void {
-    const roll = Math.random();
-    let decision: 'same' | 'increase' | 'decrease';
-    if (roll < 1 / 3) decision = 'same';
-    else if (roll < 2 / 3) decision = 'increase';
-    else decision = 'decrease';
+    const noRepeat = gameConfig.endlessSpawnRateNoRepeat;
+    const levels = gameConfig.endlessSpawnRateLevels.filter(
+      (level) => !(this.endlessRateMult === noRepeat && level === noRepeat),
+    );
+    const next = levels[Math.floor(Math.random() * levels.length)] ?? 1;
+    const prev = this.endlessRateMult;
+    this.endlessRateMult = next;
 
-    if (decision !== 'same') {
-      const span =
-        gameConfig.endlessSpawnRateChangeMax - gameConfig.endlessSpawnRateChangeMin;
-      const change =
-        gameConfig.endlessSpawnRateChangeMin + Math.random() * span;
-      if (decision === 'increase') {
-        this.endlessRateMult *= 1 + change;
-      } else {
-        this.endlessRateMult *= 1 - change;
-      }
-      this.endlessRateMult = Math.min(
-        gameConfig.endlessSpawnRateMultMax,
-        Math.max(gameConfig.endlessSpawnRateMultMin, this.endlessRateMult),
-      );
-
-      // If rate went up, don't wait out the old slower interval.
+    // If rate went up, don't wait out the old slower interval.
+    if (next > prev) {
       const interval = this.computeInterval();
       if (this.nextAt - this.elapsed > interval) {
         this.nextAt = this.elapsed + interval;
       }
     }
 
-    this.logSpawnRate(this.computeInterval(), `endless-block:${decision}`);
+    this.logSpawnRate(
+      this.computeInterval(),
+      `endless-block:${Math.round(next * 100)}%`,
+    );
   }
 
   private logSpawnRate(intervalMs: number, reason: string): void {
