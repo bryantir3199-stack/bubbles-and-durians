@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
+  CLOSE_RISE_DURATION,
+  CLOSE_RISE_HEIGHT,
+  CLOSE_SINK_DURATION,
   DOOR_PLANE_Z,
   GATE_PATHS,
   nearDoorPlane,
@@ -22,7 +25,7 @@ const PATH_SPEED = 95;
 
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
-  /** Window slot id when pattern === 'window' */
+  /** Window / close slot id when pattern === 'window' | 'close' */
   windowId?: string;
   windowSpot?: WindowSpot;
   /**
@@ -38,7 +41,8 @@ export interface TargetSpawnSpec {
 }
 
 /**
- * Pattern-based target: static window holds, or continuous gate-path travel.
+ * Pattern-based target: static window holds, close-camera rises,
+ * or continuous gate-path travel.
  */
 export class Target {
   readonly kind: TargetKind;
@@ -71,8 +75,16 @@ export class Target {
   private pathLen = 0;
   private pathTraveled = 0;
   private from = new THREE.Vector3();
-  private phase: 'move' | 'hold' | 'done' = 'move';
+  private phase: 'rise' | 'move' | 'hold' | 'sink' | 'done' = 'move';
   private holdLeft = 0;
+  private riseFromY = 0;
+  private riseToY = 0;
+  private riseT = 0;
+  private riseDur = CLOSE_RISE_DURATION;
+  private sinkT = 0;
+  private sinkDur = CLOSE_SINK_DURATION;
+  private sinkFromY = 0;
+  private sinkToY = 0;
   private doorRetained = false;
   /** Lane index for GATE_PATHS; only gate L lanes (0–1) drive doors. */
   private pathIndex = 0;
@@ -109,6 +121,8 @@ export class Target {
 
     const lifeRange = gameConfig.lifetimeMs[kind];
     this.lifetime = randBetween(lifeRange.min, lifeRange.max);
+    // Close-camera pops linger half as long as regular holds.
+    if (spec.pattern === 'close') this.lifetime *= 0.5;
 
     if (kind === 'bubble') {
       this.visual = ModelCache.cloneModel('bubble');
@@ -170,6 +184,20 @@ export class Target {
       this.phase = 'hold';
       this.holdLeft = this.lifetime / 1000;
       this.bobAmp = 3.5;
+      return;
+    }
+
+    if (spec.pattern === 'close' && spec.windowSpot) {
+      const p = spec.windowSpot;
+      this.from.set(p.x, p.y, p.z);
+      this.bobBaseY = p.y;
+      this.riseToY = p.y;
+      this.riseFromY = p.y - CLOSE_RISE_HEIGHT;
+      this.riseDur = CLOSE_RISE_DURATION;
+      this.riseT = 0;
+      this.root.position.set(p.x, this.riseFromY, p.z);
+      this.phase = 'rise';
+      this.bobAmp = 2.8;
       return;
     }
 
@@ -332,12 +360,39 @@ export class Target {
       if (t >= 1) this.destroy();
       return;
     }
+
+    // Close targets sink below the frame, then despawn once off-camera.
+    if (this.phase === 'sink') {
+      this.sinkT += dt / this.sinkDur;
+      const t = Math.min(1, this.sinkT);
+      // Ease-in quad — starts moving right away, accelerates out of frame.
+      const e = t * t;
+      this.root.position.y = this.sinkFromY + (this.sinkToY - this.sinkFromY) * e;
+      if (t >= 1) this.destroy();
+      return;
+    }
+
     if (this.cleared || this.escaped) return;
 
     this.age += dt * 1000;
-    const pop = this.age < 180 ? 0.55 + 0.55 * Math.sin((this.age / 180) * Math.PI) : 1;
+    // Close targets re-zero age after rising — don't replay the pop-in then.
+    const doPop = this.age < 180 && !(this.pattern === 'close' && this.phase === 'hold');
+    const pop = doPop ? 0.55 + 0.55 * Math.sin((this.age / 180) * Math.PI) : 1;
 
-    if (this.phase === 'move') {
+    if (this.phase === 'rise') {
+      this.riseT += dt / this.riseDur;
+      const t = Math.min(1, this.riseT);
+      // Ease-out so it decelerates into the hold.
+      const e = 1 - (1 - t) * (1 - t) * (1 - t);
+      this.root.position.y = this.riseFromY + (this.riseToY - this.riseFromY) * e;
+      if (t >= 1) {
+        this.root.position.y = this.riseToY;
+        this.phase = 'hold';
+        this.holdLeft = this.lifetime / 1000;
+        // Stay / blink timer starts once risen — not during the entrance.
+        this.age = 0;
+      }
+    } else if (this.phase === 'move') {
       this.pathTraveled += PATH_SPEED * dt;
       if (this.pathTraveled >= this.pathLen) {
         this.placeOnPath(this.pathLen);
@@ -349,7 +404,7 @@ export class Target {
       }
     } else if (this.phase === 'hold') {
       this.holdLeft -= dt;
-      if (this.pattern === 'window') {
+      if (this.pattern === 'window' || this.pattern === 'close') {
         this.root.position.y = this.bobBaseY + Math.sin(this.age / 220) * this.bobAmp;
       }
       if (this.holdLeft <= 0) {
@@ -360,7 +415,8 @@ export class Target {
     this.root.scale.setScalar(pop);
 
     // Path movers keep going until the route ends — don't cut them mid-path.
-    if (this.pattern !== 'path') {
+    // Close targets telegraph exit by sinking (no blink-out). Windows still blink.
+    if (this.pattern === 'window' && this.phase === 'hold') {
       if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
         const on = Math.sin(this.age / 60) > 0;
         if (on !== this.warned) {
@@ -368,7 +424,11 @@ export class Target {
           this.visual.visible = on;
         }
       }
-      if (this.age >= this.lifetime && this.phase !== 'done') {
+      if (this.age >= this.lifetime) {
+        this.finishEscape();
+      }
+    } else if (this.pattern === 'close' && this.phase === 'hold') {
+      if (this.age >= this.lifetime) {
         this.finishEscape();
       }
     }
@@ -377,10 +437,23 @@ export class Target {
   private finishEscape(): void {
     if (this.escaped || this.cleared) return;
     this.escaped = true;
-    this.phase = 'done';
     this.visual.visible = true;
     this.releaseDoor();
     this.onEscape?.(this);
+
+    // Close pops retreat the way they came: sink below the lens, then remove.
+    if (this.pattern === 'close') {
+      this.phase = 'sink';
+      this.sinkT = 0;
+      this.sinkDur = CLOSE_SINK_DURATION;
+      this.sinkFromY = this.root.position.y;
+      // Sink past the rise start so the whole mesh clears the frustum.
+      this.sinkToY = this.bobBaseY - CLOSE_RISE_HEIGHT;
+      this.bobAmp = 0;
+      return;
+    }
+
+    this.phase = 'done';
     this.fadeOut();
   }
 

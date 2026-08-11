@@ -5,9 +5,10 @@
  * - Movers use rebuilt gate paths: off-screen front-left/right → door → inside
  *   (stops before the interior back wall). Built from door mesh bounds.
  * - Plus two elevated U-routes on the keep walls under the dome (CCW / CW).
+ * - Occasional close-camera pops (left / middle / right) that rise from below.
  */
 
-export type SpawnPattern = 'window' | 'path';
+export type SpawnPattern = 'window' | 'path' | 'close';
 
 export interface WindowSpot {
   id: string;
@@ -39,6 +40,24 @@ export let WINDOWS: WindowSpot[] = [
   { id: 'right-tower', x: 155, y: 125, z: 74 },
 ];
 
+/**
+ * Foreground pops just in front of the play camera (cam ≈ 0,110,635 → lookAt y=110).
+ * ~70u ahead — clearly closer than castle holds, without eating the whole frame.
+ * Hold Y sits near the frustum floor so a bit of the lower body clips.
+ */
+export const CLOSE_SPOTS: WindowSpot[] = [
+  { id: 'close-left', x: -32, y: 90, z: 565 },
+  { id: 'close-middle', x: 0, y: 90, z: 565 },
+  { id: 'close-right', x: 32, y: 90, z: 565 },
+];
+
+/** How far below the hold Y a close target starts (and sinks past) the frame. */
+export const CLOSE_RISE_HEIGHT = 100;
+/** Seconds for the rise-from-below entrance. */
+export const CLOSE_RISE_DURATION = 0.5;
+/** Seconds to sink fully below the frame before despawn. */
+export const CLOSE_SINK_DURATION = 0.55;
+
 /** First N lanes in GATE_PATHS are ground gate L-routes that open doors. */
 export const GATE_LANE_COUNT = 2;
 
@@ -54,9 +73,11 @@ export let PATHS: Vec3[] = GATE_PATHS[0]!;
 /** Door plane Z — open doors while a mover crosses this. */
 export let DOOR_PLANE_Z = 60;
 
+/** Close is intentionally rare vs window/path castle traffic. */
 export const PATTERN_WEIGHTS: Record<SpawnPattern, number> = {
   window: 45,
   path: 55,
+  close: 14,
 };
 
 export interface CastleMarkers {

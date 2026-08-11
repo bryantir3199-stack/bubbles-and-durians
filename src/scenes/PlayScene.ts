@@ -3,7 +3,7 @@ import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 import { GATE_PATHS } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { createPathDebugGroup, wantsDomeOnly, wantsPathDebug } from '../debug/pathDebug';
+import { createPathDebugGroup, wantsCloseOnly, wantsDomeOnly, wantsPathDebug } from '../debug/pathDebug';
 import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
@@ -69,6 +69,7 @@ export class PlayScene implements GameScene {
     this.ammo = new AmmoSystem();
     this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t), {
       domeOnly: wantsDomeOnly(),
+      closeOnly: wantsCloseOnly(),
     });
     this.hud = new HUD(this.ctx.uiRoot, this.mode, () => this.onReload());
     this.hud.setScore(this.score);

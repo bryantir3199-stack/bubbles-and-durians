@@ -23,6 +23,17 @@ export function wantsDomeOnly(): boolean {
 }
 
 /**
+ * Force close-camera left/middle/right rises when ?closeOnly=1.
+ * Useful for verifying foreground pops without waiting on rare RNG.
+ */
+export function wantsCloseOnly(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('closeOnly')) return false;
+  const v = params.get('closeOnly');
+  return v === null || v === '' || v === '1' || v === 'true';
+}
+
+/**
  * Draw GATE_PATHS as thick segment beams + waypoint spheres.
  * Uses depth test so behind-dome segments do not fake mid-dome rings.
  * Gate L = orange/blue, dome U = yellow/green.
