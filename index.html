@@ -6,7 +6,7 @@
     <title>Bubbles &amp; Durians</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet" />
     <style>
       :root {
         --ink: #e8f0fa;
@@ -251,14 +251,10 @@
         padding: 0 clamp(18px, 3vw, 36px) clamp(14px, 2vw, 28px) 0;
       }
       .hud-score-num {
-        font: 700 clamp(28px, 4.5vw, 48px)/1 'Fredoka', sans-serif;
+        font: 800 clamp(28px, 4.5vw, 48px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
-        text-shadow:
-          -3px -3px 0 #1a1018,
-           3px -3px 0 #1a1018,
-          -3px  3px 0 #1a1018,
-           3px  3px 0 #1a1018,
-           0  3px 0 rgba(0,0,0,0.35);
+        -webkit-text-stroke: 4px #1a1018;
+        paint-order: stroke fill;
         letter-spacing: 0.02em;
       }
 
@@ -280,14 +276,11 @@
       }
       .hud-combo[hidden] { display: none !important; }
       .hud-combo-text {
-        font: 700 italic clamp(14px, 2.2vw, 22px)/1 'Fredoka', sans-serif;
+        font: 800 italic clamp(14px, 2.2vw, 22px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #e53935;
         letter-spacing: 0.04em;
-        text-shadow:
-          -2px -2px 0 #1a1018,
-           2px -2px 0 #1a1018,
-          -2px  2px 0 #1a1018,
-           2px  2px 0 #1a1018;
+        -webkit-text-stroke: 2.5px #1a1018;
+        paint-order: stroke fill;
         white-space: nowrap;
       }
       .hud-combo.max .hud-combo-text { color: #ff1744; }
@@ -336,18 +329,13 @@
         filter: grayscale(0.85) brightness(1.15);
         transform: scale(0.86);
       }
-      .hud-tooth.filled { animation: toothIn 0.22s ease; }
-      @keyframes toothIn {
-        from { transform: scale(0.6); }
-        to { transform: scale(1); }
+      .hud-tooth.pop-in { animation: toothPop 0.32s cubic-bezier(0.2, 1.5, 0.4, 1); }
+      @keyframes toothPop {
+        0% { transform: scale(0.2); opacity: 0; }
+        55% { transform: scale(1.22); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
       }
-      .hud-ammo.reloading .hud-ammo-icons { animation: ammoPulse 0.45s ease-in-out infinite; }
       .hud-ammo.flash { animation: blink 0.08s linear 3; }
-      .hud-ammo.empty { filter: saturate(1.2) hue-rotate(-12deg); }
-      @keyframes ammoPulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.45; }
-      }
       @keyframes blink { 50% { opacity: 0.3; } }
 
       /* TIME — flush right edge of screen */
@@ -365,18 +353,14 @@
         align-items: baseline;
         gap: 6px;
         color: #fff;
-        text-shadow:
-          -3px -3px 0 #1a1018,
-           3px -3px 0 #1a1018,
-          -3px  3px 0 #1a1018,
-           3px  3px 0 #1a1018,
-           0  3px 0 rgba(0,0,0,0.35);
+        -webkit-text-stroke: 4px #1a1018;
+        paint-order: stroke fill;
       }
       .hud-time-min {
-        font: 700 clamp(28px, 4.5vw, 48px)/1 'Fredoka', sans-serif;
+        font: 800 clamp(28px, 4.5vw, 48px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
       .hud-time-sec {
-        font: 700 clamp(18px, 3vw, 30px)/1 'Fredoka', sans-serif;
+        font: 800 clamp(18px, 3vw, 30px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
       .hud-time.critical {
         animation: criticalPulse 0.6s ease-in-out infinite;
@@ -414,22 +398,6 @@
       .hud-heart.empty { color: #ffe0ea; font-size: 0.9em; }
       .hud-lives.critical { animation: criticalPulse 0.6s ease-in-out infinite; }
 
-      .hud-reload-btn {
-        margin-top: 6px;
-        padding: 8px 18px;
-        font: 700 16px 'Fredoka', sans-serif;
-        color: #fff;
-        background: linear-gradient(180deg, #5ab0ff, #1a8cff);
-        border: 3px solid #1a1018;
-        border-radius: 999px;
-        box-shadow: 0 4px 0 #0a3a6a, inset 0 2px 0 rgba(255, 255, 255, 0.35);
-        cursor: pointer;
-        pointer-events: auto;
-        letter-spacing: 0.04em;
-      }
-      .hud-reload-btn[hidden] { display: none !important; }
-      .hud-reload-btn:hover { filter: brightness(1.08); }
-      .hud-reload-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #0a3a6a; }
       .hud-reload-hint {
         position: absolute;
         top: 50%;
@@ -598,7 +566,6 @@
         .hud-ammo { width: min(100%, 92vw); height: clamp(58px, 16vw, 84px); }
         .hud-combo { width: 100px; height: 32px; }
         .hud-combo-text { font-size: 12px; }
-        .hud-reload-btn { font-size: 13px; padding: 5px 12px; }
         .hud-tooth { width: 26px; height: 26px; }
       }
     </style>

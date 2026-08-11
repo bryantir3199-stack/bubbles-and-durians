@@ -15,13 +15,10 @@ export class HUD {
   private timerEl: HTMLElement | null = null;
   private timerMinEl: HTMLElement | null = null;
   private timerSecEl: HTMLElement | null = null;
-  private reloadBtn: HTMLButtonElement;
   private reloadHint: HTMLElement;
-  private onReload: () => void;
   private lastComboLevel = 1;
 
-  constructor(parent: HTMLElement, mode: GameMode, onReload: () => void) {
-    this.onReload = onReload;
+  constructor(parent: HTMLElement, mode: GameMode, _onReload: () => void) {
     this.root = document.createElement('div');
     this.root.className = 'hud';
 
@@ -58,7 +55,6 @@ export class HUD {
           <div class="hud-panel hud-ammo" aria-label="Ammo">
             <div class="hud-ammo-icons">${teeth}</div>
           </div>
-          <button type="button" class="hud-reload-btn" hidden title="Reload (R / Space)">RELOAD</button>
         </div>
 
         <div class="hud-right">
@@ -80,17 +76,11 @@ export class HUD {
     this.timerEl = this.root.querySelector('.hud-time');
     this.timerMinEl = this.root.querySelector('.hud-time-min');
     this.timerSecEl = this.root.querySelector('.hud-time-sec');
-    this.reloadBtn = this.root.querySelector('.hud-reload-btn')!;
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
 
     if (mode === 'timed') {
       this.setTimer(gameConfig.timedSeconds);
     }
-
-    this.reloadBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.onReload();
-    });
   }
 
   private hearts(lives: number): string {
@@ -128,20 +118,31 @@ export class HUD {
   }
 
   setAmmo(current: number, max: number, reloading: boolean): void {
-    const icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
+    let icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
     if (icons.length !== max) {
       this.ammoIconsEl.innerHTML = Array.from({ length: max }, () =>
         `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
       ).join('');
+      icons = this.ammoIconsEl.querySelectorAll('.hud-tooth');
     }
-    this.ammoIconsEl.querySelectorAll('.hud-tooth').forEach((el, i) => {
-      el.classList.toggle('filled', i < current);
-      el.classList.toggle('empty', i >= current);
+
+    icons.forEach((el, i) => {
+      const nowFilled = i < current;
+      const wasEmpty = el.classList.contains('empty');
+      el.classList.toggle('filled', nowFilled);
+      el.classList.toggle('empty', !nowFilled);
+      // Pop in only when a previously-empty pip fills (reload animation)
+      if (nowFilled && wasEmpty) {
+        el.classList.remove('pop-in');
+        void (el as HTMLElement).offsetWidth;
+        el.classList.add('pop-in');
+      }
     });
+
     this.ammoPanel.classList.toggle('reloading', reloading);
-    this.ammoPanel.classList.toggle('empty', !reloading && current === 0);
-    this.ammoPanel.classList.toggle('warn', reloading);
-    this.reloadBtn.hidden = !(reloading || current === 0);
+    // Keep ammo panel visually stable — no layout-shifting empty/warn styles
+    this.ammoPanel.classList.remove('empty', 'warn');
+    // Center hint only when dry (not while refill animation is running)
     this.reloadHint.hidden = reloading || current !== 0;
   }
 

@@ -54,19 +54,36 @@ export class AmmoSystem {
 
     this.reloading = true;
     this.emit();
-    if (this.reloadTimer != null) window.clearTimeout(this.reloadTimer);
-    this.reloadTimer = window.setTimeout(() => {
-      this.ammo = gameConfig.magazineSize;
-      this.reloading = false;
-      this.reloadTimer = null;
-      this.emit();
-    }, gameConfig.reloadMs);
+    this.clearReloadTimer();
+    this.scheduleNextShell();
     return true;
   }
 
+  private scheduleNextShell(): void {
+    this.reloadTimer = window.setTimeout(() => {
+      this.reloadTimer = null;
+      if (this.ammo < gameConfig.magazineSize) {
+        this.ammo += 1;
+        this.emit();
+      }
+      if (this.ammo >= gameConfig.magazineSize) {
+        this.reloading = false;
+        this.emit();
+        return;
+      }
+      this.scheduleNextShell();
+    }, gameConfig.reloadShellMs);
+  }
+
+  private clearReloadTimer(): void {
+    if (this.reloadTimer != null) {
+      window.clearTimeout(this.reloadTimer);
+      this.reloadTimer = null;
+    }
+  }
+
   destroy(): void {
-    if (this.reloadTimer != null) window.clearTimeout(this.reloadTimer);
-    this.reloadTimer = null;
+    this.clearReloadTimer();
     this.listeners.clear();
   }
 }

@@ -26,7 +26,7 @@ export class PlayScene implements GameScene {
   private unsubs: Array<() => void> = [];
   private escapesArmed = false;
   private camKick = 0;
-  private camBase = new THREE.Vector3(0, 140, 560);
+  private camBase = new THREE.Vector3(0, 110, 635);
 
   constructor(private ctx: SceneContext) {}
 
@@ -44,8 +44,8 @@ export class PlayScene implements GameScene {
       this.escapesArmed = true;
     }, 4500);
 
-    // Static camera — no aim parallax
-    this.camBase.set(0, 140, 560);
+    // Static camera — no aim parallax (down 30, back 75 from prior 0/140/560)
+    this.camBase.set(0, 110, 635);
     this.camKick = 0;
     this.ctx.three.camera.position.copy(this.camBase);
     this.ctx.three.camera.lookAt(0, 110, 40);
