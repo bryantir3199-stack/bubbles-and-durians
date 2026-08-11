@@ -41,6 +41,14 @@ export class Spawner {
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
   private readonly closeOnly: boolean;
+  /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
+  private endlessRateMult = 1;
+  /** Endless: index of the active 10s time block. */
+  private endlessBlockIndex = 0;
+  /** Endless: consecutive blocks spent at the capped streak rate (+100%). */
+  private endlessStreakCount = 0;
+  /** Last logged rate label — used to avoid spam in DEV. */
+  private lastLoggedLabel = '';
 
   constructor(
     private scene: THREE.Scene,
@@ -57,6 +65,10 @@ export class Spawner {
     this.elapsed = 0;
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
+    this.endlessRateMult = 1;
+    this.endlessBlockIndex = 0;
+    this.endlessStreakCount = 0;
+    this.lastLoggedLabel = '';
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
     this.busyPaths.clear();
@@ -68,13 +80,18 @@ export class Spawner {
         if (this.running) this.trySpawn();
       }, i * 1230);
     }
+    this.logSpawnRateLabel(this.rateLabel(undefined));
   }
 
   stop(): void {
     this.running = false;
   }
 
-  update(dt: number): void {
+  /**
+   * @param dt — frame delta in seconds
+   * @param timeLeftSeconds — timed-mode seconds remaining (ignored in endless)
+   */
+  update(dt: number, timeLeftSeconds?: number): void {
     if (!this.running) return;
     this.elapsed += dt * 1000;
 
@@ -83,12 +100,27 @@ export class Spawner {
       if (!this.targets[i]!.root.parent) this.targets.splice(i, 1);
     }
 
+    if (this.mode === 'endless') {
+      this.updateEndlessTimeBlocks();
+    }
+
+    // Timed final boost: once remaining time enters the window, tighten the
+    // pending next-spawn wait so the +50% rate kicks in immediately.
+    if (
+      this.mode === 'timed' &&
+      timeLeftSeconds !== undefined &&
+      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+    ) {
+      const boosted = this.computeInterval(timeLeftSeconds);
+      if (this.nextAt - this.elapsed > boosted) {
+        this.nextAt = this.elapsed + boosted;
+      }
+      this.logSpawnRateLabel(this.rateLabel(timeLeftSeconds));
+    }
+
     if (this.elapsed >= this.nextAt) {
       this.trySpawn();
-      const progress = Math.min(1, this.elapsed / 120_000);
-      const interval =
-        gameConfig.spawnIntervalMs -
-        (gameConfig.spawnIntervalMs - gameConfig.minSpawnIntervalMs) * progress;
+      const interval = this.computeInterval(timeLeftSeconds);
       this.nextAt = this.elapsed + interval;
     }
   }
@@ -102,6 +134,115 @@ export class Spawner {
     this.windowCooldownUntil.clear();
     this.closeCooldownUntil.clear();
     this.pathCooldownUntil.clear();
+  }
+
+  /** Base ramp (2610 → 1510 over first 120s of spawner elapsed). */
+  private baseIntervalMs(): number {
+    const progress = Math.min(1, this.elapsed / 120_000);
+    return (
+      gameConfig.spawnIntervalMs -
+      (gameConfig.spawnIntervalMs - gameConfig.minSpawnIntervalMs) * progress
+    );
+  }
+
+  /**
+   * Effective spawn interval after mode-specific rate modifiers.
+   * Higher spawn rate → shorter interval.
+   */
+  private computeInterval(timeLeftSeconds?: number): number {
+    let interval = this.baseIntervalMs();
+    let rateMult = 1;
+
+    if (this.mode === 'timed') {
+      if (
+        timeLeftSeconds !== undefined &&
+        timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+      ) {
+        rateMult *= gameConfig.timedFinalSpawnRateMult;
+      }
+    } else {
+      rateMult *= this.endlessRateMult;
+    }
+
+    return interval / rateMult;
+  }
+
+  /**
+   * Endless: every 10s time block after the opening grace period, pick a
+   * weighted rate level (original / +55% / +100% / −25%). Original is more
+   * common. +100% may appear at most N consecutive blocks. The first grace
+   * blocks always stay at original.
+   */
+  private updateEndlessTimeBlocks(): void {
+    const blockMs = gameConfig.endlessSpawnBlockMs;
+    const blockIndex = Math.floor(this.elapsed / blockMs);
+    while (this.endlessBlockIndex < blockIndex) {
+      this.endlessBlockIndex += 1;
+      if (this.endlessBlockIndex >= gameConfig.endlessSpawnRateGraceBlocks) {
+        this.rollEndlessRateChange();
+      }
+    }
+  }
+
+  private rollEndlessRateChange(): void {
+    const streakMult = gameConfig.endlessSpawnRateMaxStreakMult;
+    const maxStreak = gameConfig.endlessSpawnRateMaxStreak;
+    const options = gameConfig.endlessSpawnRateOptions.filter(
+      (opt) =>
+        !(
+          opt.mult === streakMult &&
+          this.endlessStreakCount >= maxStreak
+        ),
+    );
+    const totalWeight = options.reduce((sum, opt) => sum + opt.weight, 0);
+    let roll = Math.random() * totalWeight;
+    let next = 1;
+    for (const opt of options) {
+      roll -= opt.weight;
+      if (roll <= 0) {
+        next = opt.mult;
+        break;
+      }
+    }
+
+    const prev = this.endlessRateMult;
+    this.endlessRateMult = next;
+    this.endlessStreakCount = next === streakMult ? this.endlessStreakCount + 1 : 0;
+
+    // If rate went up, don't wait out the old slower interval.
+    if (next > prev) {
+      const interval = this.computeInterval();
+      if (this.nextAt - this.elapsed > interval) {
+        this.nextAt = this.elapsed + interval;
+      }
+    }
+
+    this.logSpawnRateLabel(this.rateLabel());
+  }
+
+  /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%", "100%"). */
+  private rateLabel(timeLeftSeconds?: number): string {
+    if (this.mode === 'endless') {
+      const match = gameConfig.endlessSpawnRateOptions.find(
+        (opt) => opt.mult === this.endlessRateMult,
+      );
+      return match?.label ?? 'original';
+    }
+    if (
+      timeLeftSeconds !== undefined &&
+      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+    ) {
+      return `${Math.round((gameConfig.timedFinalSpawnRateMult - 1) * 100)}%`;
+    }
+    return 'original';
+  }
+
+  private logSpawnRateLabel(label: string): void {
+    if (!import.meta.env.DEV) return;
+    if (label === this.lastLoggedLabel) return;
+    this.lastLoggedLabel = label;
+    // eslint-disable-next-line no-console
+    console.log(`[spawn-rate] ${label}`);
   }
 
   /**

@@ -126,7 +126,13 @@ export class PlayScene implements GameScene {
 
   update(dt: number): void {
     if (this.ended) return;
-    this.spawner?.update(dt);
+
+    if (this.mode === 'timed') {
+      this.timeLeft -= dt;
+      this.hud?.setTimer(this.timeLeft);
+    }
+
+    this.spawner?.update(dt, this.mode === 'timed' ? this.timeLeft : undefined);
     this.announceVisibleGoldDurians();
 
     if (this.camKick > 0) {
@@ -140,11 +146,7 @@ export class PlayScene implements GameScene {
       this.ctx.three.camera.lookAt(0, 110, 40);
     }
 
-    if (this.mode === 'timed') {
-      this.timeLeft -= dt;
-      this.hud?.setTimer(this.timeLeft);
-      if (this.timeLeft <= 0) this.endGame();
-    }
+    if (this.mode === 'timed' && this.timeLeft <= 0) this.endGame();
   }
 
   /** Play glitter once the first frame a gold durian enters the camera frustum. */
