@@ -365,8 +365,8 @@ export class Target {
     if (this.phase === 'sink') {
       this.sinkT += dt / this.sinkDur;
       const t = Math.min(1, this.sinkT);
-      // Ease-in so they accelerate downward out of view.
-      const e = t * t * t;
+      // Ease-in quad — starts moving right away, accelerates out of frame.
+      const e = t * t;
       this.root.position.y = this.sinkFromY + (this.sinkToY - this.sinkFromY) * e;
       if (t >= 1) this.destroy();
       return;
@@ -415,8 +415,8 @@ export class Target {
     this.root.scale.setScalar(pop);
 
     // Path movers keep going until the route ends — don't cut them mid-path.
-    // Close targets stay on holdLeft after rise; windows use the same age clock.
-    if (this.pattern !== 'path' && this.phase === 'hold') {
+    // Close targets telegraph exit by sinking (no blink-out). Windows still blink.
+    if (this.pattern === 'window' && this.phase === 'hold') {
       if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
         const on = Math.sin(this.age / 60) > 0;
         if (on !== this.warned) {
@@ -424,6 +424,10 @@ export class Target {
           this.visual.visible = on;
         }
       }
+      if (this.age >= this.lifetime) {
+        this.finishEscape();
+      }
+    } else if (this.pattern === 'close' && this.phase === 'hold') {
       if (this.age >= this.lifetime) {
         this.finishEscape();
       }
@@ -443,7 +447,9 @@ export class Target {
       this.sinkT = 0;
       this.sinkDur = CLOSE_SINK_DURATION;
       this.sinkFromY = this.root.position.y;
+      // Sink past the rise start so the whole mesh clears the frustum.
       this.sinkToY = this.bobBaseY - CLOSE_RISE_HEIGHT;
+      this.bobAmp = 0;
       return;
     }
 

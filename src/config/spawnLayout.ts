@@ -42,21 +42,21 @@ export let WINDOWS: WindowSpot[] = [
 
 /**
  * Foreground pops just in front of the play camera (cam ≈ 0,110,635 → lookAt y=110).
- * Placed ~50u ahead so they read huge; hold Y sits near the frustum floor so the
- * lower body is clipped by the bottom of the frame. Left / middle / right.
+ * ~30u ahead of the lens — huge on screen — with hold Y low enough that the
+ * frustum floor clips the lower body. Left / middle / right.
  */
 export const CLOSE_SPOTS: WindowSpot[] = [
-  { id: 'close-left', x: -26, y: 93, z: 585 },
-  { id: 'close-middle', x: 0, y: 93, z: 585 },
-  { id: 'close-right', x: 26, y: 93, z: 585 },
+  { id: 'close-left', x: -18, y: 98, z: 605 },
+  { id: 'close-middle', x: 0, y: 98, z: 605 },
+  { id: 'close-right', x: 18, y: 98, z: 605 },
 ];
 
-/** How far below the hold Y a close target starts before rising. */
-export const CLOSE_RISE_HEIGHT = 90;
+/** How far below the hold Y a close target starts (and sinks past) the frame. */
+export const CLOSE_RISE_HEIGHT = 120;
 /** Seconds for the rise-from-below entrance. */
-export const CLOSE_RISE_DURATION = 0.48;
-/** Seconds to sink back below the frame before despawn. */
-export const CLOSE_SINK_DURATION = 0.42;
+export const CLOSE_RISE_DURATION = 0.5;
+/** Seconds to sink fully below the frame before despawn. */
+export const CLOSE_SINK_DURATION = 0.55;
 
 /** First N lanes in GATE_PATHS are ground gate L-routes that open doors. */
 export const GATE_LANE_COUNT = 2;
