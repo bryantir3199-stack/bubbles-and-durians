@@ -4,6 +4,7 @@
  * - sp* empties → static window / hold spots
  * - Movers use rebuilt gate paths: off-screen front-left/right → door → inside
  *   (stops before the interior back wall). Built from door mesh bounds.
+ * - Plus two elevated U-routes on the keep walls under the dome (CCW / CW).
  */
 
 export type SpawnPattern = 'window' | 'path';
@@ -38,24 +39,14 @@ export let WINDOWS: WindowSpot[] = [
   { id: 'right-tower', x: 155, y: 125, z: 74 },
 ];
 
+/** First N lanes in GATE_PATHS are ground gate L-routes that open doors. */
+export const GATE_LANE_COUNT = 2;
+
 /**
- * Gate lanes (enter direction). Index 0 = left L, 1 = mirrored right L.
- * Reverse a lane for exits.
+ * Travel lanes. Indices 0–1 = gate L (enter direction); 2 = dome wall U (CCW).
+ * Reverse a lane via pathForward for the opposite travel sense.
  */
-export let GATE_PATHS: Vec3[][] = [
-  [
-    { x: -450, y: 21, z: 240 },
-    { x: 0, y: 21, z: 240 },
-    { x: 0, y: 21, z: 60 },
-    { x: 0, y: 21, z: 28 },
-  ],
-  [
-    { x: 450, y: 21, z: 240 },
-    { x: 0, y: 21, z: 240 },
-    { x: 0, y: 21, z: 60 },
-    { x: 0, y: 21, z: 28 },
-  ],
-];
+export let GATE_PATHS: Vec3[][] = [...buildGatePaths(undefined), ...buildDomeWallPaths()];
 
 /** @deprecated Prefer GATE_PATHS — left lane kept for older call sites. */
 export let PATHS: Vec3[] = GATE_PATHS[0]!;
@@ -79,11 +70,16 @@ export function applyCastleMarkers(markers: CastleMarkers): void {
     WINDOWS = markers.spawns.map((s) => ({ ...s }));
   }
 
-  GATE_PATHS = buildGatePaths(markers.door);
+  GATE_PATHS = [...buildGatePaths(markers.door), ...buildDomeWallPaths()];
   PATHS = GATE_PATHS[0]!;
   DOOR_PLANE_Z = markers.door
     ? (markers.door.minZ + markers.door.maxZ) * 0.5
     : PATHS[2]?.z ?? 60;
+}
+
+/** Ground gate L-lanes only — elevated wall routes must not swing the doors. */
+export function pathUsesDoors(pathIndex: number): boolean {
+  return pathIndex >= 0 && pathIndex < GATE_LANE_COUNT;
 }
 
 /**
@@ -116,6 +112,70 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
     [{ x: -startX, y: travelY, z: cornerZ }, ...sharedTail],
     [{ x: startX, y: travelY, z: cornerZ }, ...sharedTail],
   ];
+}
+
+/**
+ * One elevated U≈O route on the keep battlement crest under the dome.
+ * Straight segments + 90° corners; start/end behind the dome with a small gap.
+ *
+ *        back gap (start/end)
+ *     ●───────────  ───────────●
+ *     │                        │
+ *     │         (dome)         │
+ *     │                        │
+ *     ●────────────────────────●
+ *              front
+ *
+ * Authored CCW (left wall first); reverse via pathForward for the opposite sense.
+ *
+ * Raycasted crest top: Y ≈ 132.2, outer lip X ≈ ±105–107, front Z ≈ 67–70.
+ * Path Y is the target CENTER; targets are ~34 tall, so centers sit at
+ * crestTop + halfHeight so the base rests on the battlement instead of
+ * burying through it.
+ */
+function buildDomeWallPaths(): Vec3[][] {
+  const crestTop = 132.2;
+  const targetHalfHeight = 34.375 * 0.5;
+  // Target centers: base (~center − halfHeight) lands on the merlon tops.
+  const y = crestTop + targetHalfHeight;
+  const gap = 32;
+
+  return [
+    rectUPath({
+      y,
+      halfX: 112,
+      frontZ: 69,
+      backZ: -55,
+      gap,
+      ccw: true,
+    }),
+  ];
+}
+
+function rectUPath(opts: {
+  y: number;
+  halfX: number;
+  frontZ: number;
+  backZ: number;
+  gap: number;
+  ccw: boolean;
+}): Vec3[] {
+  const { y, halfX, frontZ, backZ, gap, ccw } = opts;
+  // Explicit 90° corners + mid-edge points so the U reads as straight segments.
+  // CCW: emerge behind-left → left → front → right → tuck behind-right
+  const ccwPts: Vec3[] = [
+    { x: -gap, y, z: backZ },
+    { x: -halfX, y, z: backZ },
+    { x: -halfX, y, z: (backZ + frontZ) * 0.5 },
+    { x: -halfX, y, z: frontZ },
+    { x: 0, y, z: frontZ },
+    { x: halfX, y, z: frontZ },
+    { x: halfX, y, z: (backZ + frontZ) * 0.5 },
+    { x: halfX, y, z: backZ },
+    { x: gap, y, z: backZ },
+  ];
+  if (ccw) return ccwPts;
+  return [...ccwPts].reverse();
 }
 
 /** True if world Z is near the door plane (for continuous door timing). */

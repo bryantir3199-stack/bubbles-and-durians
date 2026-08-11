@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
+import { GATE_PATHS } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { createPathDebugGroup, wantsDomeOnly, wantsPathDebug } from '../debug/pathDebug';
 import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
@@ -40,6 +42,7 @@ export class PlayScene implements GameScene {
   private viewFrustum = new THREE.Frustum();
   private viewProj = new THREE.Matrix4();
   private viewSphere = new THREE.Sphere();
+  private pathDebug: THREE.Group | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -64,7 +67,9 @@ export class PlayScene implements GameScene {
     this.ctx.three.camera.lookAt(0, 110, 40);
 
     this.ammo = new AmmoSystem();
-    this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t));
+    this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t), {
+      domeOnly: wantsDomeOnly(),
+    });
     this.hud = new HUD(this.ctx.uiRoot, this.mode, () => this.onReload());
     this.hud.setScore(this.score);
     this.hud.setCombo(this.combo, this.comboShots);
@@ -72,6 +77,23 @@ export class PlayScene implements GameScene {
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
+
+    if (wantsPathDebug()) {
+      this.pathDebug = createPathDebugGroup();
+      this.ctx.three.scene.add(this.pathDebug);
+      // eslint-disable-next-line no-console
+      console.info(
+        '[path-debug] v4 crest-base',
+        GATE_PATHS.slice(2).map((lane, i) => ({
+          lane: i + 2,
+          y: lane[0]?.y,
+          halfX: Math.max(...lane.map((p) => Math.abs(p.x))),
+          frontZ: Math.max(...lane.map((p) => p.z)),
+          backZ: Math.min(...lane.map((p) => p.z)),
+          corners: lane.length,
+        })),
+      );
+    }
 
     const onMove = (e: PointerEvent) => {
       this.hud?.setPointer(e.clientX, e.clientY);
@@ -160,6 +182,18 @@ export class PlayScene implements GameScene {
     this.ammo = null;
     this.hud?.destroy();
     this.hud = null;
+    if (this.pathDebug) {
+      this.ctx.three.scene.remove(this.pathDebug);
+      this.pathDebug.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
+          obj.geometry.dispose();
+          const mat = obj.material;
+          if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+          else mat.dispose();
+        }
+      });
+      this.pathDebug = null;
+    }
     clearUI(this.ctx.uiRoot);
   }
 

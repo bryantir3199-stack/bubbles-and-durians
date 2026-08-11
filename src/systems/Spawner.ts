@@ -2,6 +2,7 @@ import type { GameMode, TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
   PATTERN_WEIGHTS,
+  GATE_LANE_COUNT,
   GATE_PATHS,
   WINDOWS,
   type SpawnPattern,
@@ -10,6 +11,11 @@ import { Target, type TargetSpawnSpec } from '../entities/Target';
 import type * as THREE from 'three';
 
 type SpawnWeights = Record<TargetKind, number>;
+
+export interface SpawnerOptions {
+  /** When true, only elevated dome U lanes are used for path spawns. */
+  domeOnly?: boolean;
+}
 
 /**
  * Spawns up to maxTargets pattern-based targets (window holds + path travel).
@@ -20,18 +26,22 @@ export class Spawner {
   private running = false;
   readonly targets: Target[] = [];
   private occupiedWindows = new Set<string>();
-  /** One mover per gate lane (left / right L). */
+  /** One mover per travel lane (gate L + dome wall U). */
   private busyPaths = new Set<number>();
   /** Window id → earliest elapsed ms when it may be reused. */
   private windowCooldownUntil = new Map<string, number>();
   /** Path index → earliest elapsed ms when it may be reused. */
   private pathCooldownUntil = new Map<number, number>();
+  private readonly domeOnly: boolean;
 
   constructor(
     private scene: THREE.Scene,
     private mode: GameMode,
     private onEscape: (t: Target) => void,
-  ) {}
+    options?: SpawnerOptions,
+  ) {
+    this.domeOnly = options?.domeOnly === true;
+  }
 
   start(): void {
     this.running = true;
@@ -122,7 +132,8 @@ export class Spawner {
 
   private freePathIndices(): number[] {
     const free: number[] = [];
-    for (let i = 0; i < GATE_PATHS.length; i++) {
+    const start = this.domeOnly ? GATE_LANE_COUNT : 0;
+    for (let i = start; i < GATE_PATHS.length; i++) {
       if (
         !this.busyPaths.has(i) &&
         this.pathReady(i) &&
@@ -135,7 +146,7 @@ export class Spawner {
   }
 
   private pickSpec(): TargetSpawnSpec | null {
-    const freeWindows = this.freeWindows();
+    const freeWindows = this.domeOnly ? [] : this.freeWindows();
     const freePaths = this.freePathIndices();
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
       if (p === 'window') return freeWindows.length > 0;

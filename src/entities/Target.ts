@@ -5,6 +5,7 @@ import {
   DOOR_PLANE_Z,
   GATE_PATHS,
   nearDoorPlane,
+  pathUsesDoors,
   type SpawnPattern,
   type WindowSpot,
 } from '../config/spawnLayout';
@@ -25,11 +26,14 @@ export interface TargetSpawnSpec {
   windowId?: string;
   windowSpot?: WindowSpot;
   /**
-   * Path direction: true = lane forward (off-screen → inside / enter),
-   * false = reversed (inside → off-screen / exit).
+   * Path direction: true = lane forward (enter / CCW-as-authored),
+   * false = reversed (exit / opposite travel).
    */
   pathForward?: boolean;
-  /** Which gate lane: 0 = left L, 1 = mirrored right L. */
+  /**
+   * Travel lane: 0 = left gate L, 1 = right gate L,
+   * 2 = dome wall U (CCW; reverse via pathForward).
+   */
   pathIndex?: number;
 }
 
@@ -70,6 +74,8 @@ export class Target {
   private phase: 'move' | 'hold' | 'done' = 'move';
   private holdLeft = 0;
   private doorRetained = false;
+  /** Lane index for GATE_PATHS; only gate L lanes (0–1) drive doors. */
+  private pathIndex = 0;
   private bobAmp = 0;
   private bobBaseY = 0;
   /** Hit-flash timer (seconds) for gold durian feedback. */
@@ -167,7 +173,8 @@ export class Target {
       return;
     }
 
-    const lane = GATE_PATHS[spec.pathIndex ?? 0] ?? GATE_PATHS[0]!;
+    this.pathIndex = spec.pathIndex ?? 0;
+    const lane = GATE_PATHS[this.pathIndex] ?? GATE_PATHS[0]!;
     const pts = lane.map((p) => new THREE.Vector3(p.x, p.y, p.z));
     if (pts.length < 2) {
       const p = pts[0] ?? new THREE.Vector3();
@@ -178,7 +185,7 @@ export class Target {
       return;
     }
 
-    // Forward = enter (off-screen → inside); reverse = exit.
+    // Forward = authored direction (enter / CCW); reverse = opposite travel.
     const forward = spec.pathForward !== false;
     this.waypoints = forward ? pts : [...pts].reverse();
     this.cumLen = [0];
@@ -191,8 +198,8 @@ export class Target {
     this.bobAmp = 0;
     this.phase = 'move';
     this.placeOnPath(0);
-    // Open doors while approaching — never pause for them.
-    this.retainDoor();
+    // Gate L-lanes open doors while approaching — wall routes skip this.
+    if (pathUsesDoors(this.pathIndex)) this.retainDoor();
   }
 
   /** Constant-speed placement along the polyline. */
@@ -218,6 +225,7 @@ export class Target {
   }
 
   private syncDoorForPosition(): void {
+    if (!pathUsesDoors(this.pathIndex)) return;
     if (nearDoorPlane(this.root.position.z, DOOR_PLANE_Z, 40)) {
       this.retainDoor();
     } else if (this.doorRetained) {
