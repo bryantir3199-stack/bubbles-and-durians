@@ -83,7 +83,7 @@ export class PlayScene implements GameScene {
       this.ctx.three.scene.add(this.pathDebug);
       // eslint-disable-next-line no-console
       console.info(
-        '[path-debug] v3 crest',
+        '[path-debug] v4 crest-base',
         GATE_PATHS.slice(2).map((lane, i) => ({
           lane: i + 2,
           y: lane[0]?.y,

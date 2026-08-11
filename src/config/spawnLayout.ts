@@ -130,17 +130,21 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
  * Slight radial inset so both lanes can run at once.
  *
  * Raycasted crest top: Y ≈ 132.2, outer lip X ≈ ±105–107, front Z ≈ 67–70.
- * Lane centers sit on that lip (not the inset dome ledge at Y ≈ 156 / ±97).
+ * Path Y is the target CENTER; targets are ~34 tall, so centers sit at
+ * crestTop + halfHeight so the base rests on the battlement instead of
+ * burying through it.
  */
 function buildDomeWallPaths(): Vec3[][] {
-  // Target centers just above merlon tops (Y 132.2).
-  const y = 134;
+  const crestTop = 132.2;
+  const targetHalfHeight = 34.375 * 0.5;
+  // Target centers: base (~center − halfHeight) lands on the merlon tops.
+  const y = crestTop + targetHalfHeight;
   const gap = 32;
 
   // Outer lip of the keep crest — in front of / beside the dome, not through it.
   const outer = rectUPath({
     y,
-    halfX: 110,
+    halfX: 112,
     frontZ: 69,
     backZ: -55,
     gap,
@@ -149,7 +153,7 @@ function buildDomeWallPaths(): Vec3[][] {
   // Second lane, slight inset still on the crest band.
   const inner = rectUPath({
     y: y - 1,
-    halfX: 104,
+    halfX: 106,
     frontZ: 66,
     backZ: -51,
     gap: gap - 6,
