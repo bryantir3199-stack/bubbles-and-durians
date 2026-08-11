@@ -165,15 +165,18 @@ export class Spawner {
   }
 
   /**
-   * Endless: every 10s time block, pick one of the allowed rate levels
-   * (25% / original / 55%). 55% cannot appear in consecutive blocks.
+   * Endless: every 10s time block after the opening grace period, pick one of
+   * the allowed rate levels (original / +55% / −25%). +55% cannot appear in
+   * consecutive blocks. The first N blocks always stay at original.
    */
   private updateEndlessTimeBlocks(): void {
     const blockMs = gameConfig.endlessSpawnBlockMs;
     const blockIndex = Math.floor(this.elapsed / blockMs);
     while (this.endlessBlockIndex < blockIndex) {
       this.endlessBlockIndex += 1;
-      this.rollEndlessRateChange();
+      if (this.endlessBlockIndex >= gameConfig.endlessSpawnRateGraceBlocks) {
+        this.rollEndlessRateChange();
+      }
     }
   }
 
@@ -201,13 +204,17 @@ export class Spawner {
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
       if (this.endlessRateMult === 1) return 'original';
-      return `${Math.round(this.endlessRateMult * 100)}%`;
+      // 1.55 → "55%" (increase), 0.75 → "25%" (decrease)
+      if (this.endlessRateMult > 1) {
+        return `${Math.round((this.endlessRateMult - 1) * 100)}%`;
+      }
+      return `${Math.round((1 - this.endlessRateMult) * 100)}%`;
     }
     if (
       timeLeftSeconds !== undefined &&
       timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
     ) {
-      return `${Math.round(gameConfig.timedFinalSpawnRateMult * 100)}%`;
+      return `${Math.round((gameConfig.timedFinalSpawnRateMult - 1) * 100)}%`;
     }
     return 'original';
   }
