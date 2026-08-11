@@ -12,6 +12,11 @@ export const gameConfig = {
   /** Prior cadence was 3800/2200; +30% spawn rate → intervals / 1.3. */
   spawnIntervalMs: 2920,
   minSpawnIntervalMs: 1690,
+  /**
+   * After a target leaves a window/path, keep that slot unavailable so the
+   * next spawn cannot pop in the same place immediately.
+   */
+  spawnSlotCooldownMs: 1400,
   targetSize: 34.375,
   heartSize: 16,
   goldSize: 24,

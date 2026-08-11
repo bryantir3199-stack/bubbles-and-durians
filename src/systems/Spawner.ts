@@ -22,6 +22,10 @@ export class Spawner {
   private occupiedWindows = new Set<string>();
   /** One mover per gate lane (left / right L). */
   private busyPaths = new Set<number>();
+  /** Window id → earliest elapsed ms when it may be reused. */
+  private windowCooldownUntil = new Map<string, number>();
+  /** Path index → earliest elapsed ms when it may be reused. */
+  private pathCooldownUntil = new Map<number, number>();
 
   constructor(
     private scene: THREE.Scene,
@@ -36,6 +40,8 @@ export class Spawner {
     this.nextAt = 2150;
     this.occupiedWindows.clear();
     this.busyPaths.clear();
+    this.windowCooldownUntil.clear();
+    this.pathCooldownUntil.clear();
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
@@ -71,6 +77,8 @@ export class Spawner {
     this.targets.length = 0;
     this.occupiedWindows.clear();
     this.busyPaths.clear();
+    this.windowCooldownUntil.clear();
+    this.pathCooldownUntil.clear();
   }
 
   /**
@@ -98,18 +106,39 @@ export class Spawner {
     this.targets.push(target);
   }
 
+  private windowReady(id: string): boolean {
+    const until = this.windowCooldownUntil.get(id);
+    return until === undefined || this.elapsed >= until;
+  }
+
+  private pathReady(index: number): boolean {
+    const until = this.pathCooldownUntil.get(index);
+    return until === undefined || this.elapsed >= until;
+  }
+
+  private freeWindows() {
+    return WINDOWS.filter((w) => !this.occupiedWindows.has(w.id) && this.windowReady(w.id));
+  }
+
   private freePathIndices(): number[] {
     const free: number[] = [];
     for (let i = 0; i < GATE_PATHS.length; i++) {
-      if (!this.busyPaths.has(i) && (GATE_PATHS[i]?.length ?? 0) >= 2) free.push(i);
+      if (
+        !this.busyPaths.has(i) &&
+        this.pathReady(i) &&
+        (GATE_PATHS[i]?.length ?? 0) >= 2
+      ) {
+        free.push(i);
+      }
     }
     return free;
   }
 
   private pickSpec(): TargetSpawnSpec | null {
+    const freeWindows = this.freeWindows();
     const freePaths = this.freePathIndices();
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
-      if (p === 'window') return this.occupiedWindows.size < WINDOWS.length;
+      if (p === 'window') return freeWindows.length > 0;
       if (p === 'path') return freePaths.length > 0;
       return false;
     });
@@ -127,23 +156,28 @@ export class Spawner {
     }
 
     if (chosen === 'window') {
-      const free = WINDOWS.filter((w) => !this.occupiedWindows.has(w.id));
-      if (free.length === 0) return null;
-      const spot = free[Math.floor(Math.random() * free.length)]!;
+      if (freeWindows.length === 0) return null;
+      const spot = freeWindows[Math.floor(Math.random() * freeWindows.length)]!;
       this.occupiedWindows.add(spot.id);
+      this.windowCooldownUntil.delete(spot.id);
       return { pattern: 'window', windowId: spot.id, windowSpot: spot };
     }
 
+    if (freePaths.length === 0) return null;
     const pathIndex = freePaths[Math.floor(Math.random() * freePaths.length)]!;
     this.busyPaths.add(pathIndex);
+    this.pathCooldownUntil.delete(pathIndex);
     return { pattern: 'path', pathIndex, pathForward: Math.random() < 0.55 };
   }
 
   private releaseSpec(spec: TargetSpawnSpec): void {
+    const coolUntil = this.elapsed + gameConfig.spawnSlotCooldownMs;
     if (spec.pattern === 'window' && spec.windowId) {
       this.occupiedWindows.delete(spec.windowId);
+      this.windowCooldownUntil.set(spec.windowId, coolUntil);
     } else if (spec.pattern === 'path' && spec.pathIndex !== undefined) {
       this.busyPaths.delete(spec.pathIndex);
+      this.pathCooldownUntil.set(spec.pathIndex, coolUntil);
     }
   }
 
