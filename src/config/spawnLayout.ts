@@ -55,6 +55,8 @@ export const CLOSE_SPOTS: WindowSpot[] = [
 export const CLOSE_RISE_HEIGHT = 90;
 /** Seconds for the rise-from-below entrance. */
 export const CLOSE_RISE_DURATION = 0.48;
+/** Seconds to sink back below the frame before despawn. */
+export const CLOSE_SINK_DURATION = 0.42;
 
 /** First N lanes in GATE_PATHS are ground gate L-routes that open doors. */
 export const GATE_LANE_COUNT = 2;

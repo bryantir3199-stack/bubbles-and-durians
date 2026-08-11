@@ -4,6 +4,7 @@ import { gameConfig } from '../config/gameConfig';
 import {
   CLOSE_RISE_DURATION,
   CLOSE_RISE_HEIGHT,
+  CLOSE_SINK_DURATION,
   DOOR_PLANE_Z,
   GATE_PATHS,
   nearDoorPlane,
@@ -74,12 +75,16 @@ export class Target {
   private pathLen = 0;
   private pathTraveled = 0;
   private from = new THREE.Vector3();
-  private phase: 'rise' | 'move' | 'hold' | 'done' = 'move';
+  private phase: 'rise' | 'move' | 'hold' | 'sink' | 'done' = 'move';
   private holdLeft = 0;
   private riseFromY = 0;
   private riseToY = 0;
   private riseT = 0;
   private riseDur = CLOSE_RISE_DURATION;
+  private sinkT = 0;
+  private sinkDur = CLOSE_SINK_DURATION;
+  private sinkFromY = 0;
+  private sinkToY = 0;
   private doorRetained = false;
   /** Lane index for GATE_PATHS; only gate L lanes (0–1) drive doors. */
   private pathIndex = 0;
@@ -355,6 +360,18 @@ export class Target {
       if (t >= 1) this.destroy();
       return;
     }
+
+    // Close targets sink below the frame, then despawn once off-camera.
+    if (this.phase === 'sink') {
+      this.sinkT += dt / this.sinkDur;
+      const t = Math.min(1, this.sinkT);
+      // Ease-in so they accelerate downward out of view.
+      const e = t * t * t;
+      this.root.position.y = this.sinkFromY + (this.sinkToY - this.sinkFromY) * e;
+      if (t >= 1) this.destroy();
+      return;
+    }
+
     if (this.cleared || this.escaped) return;
 
     this.age += dt * 1000;
@@ -416,10 +433,21 @@ export class Target {
   private finishEscape(): void {
     if (this.escaped || this.cleared) return;
     this.escaped = true;
-    this.phase = 'done';
     this.visual.visible = true;
     this.releaseDoor();
     this.onEscape?.(this);
+
+    // Close pops retreat the way they came: sink below the lens, then remove.
+    if (this.pattern === 'close') {
+      this.phase = 'sink';
+      this.sinkT = 0;
+      this.sinkDur = CLOSE_SINK_DURATION;
+      this.sinkFromY = this.root.position.y;
+      this.sinkToY = this.bobBaseY - CLOSE_RISE_HEIGHT;
+      return;
+    }
+
+    this.phase = 'done';
     this.fadeOut();
   }
 
