@@ -16,6 +16,8 @@ type SpawnWeights = Record<TargetKind, number>;
 export interface SpawnerOptions {
   /** When true, only elevated dome U lanes are used for path spawns. */
   domeOnly?: boolean;
+  /** When true, only close-camera left/middle/right rises spawn. */
+  closeOnly?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export class Spawner {
   /** Path index → earliest elapsed ms when it may be reused. */
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
+  private readonly closeOnly: boolean;
 
   constructor(
     private scene: THREE.Scene,
@@ -46,6 +49,7 @@ export class Spawner {
     options?: SpawnerOptions,
   ) {
     this.domeOnly = options?.domeOnly === true;
+    this.closeOnly = options?.closeOnly === true;
   }
 
   start(): void {
@@ -164,10 +168,11 @@ export class Spawner {
   }
 
   private pickSpec(): TargetSpawnSpec | null {
-    const freeWindows = this.domeOnly ? [] : this.freeWindows();
+    const freeWindows = this.domeOnly || this.closeOnly ? [] : this.freeWindows();
     const freeClose = this.domeOnly ? [] : this.freeCloseSpots();
-    const freePaths = this.freePathIndices();
+    const freePaths = this.closeOnly ? [] : this.freePathIndices();
     const patterns = (Object.keys(PATTERN_WEIGHTS) as SpawnPattern[]).filter((p) => {
+      if (this.closeOnly) return p === 'close' && freeClose.length > 0;
       if (p === 'window') return freeWindows.length > 0;
       if (p === 'close') return freeClose.length > 0;
       if (p === 'path') return freePaths.length > 0;
