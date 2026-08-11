@@ -29,11 +29,11 @@ npm run preview  # preview production build
 |--------|------|-------|-------|
 | Durian | 1 | +1 | Endless: escape = −1 life |
 | Gold durian | 4 | +3 | Endless: escape = −1 life |
-| Bubble | 1 | −1 | Also −1 life when shot |
+| Bubble | 1 | −10 | Endless: also −1 life when shot |
 | Heart | 1 | — | Endless only; +1 life (max 5) |
 
 **Endless** — 3 starting lives; game ends at 0 lives.  
-**Timed** — 3 minutes; no escape life loss; no hearts. Lives still apply for bubble hits.
+**Timed** — 3 minutes; no lives system; bubbles only subtract score; no escape penalty; no hearts.
 
 ## Online leaderboards (Supabase)
 

@@ -197,7 +197,7 @@ export class PlayScene implements GameScene {
       this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
-      this.changeLives(-1);
+      if (this.mode === 'endless') this.changeLives(-1);
     } else if (kind === 'heart') {
       this.resetCombo();
       this.changeLives(1);
@@ -254,6 +254,8 @@ export class PlayScene implements GameScene {
   }
 
   private changeLives(delta: number): void {
+    // Timed mode has no lives — only the clock ends the run.
+    if (this.mode !== 'endless') return;
     if (delta > 0) {
       this.lives = Math.min(gameConfig.maxLives, this.lives + delta);
     } else {

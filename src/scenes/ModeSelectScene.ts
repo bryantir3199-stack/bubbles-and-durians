@@ -20,7 +20,7 @@ export class ModeSelectScene implements GameScene {
           </button>
           <button type="button" class="mode-card timed" data-mode="timed">
             <h2>TIMED</h2>
-            <p>3 minute clock<br/>Same ammo, bubbles &amp; combos<br/>No escape penalty<br/>No heart pickups</p>
+            <p>3 minute clock<br/>Same ammo, bubbles &amp; combos<br/>Bubbles cost points (no lives)<br/>No escape penalty or hearts</p>
           </button>
         </div>
         <button type="button" class="btn muted-btn" data-action="back">BACK</button>

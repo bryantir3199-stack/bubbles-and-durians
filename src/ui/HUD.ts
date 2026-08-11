@@ -13,8 +13,8 @@ export class HUD {
   private comboEl: HTMLElement;
   private comboMultEl: HTMLElement;
   private timerEl: HTMLElement | null = null;
-  private timerMinEl: HTMLElement | null = null;
   private timerSecEl: HTMLElement | null = null;
+  private timerMsEl: HTMLElement | null = null;
   private reloadHint: HTMLElement;
   private lastComboLevel = 1;
 
@@ -31,8 +31,9 @@ export class HUD {
         ? `
       <div class="hud-panel hud-time" aria-label="Time">
         <div class="hud-time-value">
-          <span class="hud-time-min">3</span>
-          <span class="hud-time-sec">00</span>
+          <span class="hud-time-sec">180</span>
+          <span class="hud-time-dot">.</span>
+          <span class="hud-time-ms">000</span>
         </div>
       </div>`
         : `
@@ -74,8 +75,8 @@ export class HUD {
     this.comboEl = this.root.querySelector('.hud-combo')!;
     this.comboMultEl = this.root.querySelector('.hud-combo-mult')!;
     this.timerEl = this.root.querySelector('.hud-time');
-    this.timerMinEl = this.root.querySelector('.hud-time-min');
     this.timerSecEl = this.root.querySelector('.hud-time-sec');
+    this.timerMsEl = this.root.querySelector('.hud-time-ms');
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
 
     if (mode === 'timed') {
@@ -147,12 +148,12 @@ export class HUD {
   }
 
   setTimer(secondsLeft: number): void {
-    if (!this.timerMinEl || !this.timerSecEl || !this.timerEl) return;
-    const s = Math.max(0, Math.ceil(secondsLeft));
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    this.timerMinEl.textContent = String(m);
-    this.timerSecEl.textContent = r.toString().padStart(2, '0');
+    if (!this.timerSecEl || !this.timerMsEl || !this.timerEl) return;
+    const totalMs = Math.max(0, Math.ceil(secondsLeft * 1000));
+    const s = Math.floor(totalMs / 1000);
+    const ms = totalMs % 1000;
+    this.timerSecEl.textContent = String(s);
+    this.timerMsEl.textContent = ms.toString().padStart(3, '0');
     this.timerEl.classList.toggle('critical', secondsLeft <= 10);
   }
 
