@@ -208,7 +208,7 @@
         align-items: flex-end;
         justify-content: space-between;
         gap: 8px;
-        padding: 0 0 6px;
+        padding: 0 0 18px;
         z-index: 12;
         pointer-events: none;
       }
@@ -222,10 +222,13 @@
       .hud-left {
         align-items: flex-start;
         flex: 0 0 auto;
+        /* Push flat edge further off-screen so clipped shadows aren't visible */
+        transform: translateX(-14px);
       }
       .hud-right {
         align-items: flex-end;
         flex: 0 0 auto;
+        transform: translateX(14px);
       }
       .hud-center {
         align-items: center;
@@ -299,23 +302,26 @@
         display: flex;
         align-items: flex-end;
         justify-content: center;
-        padding: 0 5.5% clamp(8px, 1.2vw, 16px);
+        padding: 0 6.5% clamp(10px, 1.4vw, 18px);
+        overflow: hidden;
+        box-sizing: border-box;
       }
       .hud-ammo-icons {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: clamp(2px, 0.5vw, 8px);
+        gap: clamp(2px, 0.45vw, 6px);
         width: 100%;
-        min-height: 48%;
+        min-height: 0;
+        margin-bottom: 2px;
       }
       .hud-tooth {
         display: grid;
         place-items: center;
         flex: 1 1 0;
         width: auto;
-        max-width: 52px;
-        height: clamp(28px, 4.8vw, 46px);
+        max-width: 36px;
+        height: clamp(21px, 3.15vw, 34px);
         aspect-ratio: 1;
         transition: transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
       }
@@ -562,14 +568,16 @@
       }
 
       @media (max-width: 700px) {
-        .hud-dock { gap: 4px; padding-bottom: 4px; }
+        .hud-dock { gap: 4px; padding-bottom: 14px; }
+        .hud-left { transform: translateX(-10px); }
+        .hud-right { transform: translateX(10px); }
         .hud-score,
         .hud-time,
         .hud-lives { width: clamp(105px, 28.5vw, 150px); height: clamp(42px, 10.5vw, 60px); }
-        .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); }
+        .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); padding: 0 7% 8px; }
         .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
         .hud-combo-text { font-size: 10px; }
-        .hud-tooth { height: 24px; max-width: 36px; }
+        .hud-tooth { height: 20px; max-width: 28px; }
       }
     </style>
   </head>
