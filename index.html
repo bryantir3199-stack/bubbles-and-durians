@@ -311,9 +311,11 @@
       .hud-score-num {
         position: absolute;
         right: clamp(14px, 2.25vw, 27px);
-        /* Center in the lower body below the SCORE nudge (~34%–84%) */
-        top: 59%;
-        transform: translateY(-50%);
+        /* Equal top/bottom margins in the lower body (below SCORE nudge → panel bottom) */
+        top: 34%;
+        bottom: 2%;
+        display: flex;
+        align-items: center;
         font: 800 clamp(26px, 4.2vw, 44px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
@@ -419,11 +421,11 @@
       .hud-time-value {
         position: absolute;
         left: clamp(12px, 2vw, 24px);
-        /* Center in the lower body below the TIME nudge (~34%–84%) */
-        top: 59%;
-        transform: translateY(-50%);
+        /* Equal top/bottom margins in the lower body (below TIME nudge → panel bottom) */
+        top: 34%;
+        bottom: 2%;
         display: flex;
-        align-items: baseline;
+        align-items: center;
         gap: 0;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
