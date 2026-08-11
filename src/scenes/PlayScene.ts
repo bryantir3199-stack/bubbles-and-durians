@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
+import { GATE_PATHS } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { createPathDebugGroup, wantsDomeOnly, wantsPathDebug } from '../debug/pathDebug';
 import { Target } from '../entities/Target';
@@ -80,6 +81,17 @@ export class PlayScene implements GameScene {
     if (wantsPathDebug()) {
       this.pathDebug = createPathDebugGroup();
       this.ctx.three.scene.add(this.pathDebug);
+      // eslint-disable-next-line no-console
+      console.info(
+        '[path-debug] dome lanes',
+        GATE_PATHS.slice(2).map((lane, i) => ({
+          lane: i + 2,
+          y: lane[0]?.y,
+          halfX: Math.max(...lane.map((p) => Math.abs(p.x))),
+          frontZ: Math.max(...lane.map((p) => p.z)),
+          backZ: Math.min(...lane.map((p) => p.z)),
+        })),
+      );
     }
 
     const onMove = (e: PointerEvent) => {
