@@ -20,7 +20,7 @@ export class Spawner {
   private running = false;
   readonly targets: Target[] = [];
   private occupiedWindows = new Set<string>();
-  /** One mover per gate lane (left / right L). */
+  /** One mover per travel lane (gate L + dome wall U). */
   private busyPaths = new Set<number>();
   /** Window id → earliest elapsed ms when it may be reused. */
   private windowCooldownUntil = new Map<string, number>();
