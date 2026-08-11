@@ -14,8 +14,8 @@ export const gameConfig = {
   minSpawnIntervalMs: 1510,
   /** Timed mode: last N seconds get a spawn-rate boost. */
   timedFinalBoostSeconds: 30,
-  /** Timed mode: multiply spawn rate by this during the final boost window (1.5 = +50%). */
-  timedFinalSpawnRateMult: 1.5,
+  /** Timed mode: multiply spawn rate by this during the final boost window (2.25 = +125%). */
+  timedFinalSpawnRateMult: 2.25,
   /** Endless mode: length of each spawn-rate time block (ms). */
   endlessSpawnBlockMs: 10_000,
   /**
