@@ -41,17 +41,18 @@ export let WINDOWS: WindowSpot[] = [
 ];
 
 /**
- * Foreground pops just in front of the play camera (cam ≈ 0,110,635).
- * Left / middle / right — targets rise from below into these holds.
+ * Foreground pops just in front of the play camera (cam ≈ 0,110,635 → lookAt y=110).
+ * Placed ~50u ahead so they read huge; hold Y sits near the frustum floor so the
+ * lower body is clipped by the bottom of the frame. Left / middle / right.
  */
 export const CLOSE_SPOTS: WindowSpot[] = [
-  { id: 'close-left', x: -55, y: 95, z: 470 },
-  { id: 'close-middle', x: 0, y: 95, z: 470 },
-  { id: 'close-right', x: 55, y: 95, z: 470 },
+  { id: 'close-left', x: -26, y: 93, z: 585 },
+  { id: 'close-middle', x: 0, y: 93, z: 585 },
+  { id: 'close-right', x: 26, y: 93, z: 585 },
 ];
 
 /** How far below the hold Y a close target starts before rising. */
-export const CLOSE_RISE_HEIGHT = 110;
+export const CLOSE_RISE_HEIGHT = 90;
 /** Seconds for the rise-from-below entrance. */
 export const CLOSE_RISE_DURATION = 0.48;
 
