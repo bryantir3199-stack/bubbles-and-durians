@@ -129,29 +129,30 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
  * Index 0 = CCW (left wall first), index 1 = CW (right wall first).
  * Slight radial inset so both lanes can run at once.
  *
- * Crest mesh ~Y 132 / X ±107 / Z −60…70. Dome ledge ~X ±97 — keep lane
- * centers on the outer crest so ~34-unit targets clear the tiles.
+ * Crest top ~Y 132 / outer lip X ±107 / Z −60…70. Dome ledge ~X ±97.
+ * Targets are ~34 wide, so lane centers sit on/just outside the outer lip
+ * (halfX ≥ ~114) so their inner half clears the dome tiles.
  */
 function buildDomeWallPaths(): Vec3[][] {
-  // Path Y is the target center; crest top is ~132.
-  const y = 136;
-  const gap = 28; // opening behind the dome (almost closes the O)
+  // Target center: crest mesh is Y 132.2 — keep centers near the wall top.
+  const y = 133;
+  const gap = 30; // opening behind the dome (almost closes the O)
 
-  // Outer lane on the outer crest lip (mesh ±107 / front Z ≈ 70).
+  // Outer lane on/just outside the crest lip so 34-unit targets clear the dome.
   const outer = rectUPath({
     y,
-    halfX: 110,
-    frontZ: 70,
-    backZ: -56,
+    halfX: 118,
+    frontZ: 72,
+    backZ: -58,
     gap,
     ccw: true,
   });
-  // Inner twin still on the crest deck, clear of the dome body (~±97).
+  // Inner twin still on the outer crest band (not the inset roof under the dome).
   const inner = rectUPath({
     y: y - 1,
-    halfX: 102,
-    frontZ: 64,
-    backZ: -50,
+    halfX: 112,
+    frontZ: 68,
+    backZ: -54,
     gap: gap - 4,
     ccw: false,
   });
