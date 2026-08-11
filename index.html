@@ -453,8 +453,8 @@
       }
       .crumb {
         position: fixed;
-        width: var(--s, 12px);
-        height: var(--s, 10px);
+        width: var(--s, 16px);
+        height: var(--s, 14px);
         margin: 0;
         left: 0;
         top: 0;
@@ -465,7 +465,7 @@
         box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
         opacity: 1;
         transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
-        animation: crumbFall var(--dur, 0.55s) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+        animation: crumbFall var(--dur, 0.7s) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
       }
       @keyframes crumbFall {
         0% {
@@ -475,9 +475,9 @@
         100% {
           opacity: 0;
           transform: translate(-50%, -50%)
-            translate(var(--dx, 0px), var(--dy, 40px))
+            translate(var(--dx, 0px), var(--dy, 120px))
             rotate(var(--rot, 180deg))
-            scale(0.6);
+            scale(0.55);
         }
       }
       .bubble-pop-flash {
