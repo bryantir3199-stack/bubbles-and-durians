@@ -167,12 +167,12 @@ export function playShootSound(): void {
 /** Empty-magazine click when the player shoots with no ammo. */
 export function playDryFireSound(): void {
   if (dryFireBuffer) {
-    playBuffer(dryFireBuffer, 0.85, 0.08);
+    playBuffer(dryFireBuffer, 0.85, 0, 1);
     return;
   }
 
   void ensureDryFireBuffer().then((buf) => {
-    if (buf) playBuffer(buf, 0.85, 0.08);
+    if (buf) playBuffer(buf, 0.85, 0, 1);
   });
 }
 
