@@ -7,6 +7,7 @@ import {
   type SpawnPattern,
 } from '../config/spawnLayout';
 import { Target, type TargetSpawnSpec } from '../entities/Target';
+import { playGlitterSound } from '../audio/sfx';
 import type * as THREE from 'three';
 
 type SpawnWeights = Record<TargetKind, number>;
@@ -96,6 +97,7 @@ export class Spawner {
 
     const target = new Target(this.scene, kind, spec, this.onEscape, () => this.releaseSpec(spec));
     this.targets.push(target);
+    if (kind === 'goldDurian') playGlitterSound();
   }
 
   private freePathIndices(): number[] {

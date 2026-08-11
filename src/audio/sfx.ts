@@ -150,3 +150,55 @@ export function playPopSound(): void {
     if (buf) playBuffer(buf, 0.95, 0.1);
   });
 }
+
+/**
+ * Sparkling glitter synth when a gold durian appears —
+ * a burst of short, high, randomized tings with a soft shimmer bed.
+ */
+export function playGlitterSound(): void {
+  const ac = getCtx();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+
+  // Soft airy bed so the sparkles feel like they bloom in.
+  const bed = ac.createOscillator();
+  const bedGain = ac.createGain();
+  const bedFilter = ac.createBiquadFilter();
+  bed.type = 'sine';
+  bed.frequency.setValueAtTime(880, t0);
+  bed.frequency.exponentialRampToValueAtTime(1320, t0 + 0.28);
+  bedFilter.type = 'bandpass';
+  bedFilter.frequency.value = 2400;
+  bedFilter.Q.value = 0.7;
+  bedGain.gain.setValueAtTime(0.0001, t0);
+  bedGain.gain.exponentialRampToValueAtTime(0.045, t0 + 0.04);
+  bedGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+  bed.connect(bedFilter);
+  bedFilter.connect(bedGain);
+  bedGain.connect(ac.destination);
+  bed.start(t0);
+  bed.stop(t0 + 0.4);
+
+  // Cluster of tiny crystal tings — staggered + pitch-jittered.
+  const sparkleFreqs = [2093, 2349, 2637, 3136, 3520, 4186, 4699];
+  const sparkleCount = 9;
+  for (let i = 0; i < sparkleCount; i++) {
+    const delay = 0.018 + i * 0.028 + Math.random() * 0.02;
+    const t = t0 + delay;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    const base = sparkleFreqs[i % sparkleFreqs.length]!;
+    const freq = base * (0.96 + Math.random() * 0.1);
+    osc.type = i % 3 === 0 ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.08, t + 0.05);
+    const peak = 0.055 + Math.random() * 0.03;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09 + Math.random() * 0.04);
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + 0.16);
+  }
+}
