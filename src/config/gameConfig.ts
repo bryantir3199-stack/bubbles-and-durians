@@ -25,9 +25,9 @@ export const gameConfig = {
    */
   endlessSpawnRateOptions: [
     { mult: 0.75, weight: 1 },
-    { mult: 1, weight: 3 },
-    { mult: 1.55, weight: 1 },
-    { mult: 2, weight: 1 },
+    { mult: 1, weight: 6 },
+    { mult: 1.55, weight: 2 },
+    { mult: 2, weight: 2 },
   ] as const,
   /**
    * Endless mode: +100% rate (mult 2) may appear at most this many
