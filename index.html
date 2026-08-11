@@ -306,17 +306,20 @@
         width: clamp(150px, 21vw, 270px);
         height: clamp(54px, 7.5vw, 98px);
         background-image: url('/assets/hud/score.png');
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-end;
-        padding: 0 clamp(14px, 2.25vw, 27px) clamp(10px, 1.5vw, 21px) 0;
+        display: block;
       }
       .hud-score-num {
+        position: absolute;
+        right: clamp(14px, 2.25vw, 27px);
+        /* Center in the lower body below the SCORE nudge (~34%–84%) */
+        top: 59%;
+        transform: translateY(-50%);
         font: 800 clamp(26px, 4.2vw, 44px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
         letter-spacing: 0.02em;
+        line-height: 1;
       }
 
       /* COMBO ribbon — above score, with clear gap */
@@ -411,18 +414,21 @@
         width: clamp(165px, 23vw, 290px);
         height: clamp(54px, 7.5vw, 98px);
         background-image: url('/assets/hud/time.png');
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-start;
-        padding: 0 0 clamp(10px, 1.5vw, 21px) clamp(12px, 2vw, 24px);
+        display: block;
       }
       .hud-time-value {
+        position: absolute;
+        left: clamp(12px, 2vw, 24px);
+        /* Center in the lower body below the TIME nudge (~34%–84%) */
+        top: 59%;
+        transform: translateY(-50%);
         display: flex;
         align-items: baseline;
         gap: 0;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
+        line-height: 1;
       }
       .hud-time-sec {
         font: 800 clamp(22px, 3.6vw, 40px)/1 'Baloo 2', 'Fredoka', sans-serif;
