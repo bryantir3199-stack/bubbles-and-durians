@@ -42,17 +42,17 @@ export let WINDOWS: WindowSpot[] = [
 
 /**
  * Foreground pops just in front of the play camera (cam ≈ 0,110,635 → lookAt y=110).
- * ~30u ahead of the lens — huge on screen — with hold Y low enough that the
- * frustum floor clips the lower body. Left / middle / right.
+ * ~70u ahead — clearly closer than castle holds, without eating the whole frame.
+ * Hold Y sits near the frustum floor so a bit of the lower body clips.
  */
 export const CLOSE_SPOTS: WindowSpot[] = [
-  { id: 'close-left', x: -18, y: 98, z: 605 },
-  { id: 'close-middle', x: 0, y: 98, z: 605 },
-  { id: 'close-right', x: 18, y: 98, z: 605 },
+  { id: 'close-left', x: -32, y: 90, z: 565 },
+  { id: 'close-middle', x: 0, y: 90, z: 565 },
+  { id: 'close-right', x: 32, y: 90, z: 565 },
 ];
 
 /** How far below the hold Y a close target starts (and sinks past) the frame. */
-export const CLOSE_RISE_HEIGHT = 120;
+export const CLOSE_RISE_HEIGHT = 100;
 /** Seconds for the rise-from-below entrance. */
 export const CLOSE_RISE_DURATION = 0.5;
 /** Seconds to sink fully below the frame before despawn. */
