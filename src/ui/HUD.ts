@@ -146,6 +146,38 @@ export class HUD {
     }
   }
 
+  /** Soap-bubble pop burst — radial droplets + expanding ring. */
+  spawnBubblePop(clientX: number, clientY: number): void {
+    const colors = ['#b8f0ff', '#8ad4ff', '#ffe0f2', '#ffffff', '#c9f7ff', '#ffb8d9'];
+    const ring = document.createElement('div');
+    ring.className = 'bubble-pop-ring';
+    ring.style.left = `${clientX}px`;
+    ring.style.top = `${clientY}px`;
+    this.root.appendChild(ring);
+    window.setTimeout(() => ring.remove(), 420);
+
+    const count = 12 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < count; i++) {
+      const drop = document.createElement('div');
+      drop.className = 'bubble-pop';
+      drop.style.left = `${clientX}px`;
+      drop.style.top = `${clientY}px`;
+      const size = 6 + Math.random() * 10;
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.45;
+      const dist = 48 + Math.random() * 72;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const dur = 0.35 + Math.random() * 0.25;
+      drop.style.setProperty('--s', `${size.toFixed(1)}px`);
+      drop.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+      drop.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+      drop.style.setProperty('--dur', `${dur.toFixed(2)}s`);
+      drop.style.setProperty('--c', colors[Math.floor(Math.random() * colors.length)]!);
+      this.root.appendChild(drop);
+      window.setTimeout(() => drop.remove(), Math.ceil(dur * 1000) + 40);
+    }
+  }
+
   setPointer(x: number, y: number): void {
     const ch = this.root.querySelector('.crosshair') as HTMLElement;
     ch.style.setProperty('--x', `${x}px`);

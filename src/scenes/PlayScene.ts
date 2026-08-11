@@ -193,6 +193,7 @@ export class PlayScene implements GameScene {
       this.addScore(points, clientX, clientY, color);
     } else if (kind === 'bubble') {
       playPopSound();
+      this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
       this.changeLives(-1);
