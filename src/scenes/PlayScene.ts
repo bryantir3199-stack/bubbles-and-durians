@@ -13,6 +13,8 @@ import {
   playPopSound,
   playShootSound,
   playSquishSound,
+  startStageBgm,
+  stopStageBgm,
 } from '../audio/sfx';
 
 export class PlayScene implements GameScene {
@@ -95,6 +97,7 @@ export class PlayScene implements GameScene {
     this.unsubs.push(() => window.removeEventListener('keydown', onKey));
 
     document.body.classList.add('playing');
+    startStageBgm();
     this.spawner.start();
   }
 
@@ -147,6 +150,7 @@ export class PlayScene implements GameScene {
 
   exit(): void {
     document.body.classList.remove('playing');
+    stopStageBgm();
     for (const u of this.unsubs) u();
     this.unsubs = [];
     this.spawner?.stop();

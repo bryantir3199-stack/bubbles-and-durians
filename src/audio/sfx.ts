@@ -1,6 +1,11 @@
 /**
  * Lightweight cartoon SFX via Web Audio (samples + synth fallback).
  */
+/** Global multiplier applied to every one-shot SFX gain. */
+const SFX_VOLUME_SCALE = 1.5;
+/** Looping stage BGM level (before SFX scale — kept quieter than one-shots). */
+const STAGE_BGM_GAIN = 0.4;
+
 let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
@@ -14,6 +19,10 @@ let dryFireBuffer: AudioBuffer | null = null;
 let dryFireLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
+let bgmBuffer: AudioBuffer | null = null;
+let bgmLoad: Promise<AudioBuffer | null> | null = null;
+let bgmSource: AudioBufferSourceNode | null = null;
+let bgmGain: GainNode | null = null;
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -40,7 +49,7 @@ async function loadBuffer(url: string): Promise<AudioBuffer | null> {
   }
 }
 
-/** Decode samples early so first shot / kill is snappy. */
+/** Decode samples early so first shot / kill / stage music is snappy. */
 export async function preloadSfx(): Promise<void> {
   await Promise.all([
     ensureSquishBuffer(),
@@ -49,6 +58,7 @@ export async function preloadSfx(): Promise<void> {
     ensureReloadBuffer(),
     ensureDryFireBuffer(),
     ensureShootBuffers(),
+    ensureBgmBuffer(),
   ]);
 }
 
@@ -128,6 +138,18 @@ async function ensureShootBuffers(): Promise<AudioBuffer[]> {
   return shootLoad;
 }
 
+async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
+  if (bgmBuffer) return bgmBuffer;
+  if (bgmLoad) return bgmLoad;
+
+  bgmLoad = (async () => {
+    bgmBuffer = await loadBuffer('assets/stage-bgm.ogg');
+    return bgmBuffer;
+  })();
+
+  return bgmLoad;
+}
+
 function playBuffer(
   buffer: AudioBuffer,
   gainValue = 0.85,
@@ -142,10 +164,65 @@ function playBuffer(
   // Fixed rate when provided; otherwise slight pitch variety so rapid plays don’t sound identical
   src.playbackRate.value =
     playbackRate ?? 1 - rateJitter / 2 + Math.random() * rateJitter;
-  gain.gain.value = gainValue;
+  gain.gain.value = gainValue * SFX_VOLUME_SCALE;
   src.connect(gain);
   gain.connect(ac.destination);
   src.start(0);
+}
+
+/** Start looping stage BGM while a play session is active. */
+export function startStageBgm(): void {
+  const ac = getCtx();
+  if (!ac) return;
+
+  const begin = (buffer: AudioBuffer) => {
+    // Restart cleanly if already playing (e.g. rapid re-enter).
+    stopStageBgm();
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buffer;
+    src.loop = true;
+    gain.gain.value = STAGE_BGM_GAIN;
+    src.connect(gain);
+    gain.connect(ac.destination);
+    src.start(0);
+    bgmSource = src;
+    bgmGain = gain;
+  };
+
+  if (bgmBuffer) {
+    begin(bgmBuffer);
+    return;
+  }
+
+  void ensureBgmBuffer().then((buf) => {
+    if (buf) begin(buf);
+  });
+}
+
+/** Stop looping stage BGM when leaving play. */
+export function stopStageBgm(): void {
+  if (bgmSource) {
+    try {
+      bgmSource.stop();
+    } catch {
+      // already stopped
+    }
+    try {
+      bgmSource.disconnect();
+    } catch {
+      // already disconnected
+    }
+    bgmSource = null;
+  }
+  if (bgmGain) {
+    try {
+      bgmGain.disconnect();
+    } catch {
+      // already disconnected
+    }
+    bgmGain = null;
+  }
 }
 
 /** Munch sample for shooting — randomly picks between the two clips. */
