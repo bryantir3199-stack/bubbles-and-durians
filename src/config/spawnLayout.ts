@@ -141,18 +141,18 @@ function buildDomeWallPaths(): Vec3[][] {
   // Outer lane on/just outside the crest lip so 34-unit targets clear the dome.
   const outer = rectUPath({
     y,
-    halfX: 118,
-    frontZ: 72,
-    backZ: -58,
+    halfX: 124,
+    frontZ: 74,
+    backZ: -60,
     gap,
     ccw: true,
   });
   // Inner twin still on the outer crest band (not the inset roof under the dome).
   const inner = rectUPath({
     y: y - 1,
-    halfX: 112,
-    frontZ: 68,
-    backZ: -54,
+    halfX: 116,
+    frontZ: 70,
+    backZ: -56,
     gap: gap - 4,
     ccw: false,
   });
