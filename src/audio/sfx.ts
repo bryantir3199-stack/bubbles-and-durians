@@ -17,6 +17,8 @@ let reloadBuffer: AudioBuffer | null = null;
 let reloadLoad: Promise<AudioBuffer | null> | null = null;
 let dryFireBuffer: AudioBuffer | null = null;
 let dryFireLoad: Promise<AudioBuffer | null> | null = null;
+let clockTickBuffer: AudioBuffer | null = null;
+let clockTickLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
 let bgmBuffer: AudioBuffer | null = null;
@@ -57,6 +59,7 @@ export async function preloadSfx(): Promise<void> {
     ensureGlitterBuffer(),
     ensureReloadBuffer(),
     ensureDryFireBuffer(),
+    ensureClockTickBuffer(),
     ensureShootBuffers(),
     ensureBgmBuffer(),
   ]);
@@ -120,6 +123,18 @@ async function ensureDryFireBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return dryFireLoad;
+}
+
+async function ensureClockTickBuffer(): Promise<AudioBuffer | null> {
+  if (clockTickBuffer) return clockTickBuffer;
+  if (clockTickLoad) return clockTickLoad;
+
+  clockTickLoad = (async () => {
+    clockTickBuffer = await loadBuffer('assets/clock-tick.wav');
+    return clockTickBuffer;
+  })();
+
+  return clockTickLoad;
 }
 
 async function ensureShootBuffers(): Promise<AudioBuffer[]> {
@@ -250,6 +265,18 @@ export function playDryFireSound(): void {
 
   void ensureDryFireBuffer().then((buf) => {
     if (buf) playBuffer(buf, 0.85, 0, 1);
+  });
+}
+
+/** Clock tick for each second of the final countdown. */
+export function playCountdownTickSound(): void {
+  if (clockTickBuffer) {
+    playBuffer(clockTickBuffer, 3.6, 0, 1);
+    return;
+  }
+
+  void ensureClockTickBuffer().then((buf) => {
+    if (buf) playBuffer(buf, 3.6, 0, 1);
   });
 }
 

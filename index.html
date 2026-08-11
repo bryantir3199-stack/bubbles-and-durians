@@ -568,6 +568,55 @@
         opacity: 0;
       }
 
+      .hud-announce {
+        font: 800 clamp(52px, 11vw, 110px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        color: #fff;
+        -webkit-text-stroke: 4px #1a1018;
+        paint-order: stroke fill;
+        text-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+      }
+      .hud-thirty-banner {
+        position: absolute;
+        top: 38%;
+        left: 0;
+        white-space: nowrap;
+        opacity: 0.5;
+        z-index: 22;
+        will-change: transform;
+        animation: thirtyScroll 3.2s linear forwards;
+      }
+      @keyframes thirtyScroll {
+        from { transform: translateX(100vw); }
+        to { transform: translateX(-100%); }
+      }
+      .hud-countdown {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 23;
+        will-change: transform, opacity;
+        animation: countdownPop 0.9s ease-out forwards;
+      }
+      @keyframes countdownPop {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.35);
+        }
+        18% {
+          opacity: 0.5;
+          transform: translate(-50%, -50%) scale(1.12);
+        }
+        55% {
+          opacity: 0.5;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1.08);
+        }
+      }
+
       @media (max-width: 700px) {
         .hud-dock { gap: 4px; padding-bottom: 14px; }
         .hud-left { transform: translateX(-10px); }

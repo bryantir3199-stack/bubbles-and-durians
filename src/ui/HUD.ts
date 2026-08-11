@@ -1,5 +1,6 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
+import { playCountdownTickSound } from '../audio/sfx';
 
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
 
@@ -17,6 +18,8 @@ export class HUD {
   private timerMsEl: HTMLElement | null = null;
   private reloadHint: HTMLElement;
   private lastComboLevel = 1;
+  private thirtyBannerShown = false;
+  private lastCountdownSec = -1;
 
   constructor(parent: HTMLElement, mode: GameMode, _onReload: () => void) {
     this.root = document.createElement('div');
@@ -155,6 +158,35 @@ export class HUD {
     this.timerSecEl.textContent = String(s);
     this.timerMsEl.textContent = ms.toString().padStart(3, '0');
     this.timerEl.classList.toggle('critical', secondsLeft <= 10);
+    if (!this.thirtyBannerShown && secondsLeft <= 30) {
+      this.thirtyBannerShown = true;
+      this.showThirtySecondsBanner();
+    }
+    if (s >= 1 && s <= 10 && s !== this.lastCountdownSec) {
+      this.lastCountdownSec = s;
+      this.showCountdownBeat(s);
+    }
+  }
+
+  /** One-shot marquee when timed mode hits the final 30 seconds. */
+  private showThirtySecondsBanner(): void {
+    const el = document.createElement('div');
+    el.className = 'hud-announce hud-thirty-banner';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = '30s Remains';
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
+  /** Center pop for each whole second in the final 10. */
+  private showCountdownBeat(sec: number): void {
+    playCountdownTickSound();
+    const el = document.createElement('div');
+    el.className = 'hud-announce hud-countdown';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = String(sec);
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
   }
 
   flashDryFire(): void {
