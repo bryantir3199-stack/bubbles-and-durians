@@ -41,18 +41,23 @@ export const gameConfig = {
     bubble: { min: 4000, max: 6500 },
     heart: { min: 4000, max: 6000 },
   },
-  /** Durian : bubble : gold = 6 : 3 : 1 (hearts only in endless). */
+  /**
+   * Spawn mix (timed): durian : bubble : gold = 20 : 10 : 1
+   * (~64% / ~32% / ~3%). Gold is weighted lower than a flat 6:3:1
+   * because multi-hit golds linger and feel more common than their rate.
+   * Endless keeps a small heart weight on top of the same 20:10:1 core.
+   */
   spawnWeights: {
     endless: {
-      durian: 6,
+      durian: 20,
       goldDurian: 1,
-      bubble: 3,
-      heart: 1,
+      bubble: 10,
+      heart: 2,
     },
     timed: {
-      durian: 6,
+      durian: 20,
       goldDurian: 1,
-      bubble: 3,
+      bubble: 10,
       heart: 0,
     },
   },
