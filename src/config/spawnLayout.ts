@@ -43,7 +43,7 @@ export let WINDOWS: WindowSpot[] = [
 export const GATE_LANE_COUNT = 2;
 
 /**
- * Travel lanes. Indices 0–1 = gate L (enter direction); 2–3 = dome wall U (CCW / CW).
+ * Travel lanes. Indices 0–1 = gate L (enter direction); 2 = dome wall U (CCW).
  * Reverse a lane via pathForward for the opposite travel sense.
  */
 export let GATE_PATHS: Vec3[][] = [...buildGatePaths(undefined), ...buildDomeWallPaths()];
@@ -115,7 +115,7 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
 }
 
 /**
- * Two elevated U≈O routes on the keep battlement crest under the dome.
+ * One elevated U≈O route on the keep battlement crest under the dome.
  * Straight segments + 90° corners; start/end behind the dome with a small gap.
  *
  *        back gap (start/end)
@@ -126,8 +126,7 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
  *     ●────────────────────────●
  *              front
  *
- * Index 0 = CCW (left wall first), index 1 = CW (right wall first).
- * Slight radial inset so both lanes can run at once.
+ * Authored CCW (left wall first); reverse via pathForward for the opposite sense.
  *
  * Raycasted crest top: Y ≈ 132.2, outer lip X ≈ ±105–107, front Z ≈ 67–70.
  * Path Y is the target CENTER; targets are ~34 tall, so centers sit at
@@ -141,26 +140,16 @@ function buildDomeWallPaths(): Vec3[][] {
   const y = crestTop + targetHalfHeight;
   const gap = 32;
 
-  // Outer lip of the keep crest — in front of / beside the dome, not through it.
-  const outer = rectUPath({
-    y,
-    halfX: 112,
-    frontZ: 69,
-    backZ: -55,
-    gap,
-    ccw: true,
-  });
-  // Second lane, slight inset still on the crest band.
-  const inner = rectUPath({
-    y: y - 1,
-    halfX: 106,
-    frontZ: 66,
-    backZ: -51,
-    gap: gap - 6,
-    ccw: false,
-  });
-
-  return [outer, inner];
+  return [
+    rectUPath({
+      y,
+      halfX: 112,
+      frontZ: 69,
+      backZ: -55,
+      gap,
+      ccw: true,
+    }),
+  ];
 }
 
 function rectUPath(opts: {

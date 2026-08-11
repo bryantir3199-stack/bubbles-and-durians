@@ -32,7 +32,7 @@ export interface TargetSpawnSpec {
   pathForward?: boolean;
   /**
    * Travel lane: 0 = left gate L, 1 = right gate L,
-   * 2 = dome wall U (CCW), 3 = dome wall U (CW).
+   * 2 = dome wall U (CCW; reverse via pathForward).
    */
   pathIndex?: number;
 }
