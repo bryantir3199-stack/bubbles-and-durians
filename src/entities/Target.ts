@@ -67,6 +67,9 @@ export class Target {
   private fadeT = 0;
   private fadeDur = 0.15;
   private startScale = 1;
+  /** Kill anim: tip over backward 90° instead of shrinking. */
+  private knockDown = false;
+  private knockHalfH = 0;
   private warned = false;
   private slotFreed = false;
 
@@ -355,8 +358,20 @@ export class Target {
     if (this.fading) {
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
-      this.root.scale.setScalar(this.startScale * (1 - 0.7 * t));
-      if (this.spriteMat) this.spriteMat.opacity = 1 - t;
+      if (this.knockDown) {
+        // Ease-in (gravity): starts with the hit, accelerates into the fall.
+        const e = t * t;
+        const angle = -Math.PI / 2 * e;
+        this.visual.rotation.x = angle;
+        // Keep the feet planted: rotate around the base, not the model center.
+        const h = this.knockHalfH;
+        this.visual.position.set(0, h * (Math.cos(angle) - 1), h * Math.sin(angle));
+        // Soft fade on the last third so the body clears cleanly.
+        if (this.spriteMat) this.spriteMat.opacity = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35;
+      } else {
+        this.root.scale.setScalar(this.startScale * (1 - 0.7 * t));
+        if (this.spriteMat) this.spriteMat.opacity = 1 - t;
+      }
       if (t >= 1) this.destroy();
       return;
     }
@@ -457,11 +472,23 @@ export class Target {
     this.fadeOut();
   }
 
-  fadeOut(durationMs = 150): void {
+  /**
+   * Remove the target from play. Escapes shrink away; kills can knock down
+   * (fall backward 90°) via `{ knockDown: true }`.
+   */
+  fadeOut(durationMs = 150, opts?: { knockDown?: boolean }): void {
     this.fading = true;
     this.fadeT = 0;
     this.fadeDur = durationMs / 1000;
     this.startScale = this.root.scale.x;
+    this.knockDown = !!opts?.knockDown;
+    if (this.knockDown) {
+      // Settle the hit-pulse scale so the tip-over reads cleanly.
+      this.root.scale.setScalar(1);
+      this.knockHalfH =
+        (this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize) * 0.5;
+      for (const d of this.hpDots) d.visible = false;
+    }
     // Keep the spawn slot occupied until destroy so we never replace in-place
     // while this target is still visible. Spawner also cools the slot after release.
     this.releaseDoor();
