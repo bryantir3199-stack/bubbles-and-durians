@@ -311,11 +311,13 @@
       .hud-score-num {
         position: absolute;
         right: clamp(14px, 2.25vw, 27px);
-        /* Equal top/bottom margins in the lower body (below SCORE nudge → panel bottom) */
-        top: 34%;
-        bottom: 2%;
-        display: flex;
-        align-items: center;
+        /*
+          Lower-body band is ~34% (nudge floor) → 100% (panel bottom).
+          Place the glyph center at the midpoint (~67%) so top/bottom gaps match.
+          Extra 3% offsets Baloo ink sitting high in the em-box.
+        */
+        top: 70%;
+        transform: translateY(-50%);
         font: 800 clamp(26px, 4.2vw, 44px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
@@ -421,11 +423,15 @@
       .hud-time-value {
         position: absolute;
         left: clamp(12px, 2vw, 24px);
-        /* Equal top/bottom margins in the lower body (below TIME nudge → panel bottom) */
-        top: 34%;
-        bottom: 2%;
+        /*
+          Lower-body band is ~34% (nudge floor) → 100% (panel bottom).
+          Place the value center at the midpoint (~67%) so top/bottom gaps match.
+          Extra 3% offsets Baloo ink sitting high in the em-box.
+        */
+        top: 70%;
+        transform: translateY(-50%);
         display: flex;
-        align-items: center;
+        align-items: baseline;
         gap: 0;
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
