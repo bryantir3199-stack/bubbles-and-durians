@@ -278,7 +278,8 @@ export class PlayScene implements GameScene {
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
     }
 
-    target.fadeOut(150);
+    // Knock down (fall back 90°) instead of shrinking on kill.
+    target.fadeOut(280, { knockDown: true });
   }
 
   private onTargetEscaped(target: Target): void {
