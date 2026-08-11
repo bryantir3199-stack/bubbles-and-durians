@@ -382,7 +382,7 @@ export class Target {
     this.fadeDur = durationMs / 1000;
     this.startScale = this.root.scale.x;
     // Keep the spawn slot occupied until destroy so we never replace in-place
-    // while this target is still visible.
+    // while this target is still visible. Spawner also cools the slot after release.
     this.releaseDoor();
   }
 
