@@ -115,7 +115,7 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
 }
 
 /**
- * Two elevated U≈O routes on the keep walls just under the dome.
+ * Two elevated U≈O routes on the keep battlement crest under the dome.
  * Straight segments + 90° corners; start/end behind the dome with a small gap.
  *
  *        back gap (start/end)
@@ -129,27 +129,29 @@ function buildGatePaths(door: DoorBounds | undefined): Vec3[][] {
  * Index 0 = CCW (left wall first), index 1 = CW (right wall first).
  * Slight radial inset so both lanes can run at once.
  *
- * Anchored to the roof ledge under the dome (~Y 156, X ±97, Z −61…36),
- * a step above the lower battlement crest (~Y 132).
+ * Anchored to the crenellated crest (~Y 132, X ±107, Z −60…70).
+ * Kept outside the dome footprint (±84–97) so movers clear the tiles.
  */
 function buildDomeWallPaths(): Vec3[][] {
-  // Just above the under-dome ledge; dome body begins ~Y 206.
-  const y = 160;
-  const gap = 20; // opening behind the dome (almost closes the O)
+  // Just above the battlement crest so targets read as walking the wall top.
+  const y = 145;
+  const gap = 24; // opening behind the dome (almost closes the O)
 
+  // Outer lane hugs the outer crest edge (mesh ±107 / front Z ≈ 70).
   const outer = rectUPath({
     y,
-    halfX: 88,
-    frontZ: 30,
-    backZ: -52,
+    halfX: 102,
+    frontZ: 66,
+    backZ: -54,
     gap,
     ccw: true,
   });
+  // Inner twin still on the crest deck, inset but clear of the dome body.
   const inner = rectUPath({
     y: y - 2,
-    halfX: 74,
-    frontZ: 18,
-    backZ: -46,
+    halfX: 92,
+    frontZ: 58,
+    backZ: -48,
     gap: gap - 4,
     ccw: false,
   });
