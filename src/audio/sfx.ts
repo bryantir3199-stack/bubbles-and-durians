@@ -124,3 +124,49 @@ export function playSquishSound(): void {
     if (buf) playBuffer(buf);
   });
 }
+
+/** Cartoon bubble pop when a bubble is shot. */
+export function playPopSound(): void {
+  const ac = getCtx();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+  const dur = 0.14;
+  const jitter = 0.9 + Math.random() * 0.2;
+
+  // Soft noise burst for the "pop" body
+  const noiseLen = Math.floor(ac.sampleRate * dur);
+  const noiseBuf = ac.createBuffer(1, noiseLen, ac.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) {
+    const env = 1 - i / noiseLen;
+    data[i] = (Math.random() * 2 - 1) * env * env;
+  }
+  const noise = ac.createBufferSource();
+  noise.buffer = noiseBuf;
+  const band = ac.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.setValueAtTime(900 * jitter, t0);
+  band.frequency.exponentialRampToValueAtTime(280 * jitter, t0 + dur);
+  band.Q.value = 1.2;
+  const noiseGain = ac.createGain();
+  noiseGain.gain.setValueAtTime(0.28, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  noise.connect(band);
+  band.connect(noiseGain);
+  noiseGain.connect(ac.destination);
+  noise.start(t0);
+  noise.stop(t0 + dur);
+
+  // Quick descending tone on top
+  const osc = ac.createOscillator();
+  const oscGain = ac.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(620 * jitter, t0);
+  osc.frequency.exponentialRampToValueAtTime(120 * jitter, t0 + 0.1);
+  oscGain.gain.setValueAtTime(0.2, t0);
+  oscGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+  osc.connect(oscGain);
+  oscGain.connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + 0.12);
+}

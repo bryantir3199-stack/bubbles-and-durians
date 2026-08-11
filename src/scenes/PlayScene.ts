@@ -7,7 +7,7 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
-import { playDryFireSound, playShootSound, playSquishSound } from '../audio/sfx';
+import { playDryFireSound, playPopSound, playShootSound, playSquishSound } from '../audio/sfx';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -192,6 +192,7 @@ export class PlayScene implements GameScene {
       const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
       this.addScore(points, clientX, clientY, color);
     } else if (kind === 'bubble') {
+      playPopSound();
       this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
       this.changeLives(-1);
