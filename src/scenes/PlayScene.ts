@@ -66,7 +66,7 @@ export class PlayScene implements GameScene {
     const onDown = (e: PointerEvent) => {
       if (this.ended) return;
       // Ignore taps on the bottom cartoon HUD dock
-      if (e.clientY > window.innerHeight - 120) return;
+      if (e.clientY > window.innerHeight - 100) return;
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
