@@ -7,7 +7,13 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
-import { playDryFireSound, playPopSound, playShootSound, playSquishSound } from '../audio/sfx';
+import {
+  playDryFireSound,
+  playGlitterSound,
+  playPopSound,
+  playShootSound,
+  playSquishSound,
+} from '../audio/sfx';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -27,6 +33,11 @@ export class PlayScene implements GameScene {
   private escapesArmed = false;
   private camKick = 0;
   private camBase = new THREE.Vector3(0, 110, 635);
+  /** Gold durians that already got their appear glitter cue. */
+  private glitterAnnounced = new WeakSet<Target>();
+  private viewFrustum = new THREE.Frustum();
+  private viewProj = new THREE.Matrix4();
+  private viewSphere = new THREE.Sphere();
 
   constructor(private ctx: SceneContext) {}
 
@@ -90,6 +101,7 @@ export class PlayScene implements GameScene {
   update(dt: number): void {
     if (this.ended) return;
     this.spawner?.update(dt);
+    this.announceVisibleGoldDurians();
 
     if (this.camKick > 0) {
       this.camKick = Math.max(0, this.camKick - dt * 9);
@@ -106,6 +118,30 @@ export class PlayScene implements GameScene {
       this.timeLeft -= dt;
       this.hud?.setTimer(this.timeLeft);
       if (this.timeLeft <= 0) this.endGame();
+    }
+  }
+
+  /** Play glitter once the first frame a gold durian enters the camera frustum. */
+  private announceVisibleGoldDurians(): void {
+    if (!this.spawner) return;
+    const cam = this.ctx.three.camera;
+    cam.updateMatrixWorld();
+    this.viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this.viewFrustum.setFromProjectionMatrix(this.viewProj);
+
+    for (const target of this.spawner.targets) {
+      if (target.kind !== 'goldDurian' || !target.active) continue;
+      if (this.glitterAnnounced.has(target)) continue;
+      // Ignore the tiny pop-in frame so we don’t cue before it’s readable.
+      if (target.root.scale.x < 0.35) continue;
+
+      target.root.updateWorldMatrix(true, false);
+      this.viewSphere.center.setFromMatrixPosition(target.root.matrixWorld);
+      this.viewSphere.radius = gameConfig.targetSize * 0.55 * target.root.scale.x;
+      if (!this.viewFrustum.intersectsSphere(this.viewSphere)) continue;
+
+      this.glitterAnnounced.add(target);
+      playGlitterSound();
     }
   }
 
