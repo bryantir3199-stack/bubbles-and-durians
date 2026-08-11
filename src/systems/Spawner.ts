@@ -223,12 +223,10 @@ export class Spawner {
   /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%", "100%"). */
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
-      if (this.endlessRateMult === 1) return 'original';
-      // 2 → "100%", 1.55 → "55%" (increase); 0.75 → "25%" (decrease)
-      if (this.endlessRateMult > 1) {
-        return `${Math.round((this.endlessRateMult - 1) * 100)}%`;
-      }
-      return `${Math.round((1 - this.endlessRateMult) * 100)}%`;
+      const match = gameConfig.endlessSpawnRateOptions.find(
+        (opt) => opt.mult === this.endlessRateMult,
+      );
+      return match?.label ?? 'original';
     }
     if (
       timeLeftSeconds !== undefined &&

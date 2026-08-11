@@ -20,20 +20,20 @@ export const gameConfig = {
   endlessSpawnBlockMs: 10_000,
   /**
    * Endless mode: weighted spawn-rate options vs the base cadence.
-   * mult 1 = original, 1.55 = +55%, 2 = +100%, 0.75 = −25%.
-   * Original is weighted higher so it appears more often.
+   * Labels are the design names; boost-tier mults are +75% above the original
+   * +55% / +100% values (1.55→2.7125, 2→3.5). Original is weighted higher.
    */
   endlessSpawnRateOptions: [
-    { mult: 0.75, weight: 1 },
-    { mult: 1, weight: 6 },
-    { mult: 1.55, weight: 2 },
-    { mult: 2, weight: 2 },
+    { mult: 0.75, weight: 1, label: '25%' },
+    { mult: 1, weight: 6, label: 'original' },
+    { mult: 2.7125, weight: 2, label: '55%' },
+    { mult: 3.5, weight: 2, label: '100%' },
   ] as const,
   /**
-   * Endless mode: +100% rate (mult 2) may appear at most this many
+   * Endless mode: "100%" boost tier may appear at most this many
    * consecutive time blocks.
    */
-  endlessSpawnRateMaxStreakMult: 2,
+  endlessSpawnRateMaxStreakMult: 3.5,
   endlessSpawnRateMaxStreak: 2,
   /** Endless mode: opening time blocks that always stay at the original rate. */
   endlessSpawnRateGraceBlocks: 3,
