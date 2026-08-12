@@ -299,6 +299,55 @@
         z-index: 20;
         pointer-events: none;
       }
+
+      /* Endless frenzy meter — top center */
+      .hud-frenzy-meter {
+        position: absolute;
+        top: max(12px, env(safe-area-inset-top, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 19;
+        width: min(340px, 56vw);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        pointer-events: none;
+      }
+      .hud-frenzy-label {
+        font: 800 13px/1 'Baloo 2', 'Fredoka', sans-serif;
+        letter-spacing: 0.14em;
+        color: #fff;
+        -webkit-text-stroke: 2px #1a1018;
+        paint-order: stroke fill;
+        text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+      }
+      .hud-frenzy-track {
+        width: 100%;
+        height: 14px;
+        border: 3px solid #fff;
+        border-radius: 8px;
+        background: rgba(18, 28, 42, 0.72);
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+      .hud-frenzy-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #ffb347 0%, #ff6a1a 55%, #ff3d5a 100%);
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+        transition: width 0.18s ease-out;
+      }
+      .hud-frenzy-meter.is-active .hud-frenzy-label {
+        color: #ffe566;
+      }
+      .hud-frenzy-meter.is-active .hud-frenzy-track {
+        border-color: #ffe566;
+      }
+      .hud-frenzy-meter.is-active .hud-frenzy-fill {
+        background: linear-gradient(90deg, #ff8a2b 0%, #ff4d2a 50%, #ff2d6a 100%);
+      }
       .hud-ctrl {
         width: clamp(40px, 7vw, 48px);
         height: clamp(40px, 7vw, 48px);
@@ -901,6 +950,33 @@
           transform: translate(-50%, -50%) scale(1.08);
         }
       }
+      .hud-frenzy-announce {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 24;
+        color: #ffe566;
+        will-change: transform, opacity;
+        animation: frenzyAnnounce 1.35s ease-out forwards;
+      }
+      @keyframes frenzyAnnounce {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.28);
+        }
+        16% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.14);
+        }
+        55% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1.08);
+        }
+      }
 
       @media (max-width: 700px) {
         .hud-dock { gap: 4px; padding-bottom: 14px; }
@@ -918,6 +994,9 @@
         .hud-heart { width: 20px; height: 20px; }
         .hud-controls { top: 8px; left: 8px; gap: 6px; }
         .hud-ctrl { width: 38px; height: 38px; border-radius: 10px; border-width: 2px; }
+        .hud-frenzy-meter { width: min(240px, 52vw); top: 8px; }
+        .hud-frenzy-label { font-size: 11px; }
+        .hud-frenzy-track { height: 12px; border-width: 2px; }
       }
     </style>
   </head>

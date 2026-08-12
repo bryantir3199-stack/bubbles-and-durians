@@ -32,7 +32,7 @@ npm run preview  # preview production build
 | Bubble | 1 | −1000 | Endless: also −1 life when shot |
 | Heart | 1 | — | Endless only; +1 life (max 5) |
 
-**Endless** — 3 starting lives; game ends at 0 lives.  
+**Endless** — 3 starting lives; game ends at 0 lives. Spawn rate stays at the normal cadence. A top-of-screen meter fills from points earned; every 10,000 points triggers a 15s **Frenzy** (3.5× spawn rate, sunset sky / orange grass). The meter does not fill during Frenzy.  
 **Timed** — 3 minutes; no lives system; bubbles only subtract score; no escape penalty; no hearts.
 
 ## Online leaderboards (Supabase)

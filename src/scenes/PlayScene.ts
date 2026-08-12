@@ -9,6 +9,7 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
+import { getCastleStage } from '../world/CastleStage';
 import {
   isMuted,
   pauseStageBgm,
@@ -48,6 +49,11 @@ export class PlayScene implements GameScene {
   private viewProj = new THREE.Matrix4();
   private viewSphere = new THREE.Sphere();
   private pathDebug: THREE.Group | null = null;
+  /** Endless: points earned toward the next frenzy (0 → frenzyMeterPoints). */
+  private frenzyMeter = 0;
+  private frenzyActive = false;
+  /** Endless: ms remaining in the active frenzy. */
+  private frenzyTimeLeftMs = 0;
 
   constructor(private ctx: SceneContext) {}
 
@@ -61,6 +67,10 @@ export class PlayScene implements GameScene {
     this.timeLeft = gameConfig.timedSeconds;
     this.ended = false;
     this.paused = false;
+    this.frenzyMeter = 0;
+    this.frenzyActive = false;
+    this.frenzyTimeLeftMs = 0;
+    getCastleStage()?.resetFrenzyLook();
     this.escapesArmed = false;
     window.setTimeout(() => {
       this.escapesArmed = true;
@@ -88,6 +98,7 @@ export class PlayScene implements GameScene {
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
     this.hud.setMuted(isMuted());
     this.hud.setPaused(false);
+    this.hud.setFrenzyMeter(0, false);
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
 
@@ -150,6 +161,11 @@ export class PlayScene implements GameScene {
       this.hud?.setTimer(this.timeLeft);
     }
 
+    if (this.mode === 'endless' && this.frenzyActive) {
+      this.frenzyTimeLeftMs -= dt * 1000;
+      if (this.frenzyTimeLeftMs <= 0) this.endFrenzy();
+    }
+
     this.spawner?.update(dt, this.mode === 'timed' ? this.timeLeft : undefined);
     this.announceVisibleGoldDurians();
 
@@ -196,6 +212,10 @@ export class PlayScene implements GameScene {
     stopStageBgm();
     for (const u of this.unsubs) u();
     this.unsubs = [];
+    this.frenzyActive = false;
+    this.frenzyTimeLeftMs = 0;
+    this.spawner?.setEndlessRateMult(1);
+    getCastleStage()?.resetFrenzyLook();
     this.spawner?.stop();
     this.spawner?.clearAll();
     this.spawner = null;
@@ -361,6 +381,46 @@ export class PlayScene implements GameScene {
     this.hud?.setScore(this.score);
     const label = delta > 0 ? `+${delta}` : `${delta}`;
     this.hud?.spawnFloater(x, y, label, color);
+    if (this.mode === 'endless' && delta > 0) this.addFrenzyProgress(delta);
+  }
+
+  /** Fill the frenzy meter from positive score gains (paused during frenzy). */
+  private addFrenzyProgress(points: number): void {
+    if (this.frenzyActive || points <= 0) return;
+    this.frenzyMeter += points;
+    const need = gameConfig.frenzyMeterPoints;
+    if (this.frenzyMeter >= need) {
+      this.frenzyMeter -= need;
+      this.startFrenzy();
+      return;
+    }
+    this.hud?.setFrenzyMeter(this.frenzyMeter / need, false);
+  }
+
+  private startFrenzy(): void {
+    if (this.mode !== 'endless' || this.frenzyActive) return;
+    this.frenzyActive = true;
+    this.frenzyTimeLeftMs = gameConfig.frenzyDurationMs;
+    this.spawner?.setEndlessRateMult(gameConfig.frenzySpawnRateMult);
+    getCastleStage()?.setFrenzyActive(true);
+    this.hud?.setFrenzyMeter(this.frenzyMeter / gameConfig.frenzyMeterPoints, true);
+    this.hud?.showFrenzyAnnounce();
+  }
+
+  private endFrenzy(): void {
+    if (!this.frenzyActive) return;
+    this.frenzyActive = false;
+    this.frenzyTimeLeftMs = 0;
+    this.spawner?.setEndlessRateMult(1);
+    getCastleStage()?.setFrenzyActive(false);
+    const need = gameConfig.frenzyMeterPoints;
+    // Carry from the triggering hit can already be enough for another frenzy.
+    if (this.frenzyMeter >= need) {
+      this.frenzyMeter -= need;
+      this.startFrenzy();
+      return;
+    }
+    this.hud?.setFrenzyMeter(this.frenzyMeter / need, false);
   }
 
   private changeLives(delta: number): void {

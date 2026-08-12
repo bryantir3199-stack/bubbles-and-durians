@@ -21,27 +21,15 @@ export const gameConfig = {
    * so the first half-minute stays readable.
    */
   earlyGameGraceMs: 30_000,
-  /** Endless mode: length of each spawn-rate time block (ms). */
-  endlessSpawnBlockMs: 10_000,
   /**
-   * Endless mode: weighted spawn-rate options vs the base cadence.
-   * Labels are the design names; boost-tier mults are +75% above the original
-   * +55% / +100% values (1.55→2.7125, 2→3.5). Original is weighted higher.
+   * Endless mode: points earned toward filling the frenzy meter.
+   * When full, a frenzy triggers and the meter resets (excess carries over).
    */
-  endlessSpawnRateOptions: [
-    { mult: 0.75, weight: 1, label: '25%' },
-    { mult: 1, weight: 6, label: 'original' },
-    { mult: 2.7125, weight: 2, label: '55%' },
-    { mult: 3.5, weight: 2, label: '100%' },
-  ] as const,
-  /**
-   * Endless mode: "100%" boost tier may appear at most this many
-   * consecutive time blocks.
-   */
-  endlessSpawnRateMaxStreakMult: 3.5,
-  endlessSpawnRateMaxStreak: 2,
-  /** Endless mode: opening time blocks that always stay at the original rate. */
-  endlessSpawnRateGraceBlocks: 3,
+  frenzyMeterPoints: 10_000,
+  /** Endless mode: spawn-rate multiplier during frenzy. */
+  frenzySpawnRateMult: 3.5,
+  /** Endless mode: frenzy duration (ms). */
+  frenzyDurationMs: 15_000,
   /**
    * After a target leaves a window/path, keep that slot unavailable so the
    * next spawn cannot pop in the same place immediately.

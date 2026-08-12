@@ -43,10 +43,6 @@ export class Spawner {
   private readonly closeOnly: boolean;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
-  /** Endless: index of the active 10s time block. */
-  private endlessBlockIndex = 0;
-  /** Endless: consecutive blocks spent at the capped streak rate (+100%). */
-  private endlessStreakCount = 0;
   /** Last logged rate label — used to avoid spam in DEV. */
   private lastLoggedLabel = '';
 
@@ -66,8 +62,6 @@ export class Spawner {
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
     this.endlessRateMult = 1;
-    this.endlessBlockIndex = 0;
-    this.endlessStreakCount = 0;
     this.lastLoggedLabel = '';
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
@@ -88,6 +82,23 @@ export class Spawner {
   }
 
   /**
+   * Endless only: set spawn-rate multiplier (1 = original, 3.5 = frenzy).
+   * Raising the rate shortens any pending next-spawn wait immediately.
+   */
+  setEndlessRateMult(mult: number): void {
+    if (this.mode !== 'endless') return;
+    const prev = this.endlessRateMult;
+    this.endlessRateMult = Math.max(0.01, mult);
+    if (this.endlessRateMult > prev) {
+      const interval = this.computeInterval();
+      if (this.nextAt - this.elapsed > interval) {
+        this.nextAt = this.elapsed + interval;
+      }
+    }
+    this.logSpawnRateLabel(this.rateLabel());
+  }
+
+  /**
    * @param dt — frame delta in seconds
    * @param timeLeftSeconds — timed-mode seconds remaining (ignored in endless)
    */
@@ -98,10 +109,6 @@ export class Spawner {
     for (const t of this.targets) t.update(dt);
     for (let i = this.targets.length - 1; i >= 0; i--) {
       if (!this.targets[i]!.root.parent) this.targets.splice(i, 1);
-    }
-
-    if (this.mode === 'endless') {
-      this.updateEndlessTimeBlocks();
     }
 
     // Timed final boost: once remaining time enters the window, tighten the
@@ -167,66 +174,12 @@ export class Spawner {
     return interval / rateMult;
   }
 
-  /**
-   * Endless: every 10s time block after the opening grace period, pick a
-   * weighted rate level (original / +55% / +100% / −25%). Original is more
-   * common. +100% may appear at most N consecutive blocks. The first grace
-   * blocks always stay at original.
-   */
-  private updateEndlessTimeBlocks(): void {
-    const blockMs = gameConfig.endlessSpawnBlockMs;
-    const blockIndex = Math.floor(this.elapsed / blockMs);
-    while (this.endlessBlockIndex < blockIndex) {
-      this.endlessBlockIndex += 1;
-      if (this.endlessBlockIndex >= gameConfig.endlessSpawnRateGraceBlocks) {
-        this.rollEndlessRateChange();
-      }
-    }
-  }
-
-  private rollEndlessRateChange(): void {
-    const streakMult = gameConfig.endlessSpawnRateMaxStreakMult;
-    const maxStreak = gameConfig.endlessSpawnRateMaxStreak;
-    const options = gameConfig.endlessSpawnRateOptions.filter(
-      (opt) =>
-        !(
-          opt.mult === streakMult &&
-          this.endlessStreakCount >= maxStreak
-        ),
-    );
-    const totalWeight = options.reduce((sum, opt) => sum + opt.weight, 0);
-    let roll = Math.random() * totalWeight;
-    let next = 1;
-    for (const opt of options) {
-      roll -= opt.weight;
-      if (roll <= 0) {
-        next = opt.mult;
-        break;
-      }
-    }
-
-    const prev = this.endlessRateMult;
-    this.endlessRateMult = next;
-    this.endlessStreakCount = next === streakMult ? this.endlessStreakCount + 1 : 0;
-
-    // If rate went up, don't wait out the old slower interval.
-    if (next > prev) {
-      const interval = this.computeInterval();
-      if (this.nextAt - this.elapsed > interval) {
-        this.nextAt = this.elapsed + interval;
-      }
-    }
-
-    this.logSpawnRateLabel(this.rateLabel());
-  }
-
-  /** Human-readable spawn-rate label for DEV logs (e.g. "25%", "original", "55%", "100%"). */
+  /** Human-readable spawn-rate label for DEV logs. */
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
-      const match = gameConfig.endlessSpawnRateOptions.find(
-        (opt) => opt.mult === this.endlessRateMult,
-      );
-      return match?.label ?? 'original';
+      if (this.endlessRateMult === gameConfig.frenzySpawnRateMult) return 'frenzy';
+      if (this.endlessRateMult === 1) return 'original';
+      return `${this.endlessRateMult}x`;
     }
     if (
       timeLeftSeconds !== undefined &&
