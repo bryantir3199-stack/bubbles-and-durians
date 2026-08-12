@@ -23,6 +23,7 @@ const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
 /** Constant speed along the gate path (world units / second). */
 const PATH_SPEED = 95;
 
+
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
   /** Window / close slot id when pattern === 'window' | 'close' */
@@ -48,6 +49,11 @@ export class Target {
   readonly kind: TargetKind;
   readonly pattern: SpawnPattern;
   readonly windowId: string | null;
+  /**
+   * Spawned during endless Frenzy — blue glow, and escaping never costs a life
+   * (even after Frenzy ends).
+   */
+  readonly frenzySpawned: boolean;
   readonly root: THREE.Group;
   readonly hitObjects: THREE.Object3D[] = [];
   hitsLeft: number;
@@ -72,6 +78,11 @@ export class Target {
   private knockHalfH = 0;
   private warned = false;
   private slotFreed = false;
+  private frenzyGlowMats: Array<{
+    mat: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
+    baseOpacity: number;
+  }> = [];
+  private frenzyGlowPulse = 0;
 
   private waypoints: THREE.Vector3[] = [];
   private cumLen: number[] = [0];
@@ -103,10 +114,12 @@ export class Target {
     spec: TargetSpawnSpec,
     onEscape: (t: Target) => void,
     onFreeSlot: () => void,
+    frenzySpawned = false,
   ) {
     this.kind = kind;
     this.pattern = spec.pattern;
     this.windowId = spec.windowId ?? null;
+    this.frenzySpawned = frenzySpawned;
     this.onEscape = onEscape;
     this.onFreeSlot = onFreeSlot;
     this.root = new THREE.Group();
@@ -159,10 +172,71 @@ export class Target {
     this.hitObjects.push(proxy);
 
     if (kind === 'goldDurian') this.createHpDots();
+    if (frenzySpawned) this.attachFrenzyGlow();
 
     this.setupPath(spec);
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
+  }
+
+  /**
+   * Blue edge glow hugging the model silhouette (tight BackSide shells —
+   * not a detached halo).
+   */
+  private attachFrenzyGlow(): void {
+    const size =
+      this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
+
+    // Collect first — adding children during traverse would recurse forever.
+    const meshes: THREE.Mesh[] = [];
+    this.visual.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh) || !obj.geometry) return;
+      // Skip invisible hit proxies if any got parented under visual.
+      if (obj.material instanceof THREE.MeshBasicMaterial && !obj.material.visible) return;
+      meshes.push(obj);
+    });
+
+    // Two shells: bright rim + softer outer glow (thicker / +50% opacity).
+    const shells: Array<{ scale: number; opacity: number; color: number }> = [
+      { scale: 1.068, opacity: 1, color: 0x5ec8ff },
+      { scale: 1.135, opacity: 0.825, color: 0x2a8cff },
+    ];
+    for (const obj of meshes) {
+      for (const shell of shells) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: shell.color,
+          side: THREE.BackSide,
+          transparent: true,
+          opacity: shell.opacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        this.frenzyGlowMats.push({ mat, baseOpacity: shell.opacity });
+        const outline = new THREE.Mesh(obj.geometry, mat);
+        outline.scale.setScalar(shell.scale);
+        outline.renderOrder = (obj.renderOrder || 0) - 1;
+        obj.add(outline);
+      }
+    }
+
+    // Heart sprite — blue silhouette rim behind the icon.
+    if (this.kind === 'heart' && this.spriteMat) {
+      for (const shell of [
+        { scale: 1.12, opacity: 1 },
+        { scale: 1.24, opacity: 0.675 },
+      ]) {
+        const backMat = this.spriteMat.clone();
+        backMat.color.setHex(0x3aa8ff);
+        backMat.opacity = shell.opacity;
+        backMat.depthWrite = false;
+        backMat.blending = THREE.AdditiveBlending;
+        this.frenzyGlowMats.push({ mat: backMat, baseOpacity: shell.opacity });
+        const back = new THREE.Sprite(backMat);
+        back.scale.set(size * shell.scale, size * shell.scale, 1);
+        back.position.z = -0.5;
+        this.root.add(back);
+      }
+    }
   }
 
   get active(): boolean {
@@ -355,6 +429,14 @@ export class Target {
       }
     }
 
+    if (this.frenzySpawned && this.frenzyGlowMats.length > 0) {
+      this.frenzyGlowPulse += dt * 5;
+      const pulse = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(this.frenzyGlowPulse));
+      for (const entry of this.frenzyGlowMats) {
+        entry.mat.opacity = entry.baseOpacity * pulse;
+      }
+    }
+
     if (this.fading) {
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
@@ -501,6 +583,8 @@ export class Target {
       (d.material as THREE.Material).dispose();
     }
     this.hpDots = [];
+    for (const entry of this.frenzyGlowMats) entry.mat.dispose();
+    this.frenzyGlowMats = [];
     if (this.ownsGoldMaterials) {
       ModelCache.disposeGoldMaterials(this.visual);
       this.ownsGoldMaterials = false;

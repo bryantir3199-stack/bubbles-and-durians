@@ -33,12 +33,16 @@ export class HUD {
   private muteBtn: HTMLButtonElement;
   private pauseBanner: HTMLElement;
   private pauseOverlay: HTMLElement;
+  private frenzyMeterEl: HTMLElement | null = null;
+  private frenzyFillEl: HTMLElement | null = null;
   private lastComboLevel = 1;
   private thirtyBannerShown = false;
   private lastCountdownSec = -1;
   private paused = false;
+  private readonly mode: GameMode;
 
   constructor(parent: HTMLElement, mode: GameMode, callbacks: HUDCallbacks) {
+    this.mode = mode;
     this.root = document.createElement('div');
     this.root.className = 'hud';
 
@@ -63,12 +67,25 @@ export class HUD {
         <div class="hud-lives-value">${this.hearts(gameConfig.startLives)}</div>
       </div>`;
 
+    const frenzyMeter =
+      mode === 'endless'
+        ? `
+      <div class="hud-frenzy-meter" aria-label="Frenzy meter">
+        <span class="hud-frenzy-label">FRENZY</span>
+        <div class="hud-frenzy-track">
+          <div class="hud-frenzy-fill" style="width: 0%"></div>
+        </div>
+      </div>`
+        : '';
+
     this.root.innerHTML = `
       <div class="hud-pause-overlay" hidden aria-hidden="true"></div>
+      <div class="hud-frenzy-border" aria-hidden="true"></div>
       <div class="hud-controls">
         <button type="button" class="hud-ctrl hud-pause-btn" aria-label="Pause" title="Pause">${PAUSE_ICON}</button>
         <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
       </div>
+      ${frenzyMeter}
       <div class="hud-pause-banner" hidden>PAUSED</div>
       <div class="hud-dock">
         <div class="hud-left">
@@ -112,6 +129,8 @@ export class HUD {
     this.muteBtn = this.root.querySelector('.hud-mute-btn')!;
     this.pauseBanner = this.root.querySelector('.hud-pause-banner')!;
     this.pauseOverlay = this.root.querySelector('.hud-pause-overlay')!;
+    this.frenzyMeterEl = this.root.querySelector('.hud-frenzy-meter');
+    this.frenzyFillEl = this.root.querySelector('.hud-frenzy-fill');
 
     const bindCtrl = (el: HTMLElement, fn: () => void) => {
       el.addEventListener('pointerdown', (e) => {
@@ -147,6 +166,30 @@ export class HUD {
 
   setScore(score: number): void {
     this.scoreEl.textContent = Math.floor(score).toLocaleString('en-US');
+  }
+
+  /**
+   * Endless frenzy meter fill amount (0–1).
+   * During an active frenzy the bar stays frozen and gains a hot look.
+   */
+  setFrenzyMeter(fill01: number, active = false): void {
+    if (this.frenzyFillEl && this.frenzyMeterEl) {
+      const pct = Math.max(0, Math.min(1, fill01)) * 100;
+      this.frenzyFillEl.style.width = `${pct}%`;
+      this.frenzyMeterEl.classList.toggle('is-active', active);
+    }
+    this.root.classList.toggle('is-frenzy', active);
+  }
+
+  /** Large centered “FRENZY” announce at the start of a frenzy. */
+  showFrenzyAnnounce(): void {
+    if (this.mode !== 'endless') return;
+    const el = document.createElement('div');
+    el.className = 'hud-announce hud-frenzy-announce';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = 'FRENZY';
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
   }
 
   setCombo(multiplier: number, progressShots = 0): void {
