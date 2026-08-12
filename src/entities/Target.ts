@@ -23,27 +23,6 @@ const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
 /** Constant speed along the gate path (world units / second). */
 const PATH_SPEED = 95;
 
-/** Shared soft orange ring for frenzy-spawned targets. */
-let frenzyHaloTex: THREE.CanvasTexture | null = null;
-
-function getFrenzyHaloTexture(): THREE.CanvasTexture {
-  if (frenzyHaloTex) return frenzyHaloTex;
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  const g = ctx.createRadialGradient(64, 64, 30, 64, 64, 64);
-  g.addColorStop(0, 'rgba(255, 140, 20, 0)');
-  g.addColorStop(0.48, 'rgba(255, 140, 20, 0)');
-  g.addColorStop(0.62, 'rgba(255, 110, 10, 0.75)');
-  g.addColorStop(0.78, 'rgba(255, 150, 30, 1)');
-  g.addColorStop(1, 'rgba(255, 190, 70, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 128, 128);
-  frenzyHaloTex = new THREE.CanvasTexture(canvas);
-  frenzyHaloTex.colorSpace = THREE.SRGBColorSpace;
-  return frenzyHaloTex;
-}
 
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
@@ -99,7 +78,10 @@ export class Target {
   private knockHalfH = 0;
   private warned = false;
   private slotFreed = false;
-  private frenzyGlowMats: Array<THREE.MeshBasicMaterial | THREE.SpriteMaterial> = [];
+  private frenzyGlowMats: Array<{
+    mat: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
+    baseOpacity: number;
+  }> = [];
   private frenzyGlowPulse = 0;
 
   private waypoints: THREE.Vector3[] = [];
@@ -197,27 +179,14 @@ export class Target {
     this.root.scale.setScalar(0.01);
   }
 
-  /** Orange outline + soft halo marking a Frenzy-spawned target. */
+  /**
+   * Orange edge glow hugging the model silhouette (tight BackSide shells —
+   * not a detached halo).
+   */
   private attachFrenzyGlow(): void {
     const size =
       this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
 
-    // Soft billboard ring behind the model.
-    const haloMat = new THREE.SpriteMaterial({
-      map: getFrenzyHaloTexture(),
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      opacity: 0.95,
-    });
-    this.frenzyGlowMats.push(haloMat);
-    const halo = new THREE.Sprite(haloMat);
-    halo.scale.set(size * 1.75, size * 1.75, 1);
-    halo.position.z = -2;
-    halo.renderOrder = -1;
-    this.root.add(halo);
-
-    // Mesh outline (BackSide) for a clear border around the model.
     // Collect first — adding children during traverse would recurse forever.
     const meshes: THREE.Mesh[] = [];
     this.visual.traverse((obj) => {
@@ -226,32 +195,47 @@ export class Target {
       if (obj.material instanceof THREE.MeshBasicMaterial && !obj.material.visible) return;
       meshes.push(obj);
     });
+
+    // Two thin shells: bright rim + softer outer glow, both tight to the mesh.
+    const shells: Array<{ scale: number; opacity: number; color: number }> = [
+      { scale: 1.045, opacity: 1, color: 0xff9a2a },
+      { scale: 1.09, opacity: 0.55, color: 0xff6a12 },
+    ];
     for (const obj of meshes) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: 0xff6a12,
-        side: THREE.BackSide,
-        transparent: true,
-        opacity: 0.92,
-        depthWrite: false,
-      });
-      this.frenzyGlowMats.push(mat);
-      const outline = new THREE.Mesh(obj.geometry, mat);
-      outline.scale.setScalar(1.16);
-      outline.renderOrder = (obj.renderOrder || 0) - 1;
-      obj.add(outline);
+      for (const shell of shells) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: shell.color,
+          side: THREE.BackSide,
+          transparent: true,
+          opacity: shell.opacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        this.frenzyGlowMats.push({ mat, baseOpacity: shell.opacity });
+        const outline = new THREE.Mesh(obj.geometry, mat);
+        outline.scale.setScalar(shell.scale);
+        outline.renderOrder = (obj.renderOrder || 0) - 1;
+        obj.add(outline);
+      }
     }
 
-    // Heart is a sprite — add a larger orange tinted copy behind it.
+    // Heart sprite — thin orange silhouette rim behind the icon.
     if (this.kind === 'heart' && this.spriteMat) {
-      const backMat = this.spriteMat.clone();
-      backMat.color.setHex(0xff6a12);
-      backMat.opacity = 0.85;
-      backMat.depthWrite = false;
-      this.frenzyGlowMats.push(backMat);
-      const back = new THREE.Sprite(backMat);
-      back.scale.set(size * 1.35, size * 1.35, 1);
-      back.position.z = -1;
-      this.root.add(back);
+      for (const shell of [
+        { scale: 1.08, opacity: 0.95 },
+        { scale: 1.16, opacity: 0.45 },
+      ]) {
+        const backMat = this.spriteMat.clone();
+        backMat.color.setHex(0xff7a18);
+        backMat.opacity = shell.opacity;
+        backMat.depthWrite = false;
+        backMat.blending = THREE.AdditiveBlending;
+        this.frenzyGlowMats.push({ mat: backMat, baseOpacity: shell.opacity });
+        const back = new THREE.Sprite(backMat);
+        back.scale.set(size * shell.scale, size * shell.scale, 1);
+        back.position.z = -0.5;
+        this.root.add(back);
+      }
     }
   }
 
@@ -447,8 +431,10 @@ export class Target {
 
     if (this.frenzySpawned && this.frenzyGlowMats.length > 0) {
       this.frenzyGlowPulse += dt * 5;
-      const a = 0.68 + 0.32 * (0.5 + 0.5 * Math.sin(this.frenzyGlowPulse));
-      for (const mat of this.frenzyGlowMats) mat.opacity = a;
+      const pulse = 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(this.frenzyGlowPulse));
+      for (const entry of this.frenzyGlowMats) {
+        entry.mat.opacity = entry.baseOpacity * pulse;
+      }
     }
 
     if (this.fading) {
@@ -597,7 +583,7 @@ export class Target {
       (d.material as THREE.Material).dispose();
     }
     this.hpDots = [];
-    for (const mat of this.frenzyGlowMats) mat.dispose();
+    for (const entry of this.frenzyGlowMats) entry.mat.dispose();
     this.frenzyGlowMats = [];
     if (this.ownsGoldMaterials) {
       ModelCache.disposeGoldMaterials(this.visual);
