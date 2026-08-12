@@ -169,6 +169,8 @@ export class PlayScene implements GameScene {
 
     if (this.mode === 'endless' && this.frenzyActive) {
       this.frenzyTimeLeftMs -= dt * 1000;
+      const fill = Math.max(0, this.frenzyTimeLeftMs / gameConfig.frenzyDurationMs);
+      this.hud?.setFrenzyMeter(fill, true);
       if (this.frenzyTimeLeftMs <= 0) this.endFrenzy();
     }
 
@@ -354,8 +356,9 @@ export class PlayScene implements GameScene {
       this.resetCombo();
     }
     if (this.mode !== 'endless' || !this.escapesArmed) return;
-    // Frenzy: escaped / unshot targets do not cost a life.
-    if (this.frenzyActive) return;
+    // During Frenzy, or for targets spawned in Frenzy (even after it ends),
+    // escapes / unshot targets do not cost a life.
+    if (this.frenzyActive || target.frenzySpawned) return;
     if (this.isDurianKind(target.kind)) {
       this.changeLives(-1);
       this.hud?.spawnFloater(window.innerWidth / 2, 120, 'ESCAPED!', '#ff4444');
@@ -415,7 +418,8 @@ export class PlayScene implements GameScene {
     this.frenzyMeter = 0;
     this.spawner?.setFrenzyActive(true);
     getCastleStage()?.setFrenzyActive(true);
-    this.hud?.setFrenzyMeter(0, true);
+    // Bar starts full and drains to show remaining Frenzy time.
+    this.hud?.setFrenzyMeter(1, true);
     this.hud?.showFrenzyAnnounce();
   }
 

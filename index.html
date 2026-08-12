@@ -394,6 +394,8 @@
         border-color: #ffe566;
       }
       .hud-frenzy-meter.is-active .hud-frenzy-fill {
+        /* Smooth per-frame drain — no eased lag behind the timer. */
+        transition: none;
         background: linear-gradient(90deg, #ff8a2b 0%, #ff4d2a 50%, #ff2d6a 100%);
       }
       .hud-ctrl {

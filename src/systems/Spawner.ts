@@ -232,7 +232,14 @@ export class Spawner {
     // Re-check after pickSpec in case of races with timeouts.
     if (this.liveCount() >= gameConfig.maxTargets) return;
 
-    const target = new Target(this.scene, kind, spec, this.onEscape, () => this.releaseSpec(spec));
+    const target = new Target(
+      this.scene,
+      kind,
+      spec,
+      this.onEscape,
+      () => this.releaseSpec(spec),
+      this.frenzyActive,
+    );
     this.targets.push(target);
   }
 

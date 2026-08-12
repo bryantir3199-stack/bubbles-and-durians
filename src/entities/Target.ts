@@ -23,6 +23,28 @@ const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
 /** Constant speed along the gate path (world units / second). */
 const PATH_SPEED = 95;
 
+/** Shared soft orange ring for frenzy-spawned targets. */
+let frenzyHaloTex: THREE.CanvasTexture | null = null;
+
+function getFrenzyHaloTexture(): THREE.CanvasTexture {
+  if (frenzyHaloTex) return frenzyHaloTex;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  const g = ctx.createRadialGradient(64, 64, 30, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255, 140, 20, 0)');
+  g.addColorStop(0.48, 'rgba(255, 140, 20, 0)');
+  g.addColorStop(0.62, 'rgba(255, 110, 10, 0.75)');
+  g.addColorStop(0.78, 'rgba(255, 150, 30, 1)');
+  g.addColorStop(1, 'rgba(255, 190, 70, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  frenzyHaloTex = new THREE.CanvasTexture(canvas);
+  frenzyHaloTex.colorSpace = THREE.SRGBColorSpace;
+  return frenzyHaloTex;
+}
+
 export interface TargetSpawnSpec {
   pattern: SpawnPattern;
   /** Window / close slot id when pattern === 'window' | 'close' */
@@ -48,6 +70,11 @@ export class Target {
   readonly kind: TargetKind;
   readonly pattern: SpawnPattern;
   readonly windowId: string | null;
+  /**
+   * Spawned during endless Frenzy — orange glow, and escaping never costs a life
+   * (even after Frenzy ends).
+   */
+  readonly frenzySpawned: boolean;
   readonly root: THREE.Group;
   readonly hitObjects: THREE.Object3D[] = [];
   hitsLeft: number;
@@ -72,6 +99,8 @@ export class Target {
   private knockHalfH = 0;
   private warned = false;
   private slotFreed = false;
+  private frenzyGlowMats: Array<THREE.MeshBasicMaterial | THREE.SpriteMaterial> = [];
+  private frenzyGlowPulse = 0;
 
   private waypoints: THREE.Vector3[] = [];
   private cumLen: number[] = [0];
@@ -103,10 +132,12 @@ export class Target {
     spec: TargetSpawnSpec,
     onEscape: (t: Target) => void,
     onFreeSlot: () => void,
+    frenzySpawned = false,
   ) {
     this.kind = kind;
     this.pattern = spec.pattern;
     this.windowId = spec.windowId ?? null;
+    this.frenzySpawned = frenzySpawned;
     this.onEscape = onEscape;
     this.onFreeSlot = onFreeSlot;
     this.root = new THREE.Group();
@@ -159,10 +190,64 @@ export class Target {
     this.hitObjects.push(proxy);
 
     if (kind === 'goldDurian') this.createHpDots();
+    if (frenzySpawned) this.attachFrenzyGlow();
 
     this.setupPath(spec);
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
+  }
+
+  /** Orange outline + soft halo marking a Frenzy-spawned target. */
+  private attachFrenzyGlow(): void {
+    const size =
+      this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
+
+    // Soft billboard ring behind the model.
+    const haloMat = new THREE.SpriteMaterial({
+      map: getFrenzyHaloTexture(),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      opacity: 0.95,
+    });
+    this.frenzyGlowMats.push(haloMat);
+    const halo = new THREE.Sprite(haloMat);
+    halo.scale.set(size * 1.75, size * 1.75, 1);
+    halo.position.z = -2;
+    halo.renderOrder = -1;
+    this.root.add(halo);
+
+    // Mesh outline (BackSide) for a clear border around the model.
+    this.visual.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh) || !obj.geometry) return;
+      // Skip invisible hit proxies if any got parented under visual.
+      if (obj.material instanceof THREE.MeshBasicMaterial && !obj.material.visible) return;
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xff6a12,
+        side: THREE.BackSide,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+      });
+      this.frenzyGlowMats.push(mat);
+      const outline = new THREE.Mesh(obj.geometry, mat);
+      outline.scale.setScalar(1.16);
+      outline.renderOrder = (obj.renderOrder || 0) - 1;
+      obj.add(outline);
+    });
+
+    // Heart is a sprite — add a larger orange tinted copy behind it.
+    if (this.kind === 'heart' && this.spriteMat) {
+      const backMat = this.spriteMat.clone();
+      backMat.color.setHex(0xff6a12);
+      backMat.opacity = 0.85;
+      backMat.depthWrite = false;
+      this.frenzyGlowMats.push(backMat);
+      const back = new THREE.Sprite(backMat);
+      back.scale.set(size * 1.35, size * 1.35, 1);
+      back.position.z = -1;
+      this.root.add(back);
+    }
   }
 
   get active(): boolean {
@@ -355,6 +440,12 @@ export class Target {
       }
     }
 
+    if (this.frenzySpawned && this.frenzyGlowMats.length > 0) {
+      this.frenzyGlowPulse += dt * 5;
+      const a = 0.68 + 0.32 * (0.5 + 0.5 * Math.sin(this.frenzyGlowPulse));
+      for (const mat of this.frenzyGlowMats) mat.opacity = a;
+    }
+
     if (this.fading) {
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
@@ -501,6 +592,8 @@ export class Target {
       (d.material as THREE.Material).dispose();
     }
     this.hpDots = [];
+    for (const mat of this.frenzyGlowMats) mat.dispose();
+    this.frenzyGlowMats = [];
     if (this.ownsGoldMaterials) {
       ModelCache.disposeGoldMaterials(this.visual);
       this.ownsGoldMaterials = false;
