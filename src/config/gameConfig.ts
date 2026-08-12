@@ -23,7 +23,7 @@ export const gameConfig = {
   earlyGameGraceMs: 30_000,
   /**
    * Endless mode: points earned toward filling the frenzy meter.
-   * When full, a frenzy triggers and the meter resets (excess carries over).
+   * When full, a frenzy triggers and the meter resets to 0.
    */
   frenzyMeterPoints: 10_000,
   /** Endless mode: spawn-rate multiplier during frenzy. */

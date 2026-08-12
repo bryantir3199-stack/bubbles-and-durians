@@ -390,7 +390,6 @@ export class PlayScene implements GameScene {
     this.frenzyMeter += points;
     const need = gameConfig.frenzyMeterPoints;
     if (this.frenzyMeter >= need) {
-      this.frenzyMeter -= need;
       this.startFrenzy();
       return;
     }
@@ -401,9 +400,10 @@ export class PlayScene implements GameScene {
     if (this.mode !== 'endless' || this.frenzyActive) return;
     this.frenzyActive = true;
     this.frenzyTimeLeftMs = gameConfig.frenzyDurationMs;
+    this.frenzyMeter = 0;
     this.spawner?.setEndlessRateMult(gameConfig.frenzySpawnRateMult);
     getCastleStage()?.setFrenzyActive(true);
-    this.hud?.setFrenzyMeter(this.frenzyMeter / gameConfig.frenzyMeterPoints, true);
+    this.hud?.setFrenzyMeter(0, true);
     this.hud?.showFrenzyAnnounce();
   }
 
@@ -413,14 +413,7 @@ export class PlayScene implements GameScene {
     this.frenzyTimeLeftMs = 0;
     this.spawner?.setEndlessRateMult(1);
     getCastleStage()?.setFrenzyActive(false);
-    const need = gameConfig.frenzyMeterPoints;
-    // Carry from the triggering hit can already be enough for another frenzy.
-    if (this.frenzyMeter >= need) {
-      this.frenzyMeter -= need;
-      this.startFrenzy();
-      return;
-    }
-    this.hud?.setFrenzyMeter(this.frenzyMeter / need, false);
+    this.hud?.setFrenzyMeter(this.frenzyMeter / gameConfig.frenzyMeterPoints, false);
   }
 
   private changeLives(delta: number): void {
