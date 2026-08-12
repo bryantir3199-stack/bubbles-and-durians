@@ -92,13 +92,19 @@ export class PlayScene implements GameScene {
       onPauseToggle: () => this.togglePause(),
       onMuteToggle: () => this.onMuteToggle(),
     });
+    // DEV: start endless near a Frenzy so the 10k trigger is quick to test.
+    if (import.meta.env.DEV && this.mode === 'endless') {
+      this.score = 9000;
+      this.frenzyMeter = 9000;
+    }
+
     this.hud.setScore(this.score);
     this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
     this.hud.setMuted(isMuted());
     this.hud.setPaused(false);
-    this.hud.setFrenzyMeter(0, false);
+    this.hud.setFrenzyMeter(this.frenzyMeter / gameConfig.frenzyMeterPoints, false);
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
 
