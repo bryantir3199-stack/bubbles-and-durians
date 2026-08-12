@@ -32,6 +32,7 @@ export class HUD {
   private pauseBtn: HTMLButtonElement;
   private muteBtn: HTMLButtonElement;
   private pauseBanner: HTMLElement;
+  private pauseOverlay: HTMLElement;
   private lastComboLevel = 1;
   private thirtyBannerShown = false;
   private lastCountdownSec = -1;
@@ -63,6 +64,7 @@ export class HUD {
       </div>`;
 
     this.root.innerHTML = `
+      <div class="hud-pause-overlay" hidden aria-hidden="true"></div>
       <div class="hud-controls">
         <button type="button" class="hud-ctrl hud-pause-btn" aria-label="Pause" title="Pause">${PAUSE_ICON}</button>
         <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
@@ -109,6 +111,7 @@ export class HUD {
     this.pauseBtn = this.root.querySelector('.hud-pause-btn')!;
     this.muteBtn = this.root.querySelector('.hud-mute-btn')!;
     this.pauseBanner = this.root.querySelector('.hud-pause-banner')!;
+    this.pauseOverlay = this.root.querySelector('.hud-pause-overlay')!;
 
     const bindCtrl = (el: HTMLElement, fn: () => void) => {
       el.addEventListener('pointerdown', (e) => {
@@ -202,6 +205,8 @@ export class HUD {
   setPaused(paused: boolean): void {
     this.paused = paused;
     this.pauseBanner.hidden = !paused;
+    this.pauseOverlay.hidden = !paused;
+    this.pauseOverlay.setAttribute('aria-hidden', paused ? 'false' : 'true');
     this.root.classList.toggle('is-paused', paused);
     this.pauseBtn.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
     this.pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');

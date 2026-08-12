@@ -26,6 +26,14 @@ let bgmBuffer: AudioBuffer | null = null;
 let bgmLoad: Promise<AudioBuffer | null> | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
 let bgmGain: GainNode | null = null;
+/** True while a play session wants stage BGM (even if currently paused). */
+let bgmActive = false;
+/** True while stage BGM is paused mid-session (game pause). */
+let bgmPaused = false;
+/** AudioContext time when the current BGM source started. */
+let bgmStartCtxTime = 0;
+/** Playback offset (seconds into the buffer) when the current BGM source started. */
+let bgmOffset = 0;
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -170,12 +178,15 @@ export function isMuted(): boolean {
   return muted;
 }
 
+function applyBgmGain(): void {
+  if (!bgmGain) return;
+  bgmGain.gain.value = muted || bgmPaused ? 0 : STAGE_BGM_GAIN;
+}
+
 /** Mute or unmute all SFX and stage BGM. Returns the new muted state. */
 export function setMuted(value: boolean): boolean {
   muted = value;
-  if (bgmGain) {
-    bgmGain.gain.value = muted ? 0 : STAGE_BGM_GAIN;
-  }
+  applyBgmGain();
   return muted;
 }
 
@@ -205,38 +216,7 @@ function playBuffer(
   src.start(0);
 }
 
-/** Start looping stage BGM while a play session is active. */
-export function startStageBgm(): void {
-  const ac = getCtx();
-  if (!ac) return;
-
-  const begin = (buffer: AudioBuffer) => {
-    // Restart cleanly if already playing (e.g. rapid re-enter).
-    stopStageBgm();
-    const src = ac.createBufferSource();
-    const gain = ac.createGain();
-    src.buffer = buffer;
-    src.loop = true;
-    gain.gain.value = muted ? 0 : STAGE_BGM_GAIN;
-    src.connect(gain);
-    gain.connect(ac.destination);
-    src.start(0);
-    bgmSource = src;
-    bgmGain = gain;
-  };
-
-  if (bgmBuffer) {
-    begin(bgmBuffer);
-    return;
-  }
-
-  void ensureBgmBuffer().then((buf) => {
-    if (buf) begin(buf);
-  });
-}
-
-/** Stop looping stage BGM when leaving play. */
-export function stopStageBgm(): void {
+function tearDownBgmSource(): void {
   if (bgmSource) {
     try {
       bgmSource.stop();
@@ -258,6 +238,82 @@ export function stopStageBgm(): void {
     }
     bgmGain = null;
   }
+}
+
+function beginBgmFromOffset(ac: AudioContext, buffer: AudioBuffer, offsetSec: number): void {
+  tearDownBgmSource();
+
+  const duration = buffer.duration || 1;
+  const offset = ((offsetSec % duration) + duration) % duration;
+  const src = ac.createBufferSource();
+  const gain = ac.createGain();
+  src.buffer = buffer;
+  src.loop = true;
+  src.connect(gain);
+  gain.connect(ac.destination);
+  bgmSource = src;
+  bgmGain = gain;
+  bgmOffset = offset;
+  bgmStartCtxTime = ac.currentTime;
+  applyBgmGain();
+  src.start(0, offset);
+}
+
+/** Start looping stage BGM while a play session is active. */
+export function startStageBgm(): void {
+  const ac = getCtx();
+  if (!ac) return;
+
+  bgmActive = true;
+  bgmPaused = false;
+  bgmOffset = 0;
+  tearDownBgmSource();
+
+  const begin = (buffer: AudioBuffer) => {
+    if (!bgmActive || bgmPaused) return;
+    beginBgmFromOffset(ac, buffer, bgmOffset);
+  };
+
+  if (bgmBuffer) {
+    begin(bgmBuffer);
+    return;
+  }
+
+  void ensureBgmBuffer().then((buf) => {
+    if (buf) begin(buf);
+  });
+}
+
+/** Pause looping stage BGM (keeps playback position for resume). */
+export function pauseStageBgm(): void {
+  if (bgmPaused) return;
+  bgmPaused = true;
+  const ac = ctx;
+  if (bgmSource && bgmBuffer && ac) {
+    const duration = bgmBuffer.duration || 1;
+    bgmOffset =
+      (((ac.currentTime - bgmStartCtxTime + bgmOffset) % duration) + duration) % duration;
+    tearDownBgmSource();
+  }
+}
+
+/** Resume looping stage BGM from the paused playback position. */
+export function resumeStageBgm(): void {
+  if (!bgmPaused) return;
+  bgmPaused = false;
+  if (!bgmActive) return;
+  const ac = getCtx();
+  if (!ac || !bgmBuffer) return;
+  beginBgmFromOffset(ac, bgmBuffer, bgmOffset);
+}
+
+/** Stop looping stage BGM when leaving play. */
+export function stopStageBgm(): void {
+  bgmActive = false;
+  bgmPaused = false;
+  bgmOffset = 0;
+  bgmStartCtxTime = 0;
+  tearDownBgmSource();
 }
 
 /** Munch sample for shooting — randomly picks between the two clips. */
