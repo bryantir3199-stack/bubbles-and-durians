@@ -26,8 +26,18 @@ export const gameConfig = {
    * When full, a frenzy triggers and the meter resets to 0.
    */
   frenzyMeterPoints: 10_000,
-  /** Endless mode: spawn-rate multiplier during frenzy. */
+  /** Endless mode: spawn-rate multiplier during frenzy (non-bubble targets). */
   frenzySpawnRateMult: 3.5,
+  /**
+   * Endless mode: absolute bubble spawn rate during frenzy vs normal (0.5 = −50%).
+   * Bubbles do not receive the 3.5× frenzy spawn boost.
+   */
+  frenzyBubbleSpawnMult: 0.5,
+  /**
+   * Endless mode: durian/gold point bases use this instead of `points.durian` (100)
+   * during frenzy. Bubbles are unchanged. Gold scales by the same ratio.
+   */
+  frenzyPointBase: 250,
   /** Endless mode: frenzy duration (ms). */
   frenzyDurationMs: 15_000,
   /**

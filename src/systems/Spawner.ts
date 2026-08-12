@@ -43,6 +43,8 @@ export class Spawner {
   private readonly closeOnly: boolean;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
+  /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
+  private frenzyActive = false;
   /** Last logged rate label — used to avoid spam in DEV. */
   private lastLoggedLabel = '';
 
@@ -62,6 +64,7 @@ export class Spawner {
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
     this.endlessRateMult = 1;
+    this.frenzyActive = false;
     this.lastLoggedLabel = '';
     this.occupiedWindows.clear();
     this.occupiedClose.clear();
@@ -96,6 +99,16 @@ export class Spawner {
       }
     }
     this.logSpawnRateLabel(this.rateLabel());
+  }
+
+  /**
+   * Endless frenzy: 3.5× overall cadence, but bubble absolute spawn rate
+   * drops to `frenzyBubbleSpawnMult` of normal (via weight retargeting).
+   */
+  setFrenzyActive(active: boolean): void {
+    if (this.mode !== 'endless') return;
+    this.frenzyActive = active;
+    this.setEndlessRateMult(active ? gameConfig.frenzySpawnRateMult : 1);
   }
 
   /**
@@ -330,6 +343,10 @@ export class Spawner {
     if (this.elapsed < gameConfig.earlyGameGraceMs) {
       weights.goldDurian = 0;
     }
+    // Frenzy: keep overall 3.5× cadence, but cut absolute bubble rate by 50%.
+    if (this.frenzyActive && weights.bubble > 0) {
+      this.applyFrenzyBubbleWeight(weights);
+    }
     const entries = (Object.keys(weights) as TargetKind[]).filter((k) => weights[k] > 0);
     const total = entries.reduce((sum, k) => sum + weights[k], 0);
     if (total <= 0) return null;
@@ -339,5 +356,35 @@ export class Spawner {
       if (roll <= 0) return kind;
     }
     return entries[entries.length - 1] ?? null;
+  }
+
+  /**
+   * Retarget bubble weight so (frenzy cadence × bubble fraction) equals
+   * `frenzyBubbleSpawnMult` × the normal absolute bubble spawn rate.
+   */
+  private applyFrenzyBubbleWeight(weights: SpawnWeights): void {
+    const rateMult = gameConfig.frenzySpawnRateMult;
+    const bubbleAbsMult = gameConfig.frenzyBubbleSpawnMult;
+    const bubble = weights.bubble;
+    const others =
+      weights.durian + weights.goldDurian + weights.heart;
+    const normalTotal = others + bubble;
+    if (normalTotal <= 0 || others <= 0) {
+      weights.bubble = 0;
+      return;
+    }
+    const targetFraction = (bubbleAbsMult / rateMult) * (bubble / normalTotal);
+    if (targetFraction <= 0) {
+      weights.bubble = 0;
+      return;
+    }
+    if (targetFraction >= 1) {
+      weights.durian = 0;
+      weights.goldDurian = 0;
+      weights.heart = 0;
+      weights.bubble = 1;
+      return;
+    }
+    weights.bubble = (targetFraction * others) / (1 - targetFraction);
   }
 }

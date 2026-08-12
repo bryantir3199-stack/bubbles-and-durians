@@ -214,7 +214,7 @@ export class PlayScene implements GameScene {
     this.unsubs = [];
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
-    this.spawner?.setEndlessRateMult(1);
+    this.spawner?.setFrenzyActive(false);
     getCastleStage()?.resetFrenzyLook();
     this.spawner?.stop();
     this.spawner?.clearAll();
@@ -318,7 +318,11 @@ export class PlayScene implements GameScene {
       playSquishSound();
       const base =
         kind === 'goldDurian' ? gameConfig.points.goldDurian : gameConfig.points.durian;
-      const points = base * this.combo;
+      // Frenzy: score bases use 250 instead of 100 (gold scales with the same ratio).
+      const frenzyScale = this.frenzyActive
+        ? gameConfig.frenzyPointBase / gameConfig.points.durian
+        : 1;
+      const points = Math.round(base * frenzyScale) * this.combo;
       const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
       this.addScore(points, clientX, clientY, color);
     } else if (kind === 'bubble') {
@@ -401,7 +405,7 @@ export class PlayScene implements GameScene {
     this.frenzyActive = true;
     this.frenzyTimeLeftMs = gameConfig.frenzyDurationMs;
     this.frenzyMeter = 0;
-    this.spawner?.setEndlessRateMult(gameConfig.frenzySpawnRateMult);
+    this.spawner?.setFrenzyActive(true);
     getCastleStage()?.setFrenzyActive(true);
     this.hud?.setFrenzyMeter(0, true);
     this.hud?.showFrenzyAnnounce();
@@ -411,7 +415,7 @@ export class PlayScene implements GameScene {
     if (!this.frenzyActive) return;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
-    this.spawner?.setEndlessRateMult(1);
+    this.spawner?.setFrenzyActive(false);
     getCastleStage()?.setFrenzyActive(false);
     this.hud?.setFrenzyMeter(this.frenzyMeter / gameConfig.frenzyMeterPoints, false);
   }

@@ -80,6 +80,7 @@ export class HUD {
 
     this.root.innerHTML = `
       <div class="hud-pause-overlay" hidden aria-hidden="true"></div>
+      <div class="hud-frenzy-border" aria-hidden="true"></div>
       <div class="hud-controls">
         <button type="button" class="hud-ctrl hud-pause-btn" aria-label="Pause" title="Pause">${PAUSE_ICON}</button>
         <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
@@ -172,10 +173,12 @@ export class HUD {
    * During an active frenzy the bar stays frozen and gains a hot look.
    */
   setFrenzyMeter(fill01: number, active = false): void {
-    if (!this.frenzyFillEl || !this.frenzyMeterEl) return;
-    const pct = Math.max(0, Math.min(1, fill01)) * 100;
-    this.frenzyFillEl.style.width = `${pct}%`;
-    this.frenzyMeterEl.classList.toggle('is-active', active);
+    if (this.frenzyFillEl && this.frenzyMeterEl) {
+      const pct = Math.max(0, Math.min(1, fill01)) * 100;
+      this.frenzyFillEl.style.width = `${pct}%`;
+      this.frenzyMeterEl.classList.toggle('is-active', active);
+    }
+    this.root.classList.toggle('is-frenzy', active);
   }
 
   /** Large centered “FRENZY” announce at the start of a frenzy. */
