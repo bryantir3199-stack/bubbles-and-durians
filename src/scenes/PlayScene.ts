@@ -11,11 +11,13 @@ import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
 import {
   isMuted,
+  pauseStageBgm,
   playDryFireSound,
   playGlitterSound,
   playPopSound,
   playShootSound,
   playSquishSound,
+  resumeStageBgm,
   startStageBgm,
   stopStageBgm,
   toggleMute,
@@ -225,6 +227,8 @@ export class PlayScene implements GameScene {
     if (this.ended) return;
     this.paused = !this.paused;
     this.hud?.setPaused(this.paused);
+    if (this.paused) pauseStageBgm();
+    else resumeStageBgm();
   }
 
   private onMuteToggle(): void {

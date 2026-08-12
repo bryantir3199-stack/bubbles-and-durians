@@ -290,6 +290,8 @@ export class Spawner {
   }
 
   private freeCloseSpots() {
+    // First 30s: keep the three near-camera rise slots empty.
+    if (this.elapsed < gameConfig.earlyGameGraceMs) return [];
     return CLOSE_SPOTS.filter((s) => !this.occupiedClose.has(s.id) && this.closeReady(s.id));
   }
 
@@ -370,7 +372,11 @@ export class Spawner {
   }
 
   private pickKind(): TargetKind | null {
-    const weights = gameConfig.spawnWeights[this.mode] as SpawnWeights;
+    const weights = { ...(gameConfig.spawnWeights[this.mode] as SpawnWeights) };
+    // First 30s: no gold durians.
+    if (this.elapsed < gameConfig.earlyGameGraceMs) {
+      weights.goldDurian = 0;
+    }
     const entries = (Object.keys(weights) as TargetKind[]).filter((k) => weights[k] > 0);
     const total = entries.reduce((sum, k) => sum + weights[k], 0);
     if (total <= 0) return null;

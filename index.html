@@ -335,6 +335,15 @@
       .hud-ctrl.is-muted {
         color: #ffb4b4;
       }
+      /* Dims the stage behind PAUSED + pause/mute controls */
+      .hud-pause-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 15;
+        background: rgba(0, 0, 0, 0.35);
+        pointer-events: none;
+      }
+      .hud-pause-overlay[hidden] { display: none !important; }
       .hud-pause-banner {
         position: absolute;
         left: 50%;

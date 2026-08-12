@@ -16,6 +16,11 @@ export const gameConfig = {
   timedFinalBoostSeconds: 30,
   /** Timed mode: multiply spawn rate by this during the final boost window (2.25 = +125%). */
   timedFinalSpawnRateMult: 2.25,
+  /**
+   * Opening grace period (ms): no close-camera pops and no gold durians
+   * so the first half-minute stays readable.
+   */
+  earlyGameGraceMs: 30_000,
   /** Endless mode: length of each spawn-rate time block (ms). */
   endlessSpawnBlockMs: 10_000,
   /**
@@ -67,21 +72,21 @@ export const gameConfig = {
     heart: { min: 4000, max: 6000 },
   },
   /**
-   * Spawn mix (timed): durian : bubble : gold = 20 : 10 : 1
-   * (~64% / ~32% / ~3%). Gold is weighted lower than a flat 6:3:1
+   * Spawn mix (timed): durian : bubble : gold = 20 : 10 : 2
+   * (~62% / ~31% / ~6%). Gold is still below a flat 6:3:1 (~10%)
    * because multi-hit golds linger and feel more common than their rate.
-   * Endless keeps a small heart weight on top of the same 20:10:1 core.
+   * Endless keeps a small heart weight on top of the same 20:10:2 core.
    */
   spawnWeights: {
     endless: {
       durian: 20,
-      goldDurian: 1,
+      goldDurian: 2,
       bubble: 10,
       heart: 2,
     },
     timed: {
       durian: 20,
-      goldDurian: 1,
+      goldDurian: 2,
       bubble: 10,
       heart: 0,
     },
