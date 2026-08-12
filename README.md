@@ -32,7 +32,7 @@ npm run preview  # preview production build
 | Bubble | 1 | −1000 | Endless: also −1 life when shot |
 | Heart | 1 | — | Endless only; +1 life (max 5) |
 
-**Endless** — 3 starting lives; game ends at 0 lives. Spawn rate rises slowly and linearly over time (+5%/min, soft-capped at 2.5×). A top-of-screen meter fills from points earned; every 10,000 points triggers a 15s **Frenzy** (3.5× on top of the current rate, bubble spawns −50%, durian/gold bases 250 instead of 100, sunset sky / orange grass, pulsing yellow vignette). Frenzy-spawned targets get a blue glow and never cost a life on escape (even after Frenzy). The meter drains from full→empty to show remaining Frenzy time.  
+**Endless** — 3 starting lives; game ends at 0 lives. Spawn rate rises linearly over time (+25%/min, soft-capped at 2.5×); the climb pauses during Frenzy. A top-of-screen meter fills from points earned; every 10,000 points triggers a 15s **Frenzy** (3.5× on top of the current rate, bubble spawns −50%, durian/gold bases 250 instead of 100, sunset sky / orange grass, pulsing yellow vignette). Frenzy-spawned targets get a blue glow and never cost a life on escape (even after Frenzy). The meter drains from full→empty to show remaining Frenzy time.  
 **Timed** — 3 minutes; no lives system; bubbles only subtract score; no escape penalty; no hearts.
 
 ## Online leaderboards (Supabase)
