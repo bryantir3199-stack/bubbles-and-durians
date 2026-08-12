@@ -6,6 +6,7 @@ const SFX_VOLUME_SCALE = 1.5;
 /** Looping stage BGM level (before SFX scale — kept quieter than one-shots). */
 const STAGE_BGM_GAIN = 0.4;
 
+let muted = false;
 let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
@@ -165,12 +166,31 @@ async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
   return bgmLoad;
 }
 
+export function isMuted(): boolean {
+  return muted;
+}
+
+/** Mute or unmute all SFX and stage BGM. Returns the new muted state. */
+export function setMuted(value: boolean): boolean {
+  muted = value;
+  if (bgmGain) {
+    bgmGain.gain.value = muted ? 0 : STAGE_BGM_GAIN;
+  }
+  return muted;
+}
+
+/** Toggle mute. Returns the new muted state. */
+export function toggleMute(): boolean {
+  return setMuted(!muted);
+}
+
 function playBuffer(
   buffer: AudioBuffer,
   gainValue = 0.85,
   rateJitter = 0.16,
   playbackRate?: number,
 ): void {
+  if (muted) return;
   const ac = getCtx();
   if (!ac) return;
   const src = ac.createBufferSource();
@@ -197,7 +217,7 @@ export function startStageBgm(): void {
     const gain = ac.createGain();
     src.buffer = buffer;
     src.loop = true;
-    gain.gain.value = STAGE_BGM_GAIN;
+    gain.gain.value = muted ? 0 : STAGE_BGM_GAIN;
     src.connect(gain);
     gain.connect(ac.destination);
     src.start(0);

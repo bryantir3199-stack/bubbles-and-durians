@@ -49,7 +49,9 @@
       .ui-root .menu-option,
       .ui-root .tab,
       .ui-root .name-field,
-      .ui-root .title-splash {
+      .ui-root .title-splash,
+      .ui-root .hud-ammo,
+      .ui-root .hud-ctrl {
         pointer-events: auto;
       }
 
@@ -286,6 +288,75 @@
 
       /* Cartoon HUD dock — Drive panel assets */
       .hud { position: absolute; inset: 0; pointer-events: none; }
+
+      /* Top-left pause / mute */
+      .hud-controls {
+        position: absolute;
+        top: max(10px, env(safe-area-inset-top, 0px));
+        left: max(10px, env(safe-area-inset-left, 0px));
+        display: flex;
+        gap: 8px;
+        z-index: 20;
+        pointer-events: none;
+      }
+      .hud-ctrl {
+        width: clamp(40px, 7vw, 48px);
+        height: clamp(40px, 7vw, 48px);
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border: 3px solid #fff;
+        border-radius: 12px;
+        background: rgba(18, 28, 42, 0.78);
+        color: #fff;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+        pointer-events: auto;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: transform 0.12s ease, background 0.12s ease;
+      }
+      .hud-ctrl:hover,
+      .hud-ctrl:focus-visible {
+        background: rgba(32, 52, 78, 0.92);
+        outline: none;
+      }
+      .hud-ctrl:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+      }
+      .hud-ctrl svg {
+        width: 54%;
+        height: 54%;
+        fill: currentColor;
+        display: block;
+        pointer-events: none;
+      }
+      .hud-ctrl.is-muted {
+        color: #ffb4b4;
+      }
+      .hud-pause-banner {
+        position: absolute;
+        left: 50%;
+        top: 42%;
+        transform: translate(-50%, -50%);
+        z-index: 18;
+        font: 800 clamp(36px, 8vw, 64px)/1 'Baloo 2', 'Fredoka', sans-serif;
+        letter-spacing: 0.12em;
+        color: #fff;
+        -webkit-text-stroke: 4px #1a1018;
+        paint-order: stroke fill;
+        text-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+        pointer-events: none;
+        user-select: none;
+        animation: pausePulse 1.4s ease-in-out infinite;
+      }
+      .hud-pause-banner[hidden] { display: none !important; }
+      @keyframes pausePulse {
+        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        50% { transform: translate(-50%, -50%) scale(1.04); opacity: 0.85; }
+      }
+
       .hud-dock {
         position: absolute;
         left: 0;
@@ -464,7 +535,7 @@
         100% { transform: rotate(-6deg) scale(1); }
       }
 
-      /* AMMO — centered */
+      /* AMMO — centered; tap/click to reload */
       .hud-ammo {
         width: min(390px, 42vw);
         height: clamp(52px, 7.1vw, 90px);
@@ -473,6 +544,19 @@
         display: block;
         overflow: hidden;
         box-sizing: border-box;
+        pointer-events: auto;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: transform 0.12s ease, filter 0.12s ease;
+      }
+      .hud-ammo:hover,
+      .hud-ammo:focus-visible {
+        filter: brightness(1.06);
+        outline: none;
+      }
+      .hud-ammo:active {
+        transform: scale(0.985);
       }
       .hud-ammo-icons {
         position: absolute;
@@ -823,6 +907,8 @@
         .hud-combo-text { font-size: 10px; }
         .hud-tooth { width: 20px; height: 20px; }
         .hud-heart { width: 20px; height: 20px; }
+        .hud-controls { top: 8px; left: 8px; gap: 6px; }
+        .hud-ctrl { width: 38px; height: 38px; border-radius: 10px; border-width: 2px; }
       }
     </style>
   </head>
