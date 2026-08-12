@@ -196,10 +196,10 @@ export class Target {
       meshes.push(obj);
     });
 
-    // Two thin shells: bright rim + softer outer glow, both tight to the mesh.
+    // Two shells: bright rim + softer outer glow (thicker / +50% opacity).
     const shells: Array<{ scale: number; opacity: number; color: number }> = [
-      { scale: 1.045, opacity: 1, color: 0xff9a2a },
-      { scale: 1.09, opacity: 0.55, color: 0xff6a12 },
+      { scale: 1.068, opacity: 1, color: 0xff9a2a },
+      { scale: 1.135, opacity: 0.825, color: 0xff6a12 },
     ];
     for (const obj of meshes) {
       for (const shell of shells) {
@@ -219,11 +219,11 @@ export class Target {
       }
     }
 
-    // Heart sprite — thin orange silhouette rim behind the icon.
+    // Heart sprite — orange silhouette rim behind the icon.
     if (this.kind === 'heart' && this.spriteMat) {
       for (const shell of [
-        { scale: 1.08, opacity: 0.95 },
-        { scale: 1.16, opacity: 0.45 },
+        { scale: 1.12, opacity: 1 },
+        { scale: 1.24, opacity: 0.675 },
       ]) {
         const backMat = this.spriteMat.clone();
         backMat.color.setHex(0xff7a18);
