@@ -340,7 +340,7 @@ export class PlayScene implements GameScene {
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
       if (this.mode === 'endless') this.changeLives(-1);
     } else if (kind === 'heart') {
-      this.resetCombo();
+      // Hearts grant a life without breaking the combo streak.
       this.changeLives(1);
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
     }
