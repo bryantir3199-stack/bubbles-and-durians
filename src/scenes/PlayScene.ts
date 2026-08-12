@@ -7,6 +7,7 @@ import { createPathDebugGroup, wantsCloseOnly, wantsDomeOnly, wantsPathDebug } f
 import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
+import { hasSeenFirstRunCue, markFirstRunCueSeen } from '../services/preferences';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
 import {
@@ -76,6 +77,11 @@ export class PlayScene implements GameScene {
     this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
+
+    if (!hasSeenFirstRunCue()) {
+      markFirstRunCueSeen();
+      this.hud.showFirstRunCue();
+    }
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
 

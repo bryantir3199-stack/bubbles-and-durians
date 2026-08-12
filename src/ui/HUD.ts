@@ -185,6 +185,20 @@ export class HUD {
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }
 
+  /** ~3s first-run tip: shoot green, skip bubbles, reload. */
+  showFirstRunCue(): void {
+    const el = document.createElement('div');
+    el.className = 'hud-announce hud-first-run-cue';
+    el.setAttribute('aria-live', 'polite');
+    el.innerHTML = `
+      <span class="hud-cue-line">SHOOT GREEN</span>
+      <span class="hud-cue-line">SKIP BUBBLES</span>
+      <span class="hud-cue-line">RELOAD</span>
+    `;
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
   /** Center pop for each whole second in the final 10. */
   private showCountdownBeat(sec: number): void {
     playCountdownTickSound();
