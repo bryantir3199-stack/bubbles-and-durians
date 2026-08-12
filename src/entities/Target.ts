@@ -218,10 +218,15 @@ export class Target {
     this.root.add(halo);
 
     // Mesh outline (BackSide) for a clear border around the model.
+    // Collect first — adding children during traverse would recurse forever.
+    const meshes: THREE.Mesh[] = [];
     this.visual.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh) || !obj.geometry) return;
       // Skip invisible hit proxies if any got parented under visual.
       if (obj.material instanceof THREE.MeshBasicMaterial && !obj.material.visible) return;
+      meshes.push(obj);
+    });
+    for (const obj of meshes) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0xff6a12,
         side: THREE.BackSide,
@@ -234,7 +239,7 @@ export class Target {
       outline.scale.setScalar(1.16);
       outline.renderOrder = (obj.renderOrder || 0) - 1;
       obj.add(outline);
-    });
+    }
 
     // Heart is a sprite — add a larger orange tinted copy behind it.
     if (this.kind === 'heart' && this.spriteMat) {
