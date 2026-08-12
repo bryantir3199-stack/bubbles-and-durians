@@ -5,6 +5,17 @@ import { playCountdownTickSound } from '../audio/sfx';
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
 const HEART_IMG = `<img class="hud-heart-icon" src="/assets/hud/heart.png" alt="" draggable="false" />`;
 
+const PAUSE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>`;
+const PLAY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>`;
+const SPEAKER_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l6-4v14l-6-4H4z"/><path d="M16.5 8.5c1.4 1.2 2.2 2.8 2.2 4.5s-.8 3.3-2.2 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.8 6c2.1 1.8 3.4 4.2 3.4 7s-1.3 5.2-3.4 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+const MUTE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l6-4v14l-6-4H4z"/><path d="M17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+export type HUDCallbacks = {
+  onReload: () => void;
+  onPauseToggle: () => void;
+  onMuteToggle: () => void;
+};
+
 export class HUD {
   private root: HTMLElement;
   private scoreEl: HTMLElement;
@@ -18,11 +29,15 @@ export class HUD {
   private timerSecEl: HTMLElement | null = null;
   private timerMsEl: HTMLElement | null = null;
   private reloadHint: HTMLElement;
+  private pauseBtn: HTMLButtonElement;
+  private muteBtn: HTMLButtonElement;
+  private pauseBanner: HTMLElement;
   private lastComboLevel = 1;
   private thirtyBannerShown = false;
   private lastCountdownSec = -1;
+  private paused = false;
 
-  constructor(parent: HTMLElement, mode: GameMode, _onReload: () => void) {
+  constructor(parent: HTMLElement, mode: GameMode, callbacks: HUDCallbacks) {
     this.root = document.createElement('div');
     this.root.className = 'hud';
 
@@ -48,6 +63,11 @@ export class HUD {
       </div>`;
 
     this.root.innerHTML = `
+      <div class="hud-controls">
+        <button type="button" class="hud-ctrl hud-pause-btn" aria-label="Pause" title="Pause">${PAUSE_ICON}</button>
+        <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
+      </div>
+      <div class="hud-pause-banner" hidden>PAUSED</div>
       <div class="hud-dock">
         <div class="hud-left">
           <div class="hud-combo" aria-label="Combo" hidden>
@@ -60,7 +80,7 @@ export class HUD {
         </div>
 
         <div class="hud-center">
-          <div class="hud-panel hud-ammo" aria-label="Ammo">
+          <div class="hud-panel hud-ammo" role="button" tabindex="0" aria-label="Ammo — tap to reload" title="Tap to reload">
             <span class="hud-panel-label hud-ammo-label">AMMO</span>
             <div class="hud-ammo-icons">${teeth}</div>
           </div>
@@ -70,7 +90,7 @@ export class HUD {
           ${rightPanel}
         </div>
       </div>
-      <div class="hud-reload-hint" hidden>RELOAD! (R / Space)</div>
+      <div class="hud-reload-hint" hidden>RELOAD! (tap ammo / R)</div>
       <div class="crosshair" aria-hidden="true"></div>
     `;
     parent.appendChild(this.root);
@@ -86,6 +106,28 @@ export class HUD {
     this.timerSecEl = this.root.querySelector('.hud-time-sec');
     this.timerMsEl = this.root.querySelector('.hud-time-ms');
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
+    this.pauseBtn = this.root.querySelector('.hud-pause-btn')!;
+    this.muteBtn = this.root.querySelector('.hud-mute-btn')!;
+    this.pauseBanner = this.root.querySelector('.hud-pause-banner')!;
+
+    const bindCtrl = (el: HTMLElement, fn: () => void) => {
+      el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fn();
+      });
+    };
+
+    bindCtrl(this.ammoPanel, () => callbacks.onReload());
+    this.ammoPanel.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        callbacks.onReload();
+      }
+    });
+    bindCtrl(this.pauseBtn, () => callbacks.onPauseToggle());
+    bindCtrl(this.muteBtn, () => callbacks.onMuteToggle());
 
     if (mode === 'timed') {
       this.setTimer(gameConfig.timedSeconds);
@@ -154,7 +196,25 @@ export class HUD {
     // Keep ammo panel visually stable — no layout-shifting empty/warn styles
     this.ammoPanel.classList.remove('empty', 'warn');
     // Center hint only when dry (not while refill animation is running)
-    this.reloadHint.hidden = reloading || current !== 0;
+    this.reloadHint.hidden = this.paused || reloading || current !== 0;
+  }
+
+  setPaused(paused: boolean): void {
+    this.paused = paused;
+    this.pauseBanner.hidden = !paused;
+    this.root.classList.toggle('is-paused', paused);
+    this.pauseBtn.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+    this.pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
+    this.pauseBtn.title = paused ? 'Resume' : 'Pause';
+    if (paused) this.reloadHint.hidden = true;
+  }
+
+  setMuted(muted: boolean): void {
+    this.muteBtn.innerHTML = muted ? MUTE_ICON : SPEAKER_ICON;
+    this.muteBtn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+    this.muteBtn.title = muted ? 'Unmute' : 'Mute';
+    this.muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    this.muteBtn.classList.toggle('is-muted', muted);
   }
 
   setTimer(secondsLeft: number): void {

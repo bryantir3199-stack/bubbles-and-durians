@@ -10,6 +10,7 @@ import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { clearUI } from '../ui/dom';
 import {
+  isMuted,
   playDryFireSound,
   playGlitterSound,
   playPopSound,
@@ -17,6 +18,7 @@ import {
   playSquishSound,
   startStageBgm,
   stopStageBgm,
+  toggleMute,
 } from '../audio/sfx';
 
 export class PlayScene implements GameScene {
@@ -28,6 +30,7 @@ export class PlayScene implements GameScene {
   private lives: number = gameConfig.startLives;
   private timeLeft: number = gameConfig.timedSeconds;
   private ended = false;
+  private paused = false;
   private spawner: Spawner | null = null;
   private ammo: AmmoSystem | null = null;
   private hud: HUD | null = null;
@@ -55,6 +58,7 @@ export class PlayScene implements GameScene {
     this.lives = gameConfig.startLives;
     this.timeLeft = gameConfig.timedSeconds;
     this.ended = false;
+    this.paused = false;
     this.escapesArmed = false;
     window.setTimeout(() => {
       this.escapesArmed = true;
@@ -71,11 +75,17 @@ export class PlayScene implements GameScene {
       domeOnly: wantsDomeOnly(),
       closeOnly: wantsCloseOnly(),
     });
-    this.hud = new HUD(this.ctx.uiRoot, this.mode, () => this.onReload());
+    this.hud = new HUD(this.ctx.uiRoot, this.mode, {
+      onReload: () => this.onReload(),
+      onPauseToggle: () => this.togglePause(),
+      onMuteToggle: () => this.onMuteToggle(),
+    });
     this.hud.setScore(this.score);
     this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
     this.hud.setAmmo(this.ammo.current, this.ammo.max, false);
+    this.hud.setMuted(isMuted());
+    this.hud.setPaused(false);
 
     this.unsubs.push(this.ammo.onChange((c, m, r) => this.hud?.setAmmo(c, m, r)));
 
@@ -100,12 +110,18 @@ export class PlayScene implements GameScene {
       this.hud?.setPointer(e.clientX, e.clientY);
     };
     const onDown = (e: PointerEvent) => {
-      if (this.ended) return;
+      if (this.ended || this.paused) return;
       // Ignore taps on the bottom cartoon HUD dock
       if (e.clientY > window.innerHeight - 100) return;
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.togglePause();
+        return;
+      }
+      if (this.paused) return;
       if (e.key === 'r' || e.key === 'R' || e.code === 'Space') {
         if (e.code === 'Space') e.preventDefault();
         this.onReload();
@@ -125,7 +141,7 @@ export class PlayScene implements GameScene {
   }
 
   update(dt: number): void {
-    if (this.ended) return;
+    if (this.ended || this.paused) return;
 
     if (this.mode === 'timed') {
       this.timeLeft -= dt;
@@ -201,11 +217,23 @@ export class PlayScene implements GameScene {
   }
 
   private onReload(): void {
-    if (this.ended) return;
+    if (this.ended || this.paused) return;
     this.ammo?.tryReload();
   }
 
+  private togglePause(): void {
+    if (this.ended) return;
+    this.paused = !this.paused;
+    this.hud?.setPaused(this.paused);
+  }
+
+  private onMuteToggle(): void {
+    const muted = toggleMute();
+    this.hud?.setMuted(muted);
+  }
+
   private handleShot(clientX: number, clientY: number): void {
+    if (this.paused || this.ended) return;
     if (!this.ammo || !this.spawner || !this.hud) return;
 
     if (!this.ammo.canShoot()) {
