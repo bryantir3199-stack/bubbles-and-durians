@@ -288,11 +288,11 @@
 
       /* Cartoon HUD dock — Drive panel assets */
       .hud { position: absolute; inset: 0; pointer-events: none; }
-      /* Frenzy vignette — thick yellow→alpha edge fade (reference-style frame) */
+      /* Frenzy vignette — behind HUD chrome (dock, meter, controls, announces). */
       .hud-frenzy-border {
         position: absolute;
         inset: 0;
-        z-index: 21;
+        z-index: 1;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.3s ease;
