@@ -27,9 +27,9 @@ npm run preview  # preview production build
 
 | Target | Hits | Score | Notes |
 |--------|------|-------|-------|
-| Durian | 1 | +1 | Endless: escape = −1 life |
-| Gold durian | 4 | +3 | Endless: escape = −1 life |
-| Bubble | 1 | −10 | Endless: also −1 life when shot |
+| Durian | 1 | +100 | Endless: escape = −1 life |
+| Gold durian | 4 | +700 | Endless: escape = −1 life |
+| Bubble | 1 | −1000 | Endless: also −1 life when shot |
 | Heart | 1 | — | Endless only; +1 life (max 5) |
 
 **Endless** — 3 starting lives; game ends at 0 lives.  

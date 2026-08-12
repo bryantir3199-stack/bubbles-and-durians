@@ -51,9 +51,9 @@ export const gameConfig = {
   heartSize: 16,
   goldSize: 24,
   points: {
-    durian: 1,
-    goldDurian: 7,
-    bubble: -10,
+    durian: 100,
+    goldDurian: 700,
+    bubble: -1000,
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x). */
   maxCombo: 4,
