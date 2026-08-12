@@ -354,6 +354,8 @@ export class PlayScene implements GameScene {
       this.resetCombo();
     }
     if (this.mode !== 'endless' || !this.escapesArmed) return;
+    // Frenzy: escaped / unshot targets do not cost a life.
+    if (this.frenzyActive) return;
     if (this.isDurianKind(target.kind)) {
       this.changeLives(-1);
       this.hud?.spawnFloater(window.innerWidth / 2, 120, 'ESCAPED!', '#ff4444');
