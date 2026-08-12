@@ -180,7 +180,7 @@ export class Target {
   }
 
   /**
-   * Orange edge glow hugging the model silhouette (tight BackSide shells —
+   * Blue edge glow hugging the model silhouette (tight BackSide shells —
    * not a detached halo).
    */
   private attachFrenzyGlow(): void {
@@ -198,8 +198,8 @@ export class Target {
 
     // Two shells: bright rim + softer outer glow (thicker / +50% opacity).
     const shells: Array<{ scale: number; opacity: number; color: number }> = [
-      { scale: 1.068, opacity: 1, color: 0xff9a2a },
-      { scale: 1.135, opacity: 0.825, color: 0xff6a12 },
+      { scale: 1.068, opacity: 1, color: 0x5ec8ff },
+      { scale: 1.135, opacity: 0.825, color: 0x2a8cff },
     ];
     for (const obj of meshes) {
       for (const shell of shells) {
@@ -219,14 +219,14 @@ export class Target {
       }
     }
 
-    // Heart sprite — orange silhouette rim behind the icon.
+    // Heart sprite — blue silhouette rim behind the icon.
     if (this.kind === 'heart' && this.spriteMat) {
       for (const shell of [
         { scale: 1.12, opacity: 1 },
         { scale: 1.24, opacity: 0.675 },
       ]) {
         const backMat = this.spriteMat.clone();
-        backMat.color.setHex(0xff7a18);
+        backMat.color.setHex(0x3aa8ff);
         backMat.opacity = shell.opacity;
         backMat.depthWrite = false;
         backMat.blending = THREE.AdditiveBlending;
