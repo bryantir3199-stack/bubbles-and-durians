@@ -143,7 +143,7 @@ export class HUD {
   }
 
   setScore(score: number): void {
-    this.scoreEl.textContent = String(score);
+    this.scoreEl.textContent = Math.floor(score).toLocaleString('en-US');
   }
 
   setCombo(multiplier: number, progressShots = 0): void {
