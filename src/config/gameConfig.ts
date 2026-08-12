@@ -22,6 +22,14 @@ export const gameConfig = {
    */
   earlyGameGraceMs: 30_000,
   /**
+   * Endless mode: linear spawn-rate growth over elapsed play time.
+   * +0.05 per minute → ~+5%/min (2× at ~20 min before the soft cap).
+   * Stacks with Frenzy (Frenzy multiplies on top of this).
+   */
+  endlessSpawnRatePerMinute: 0.05,
+  /** Endless mode: soft cap on the time-based rate multiplier (before Frenzy). */
+  endlessSpawnRateMaxMult: 2.5,
+  /**
    * Endless mode: points earned toward filling the frenzy meter.
    * When full, a frenzy triggers and the meter resets to 0.
    */

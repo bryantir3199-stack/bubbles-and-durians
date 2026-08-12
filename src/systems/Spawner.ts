@@ -85,7 +85,8 @@ export class Spawner {
   }
 
   /**
-   * Endless only: set spawn-rate multiplier (1 = original, 3.5 = frenzy).
+   * Endless only: set spawn-rate multiplier (1 = normal, 3.5 = frenzy).
+   * Applied on top of the slow linear time-based ramp.
    * Raising the rate shortens any pending next-spawn wait immediately.
    */
   setEndlessRateMult(mult: number): void {
@@ -138,6 +139,15 @@ export class Spawner {
       this.logSpawnRateLabel(this.rateLabel(timeLeftSeconds));
     }
 
+    // Endless linear ramp: keep the pending wait aligned with the rising rate.
+    if (this.mode === 'endless') {
+      const current = this.computeInterval();
+      if (this.nextAt - this.elapsed > current) {
+        this.nextAt = this.elapsed + current;
+      }
+      this.logSpawnRateLabel(this.rateLabel());
+    }
+
     if (this.elapsed >= this.nextAt) {
       this.trySpawn();
       const interval = this.computeInterval(timeLeftSeconds);
@@ -166,6 +176,17 @@ export class Spawner {
   }
 
   /**
+   * Endless: slow linear spawn-rate growth from elapsed play time.
+   * Starts at 1× and climbs by `endlessSpawnRatePerMinute` each minute,
+   * capped at `endlessSpawnRateMaxMult` (Frenzy multiplies on top separately).
+   */
+  private endlessTimeRateMult(): number {
+    const perMs = gameConfig.endlessSpawnRatePerMinute / 60_000;
+    const raw = 1 + this.elapsed * perMs;
+    return Math.min(gameConfig.endlessSpawnRateMaxMult, raw);
+  }
+
+  /**
    * Effective spawn interval after mode-specific rate modifiers.
    * Higher spawn rate → shorter interval.
    */
@@ -181,7 +202,7 @@ export class Spawner {
         rateMult *= gameConfig.timedFinalSpawnRateMult;
       }
     } else {
-      rateMult *= this.endlessRateMult;
+      rateMult *= this.endlessTimeRateMult() * this.endlessRateMult;
     }
 
     return interval / rateMult;
@@ -190,9 +211,12 @@ export class Spawner {
   /** Human-readable spawn-rate label for DEV logs. */
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
-      if (this.endlessRateMult === gameConfig.frenzySpawnRateMult) return 'frenzy';
-      if (this.endlessRateMult === 1) return 'original';
-      return `${this.endlessRateMult}x`;
+      const timeMult = this.endlessTimeRateMult();
+      const timeLabel =
+        timeMult <= 1.001 ? '1x' : `${timeMult.toFixed(2)}x`;
+      if (this.frenzyActive) return `frenzy@${timeLabel}`;
+      if (timeMult <= 1.001) return 'original';
+      return timeLabel;
     }
     if (
       timeLeftSeconds !== undefined &&
