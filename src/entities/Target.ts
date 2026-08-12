@@ -50,7 +50,7 @@ export class Target {
   readonly pattern: SpawnPattern;
   readonly windowId: string | null;
   /**
-   * Spawned during endless Frenzy — orange glow, and escaping never costs a life
+   * Spawned during endless Frenzy — blue glow, and escaping never costs a life
    * (even after Frenzy ends).
    */
   readonly frenzySpawned: boolean;
