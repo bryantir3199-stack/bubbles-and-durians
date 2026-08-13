@@ -15,18 +15,18 @@ type TreeSpot = { x: number; z: number; h: number; rot: number };
 
 /** Five tufts near the keep lawn: 2 left, 3 right. */
 const GRASS_SPOTS: GrassSpot[] = [
-  { x: -102, z: 108, h: 22, flip: false },
-  { x: -168, z: 128, h: 24, flip: true },
-  { x: 92, z: 102, h: 21, flip: true },
-  { x: 158, z: 122, h: 23, flip: false },
-  { x: 118, z: 148, h: 20, flip: true },
+  { x: -115, z: 92, h: 22, flip: false },
+  { x: -175, z: 112, h: 24, flip: true },
+  { x: 108, z: 90, h: 21, flip: true },
+  { x: 170, z: 108, h: 23, flip: false },
+  { x: 130, z: 128, h: 20, flip: true },
 ];
 
 /** Three background trees: two smaller (left, different scales), one large (right). */
 const TREE_SPOTS: TreeSpot[] = [
-  { x: -318, z: -72, h: 58, rot: 0.4 },
-  { x: -228, z: -118, h: 74, rot: 1.25 },
-  { x: 305, z: -95, h: 122, rot: -0.5 },
+  { x: -355, z: -35, h: 52, rot: 0.4 },
+  { x: -250, z: -12, h: 72, rot: 1.2 },
+  { x: 340, z: -28, h: 135, rot: -0.48 },
 ];
 
 /**
