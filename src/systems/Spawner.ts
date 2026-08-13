@@ -45,6 +45,11 @@ export class Spawner {
   private endlessRateMult = 1;
   /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
   private frenzyActive = false;
+  /**
+   * Endless: elapsed ms that count toward the linear spawn-rate ramp.
+   * Does not advance during Frenzy so the climb pauses until it ends.
+   */
+  private rampElapsed = 0;
   /** Last logged rate label — used to avoid spam in DEV. */
   private lastLoggedLabel = '';
 
@@ -61,6 +66,7 @@ export class Spawner {
   start(): void {
     this.running = true;
     this.elapsed = 0;
+    this.rampElapsed = 0;
     // Match current cadence (~12% faster than prior 2150 / 1380 stagger).
     this.nextAt = 1920;
     this.endlessRateMult = 1;
@@ -85,7 +91,8 @@ export class Spawner {
   }
 
   /**
-   * Endless only: set spawn-rate multiplier (1 = original, 3.5 = frenzy).
+   * Endless only: set spawn-rate multiplier (1 = normal, 3.5 = frenzy).
+   * Applied on top of the slow linear time-based ramp.
    * Raising the rate shortens any pending next-spawn wait immediately.
    */
   setEndlessRateMult(mult: number): void {
@@ -117,7 +124,12 @@ export class Spawner {
    */
   update(dt: number, timeLeftSeconds?: number): void {
     if (!this.running) return;
-    this.elapsed += dt * 1000;
+    const dtMs = dt * 1000;
+    this.elapsed += dtMs;
+    // Linear ramp pauses during Frenzy — only non-Frenzy time climbs the rate.
+    if (this.mode === 'endless' && !this.frenzyActive) {
+      this.rampElapsed += dtMs;
+    }
 
     for (const t of this.targets) t.update(dt);
     for (let i = this.targets.length - 1; i >= 0; i--) {
@@ -136,6 +148,16 @@ export class Spawner {
         this.nextAt = this.elapsed + boosted;
       }
       this.logSpawnRateLabel(this.rateLabel(timeLeftSeconds));
+    }
+
+    // Endless linear ramp: keep the pending wait aligned with the rising rate
+    // (only while not in Frenzy — ramp is frozen then).
+    if (this.mode === 'endless' && !this.frenzyActive) {
+      const current = this.computeInterval();
+      if (this.nextAt - this.elapsed > current) {
+        this.nextAt = this.elapsed + current;
+      }
+      this.logSpawnRateLabel(this.rateLabel());
     }
 
     if (this.elapsed >= this.nextAt) {
@@ -166,6 +188,17 @@ export class Spawner {
   }
 
   /**
+   * Endless: linear spawn-rate growth from non-Frenzy play time.
+   * Starts at 1× and climbs by `endlessSpawnRatePerMinute` each minute,
+   * capped at `endlessSpawnRateMaxMult` (Frenzy multiplies on top separately).
+   */
+  private endlessTimeRateMult(): number {
+    const perMs = gameConfig.endlessSpawnRatePerMinute / 60_000;
+    const raw = 1 + this.rampElapsed * perMs;
+    return Math.min(gameConfig.endlessSpawnRateMaxMult, raw);
+  }
+
+  /**
    * Effective spawn interval after mode-specific rate modifiers.
    * Higher spawn rate → shorter interval.
    */
@@ -181,7 +214,7 @@ export class Spawner {
         rateMult *= gameConfig.timedFinalSpawnRateMult;
       }
     } else {
-      rateMult *= this.endlessRateMult;
+      rateMult *= this.endlessTimeRateMult() * this.endlessRateMult;
     }
 
     return interval / rateMult;
@@ -190,9 +223,12 @@ export class Spawner {
   /** Human-readable spawn-rate label for DEV logs. */
   private rateLabel(timeLeftSeconds?: number): string {
     if (this.mode === 'endless') {
-      if (this.endlessRateMult === gameConfig.frenzySpawnRateMult) return 'frenzy';
-      if (this.endlessRateMult === 1) return 'original';
-      return `${this.endlessRateMult}x`;
+      const timeMult = this.endlessTimeRateMult();
+      const timeLabel =
+        timeMult <= 1.001 ? '1x' : `${timeMult.toFixed(2)}x`;
+      if (this.frenzyActive) return `frenzy@${timeLabel}`;
+      if (timeMult <= 1.001) return 'original';
+      return timeLabel;
     }
     if (
       timeLeftSeconds !== undefined &&
