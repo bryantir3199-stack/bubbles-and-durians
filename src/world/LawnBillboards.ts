@@ -13,6 +13,9 @@ const FRENZY_TINT = new THREE.Color(0xff9a48);
 const TREE_YAW = Math.PI / 4;
 const RIGHT_TREE_H = 138;
 
+/** World +Z lean = left/right on the play camera (looks down −Z). */
+const WORLD_Z = new THREE.Vector3(0, 0, 1);
+
 type GrassSpot = { x: number; z: number; h: number; flip: boolean };
 type TreeSpot = { x: number; z: number; h: number; rot: number };
 
@@ -21,9 +24,15 @@ type Breather = {
   baseX: number;
   baseY: number;
   baseZ: number;
+  /** Tree yaw, or 0 when the object re-faces the camera each frame. */
+  baseYaw: number;
+  billboard: boolean;
   phase: number;
   speed: number;
   amp: number;
+  swayPhase: number;
+  swaySpeed: number;
+  swayAmp: number;
 };
 
 /** Five tufts around the trees: 2 left cluster, 3 right cluster. */
@@ -83,7 +92,11 @@ export class LawnBillboards {
     if (this.grassMat) this.grassMat.color.copy(this.tmpTint);
   }
 
-  /** Out-of-phase vertical squash / stretch (pivot at the planted base). */
+  /**
+   * Out-of-phase vertical squash / stretch plus a side-to-side lean
+   * (both pivot at the planted base). Sway uses its own phase so it
+   * does not lock to the squash.
+   */
   update(dt: number): void {
     this.breathTime += dt;
     const t = this.breathTime;
@@ -91,6 +104,14 @@ export class LawnBillboards {
       const stretch = 1 + Math.sin(t * b.speed + b.phase) * b.amp;
       const squash = 1 / Math.sqrt(stretch);
       b.obj.scale.set(b.baseX * squash, b.baseY * stretch, b.baseZ * squash);
+
+      const sway = Math.sin(t * b.swaySpeed + b.swayPhase) * b.swayAmp;
+      if (b.billboard) {
+        b.obj.lookAt(CAM_X, b.obj.position.y, CAM_Z);
+      } else {
+        b.obj.rotation.set(0, b.baseYaw, 0);
+      }
+      b.obj.rotateOnWorldAxis(WORLD_Z, sway);
     }
   }
 
@@ -157,14 +178,20 @@ export class LawnBillboards {
       mesh.frustumCulled = true;
       mesh.customDepthMaterial = grassDepthMat;
       this.grassGroup.add(mesh);
+      const phase = (i / GRASS_SPOTS.length) * Math.PI * 2 + 0.7;
       this.breathers.push({
         obj: mesh,
         baseX: mesh.scale.x,
         baseY: mesh.scale.y,
         baseZ: mesh.scale.z,
-        phase: (i / GRASS_SPOTS.length) * Math.PI * 2 + 0.7,
+        baseYaw: 0,
+        billboard: true,
+        phase,
         speed: 1.55 + i * 0.22,
         amp: 0.08,
+        swayPhase: phase + 1.15,
+        swaySpeed: 1.25 + i * 0.18,
+        swayAmp: 0.14,
       });
     });
   }
@@ -216,14 +243,20 @@ export class LawnBillboards {
       inst.position.set(spot.x, 0, spot.z);
       inst.rotation.y = spot.rot;
       this.group.add(inst);
+      const phase = (i / TREE_SPOTS.length) * Math.PI * 2 + 1.9;
       this.breathers.push({
         obj: inst,
         baseX: s,
         baseY: s,
         baseZ: s,
-        phase: (i / TREE_SPOTS.length) * Math.PI * 2 + 1.9,
+        baseYaw: spot.rot,
+        billboard: false,
+        phase,
         speed: 1.05 + i * 0.18,
         amp: 0.055,
+        swayPhase: phase + 0.85,
+        swaySpeed: 0.82 + i * 0.14,
+        swayAmp: 0.07,
       });
     });
   }
