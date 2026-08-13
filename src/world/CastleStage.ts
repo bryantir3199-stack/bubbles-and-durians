@@ -35,7 +35,7 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Loads castle.glb, wires door pivots, sky image background,
- * shadow-casting sun, cartoon lawn billboards, and JS wind on the baked banners.
+ * shadow-casting sun, lawn grass/trees, and JS wind on the baked banners.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
