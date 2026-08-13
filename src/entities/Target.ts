@@ -67,7 +67,7 @@ export class Target {
   private onEscape: ((t: Target) => void) | null = null;
   private onFreeSlot: (() => void) | null = null;
   private visual: THREE.Object3D;
-  private heartMat: THREE.MeshStandardMaterial | null = null;
+  private heartMat: THREE.MeshBasicMaterial | null = null;
   private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
@@ -152,7 +152,7 @@ export class Target {
       this.root.add(this.visual);
     } else {
       const mesh = ModelCache.createHeart();
-      this.heartMat = mesh.material as THREE.MeshStandardMaterial;
+      this.heartMat = mesh.material as THREE.MeshBasicMaterial;
       this.visual = mesh;
       this.root.add(mesh);
     }

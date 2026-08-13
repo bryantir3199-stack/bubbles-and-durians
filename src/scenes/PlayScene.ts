@@ -86,6 +86,7 @@ export class PlayScene implements GameScene {
     this.spawner = new Spawner(this.ctx.three.scene, this.mode, (t) => this.onTargetEscaped(t), {
       domeOnly: wantsDomeOnly(),
       closeOnly: wantsCloseOnly(),
+      getLives: () => this.lives,
     });
     this.hud = new HUD(this.ctx.uiRoot, this.mode, {
       onReload: () => this.onReload(),
