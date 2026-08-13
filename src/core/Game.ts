@@ -11,6 +11,7 @@ import { PlayScene } from '../scenes/PlayScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
 import { getCastleStage } from '../world/CastleStage';
+import { GRASS_AO_SKIP_LAYER } from '../world/LawnBillboards';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -54,6 +55,7 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(42, 1, 1, 2000);
     this.camera.position.set(0, 110, 635);
     this.camera.lookAt(0, 110, 40);
+    this.camera.layers.enable(GRASS_AO_SKIP_LAYER);
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -83,6 +85,13 @@ export class Game {
     this.saoPass.saoMaterial.needsUpdate = true;
     this.composer.addPass(this.saoPass);
     this.composer.addPass(new OutputPass());
+
+    const saoRender = this.saoPass.render.bind(this.saoPass);
+    this.saoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      this.camera.layers.disable(GRASS_AO_SKIP_LAYER);
+      saoRender(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+      this.camera.layers.enable(GRASS_AO_SKIP_LAYER);
+    };
 
     const gameRef = this;
     const makeCtx = (): SceneContext => ({

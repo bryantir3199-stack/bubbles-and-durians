@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+/** Grass cards skip SAO (layer 0) so the depth override cannot stamp a quad on the lawn. */
+export const GRASS_AO_SKIP_LAYER = 1;
 const GRASS_URL = 'assets/grass.png';
 const TREE_URL = 'assets/tree.glb';
 
@@ -24,9 +26,9 @@ const GRASS_SPOTS: GrassSpot[] = [
 
 /** Three background trees: two smaller (left, different scales), one large (right). */
 const TREE_SPOTS: TreeSpot[] = [
-  { x: -355, z: -35, h: 52, rot: 0.4 },
-  { x: -250, z: -12, h: 72, rot: 1.2 },
-  { x: 340, z: -28, h: 135, rot: -0.48 },
+  { x: -385, z: -48, h: 50, rot: 0.4 },
+  { x: -245, z: -18, h: 70, rot: 1.2 },
+  { x: 355, z: -40, h: 138, rot: -0.48 },
 ];
 
 /**
@@ -109,6 +111,7 @@ export class LawnBillboards {
       mesh.receiveShadow = false;
       mesh.frustumCulled = true;
       mesh.renderOrder = 2;
+      mesh.layers.set(GRASS_AO_SKIP_LAYER);
       this.group.add(mesh);
     }
   }
