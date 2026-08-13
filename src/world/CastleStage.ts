@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
+import { LawnBillboards } from './LawnBillboards';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -34,12 +35,13 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Loads castle.glb, wires door pivots, sky image background,
- * shadow-casting sun, and JS wind on the baked banners.
+ * shadow-casting sun, lawn grass/trees, and JS wind on the baked banners.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
   readonly doors = new DoorController();
   private readonly flags = new FlagWaver();
+  private readonly lawn = new LawnBillboards();
   private groundMat: THREE.MeshStandardMaterial | null = null;
   private ringMat: THREE.MeshStandardMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
@@ -72,6 +74,7 @@ export class CastleStage {
     const [gltf] = await Promise.all([
       new GLTFLoader().loadAsync(ASSET.glb),
       this.loadSkyBackground(),
+      this.lawn.load(this.root),
     ]);
     const castle = gltf.scene;
 
@@ -200,6 +203,12 @@ export class CastleStage {
     this.groundMat?.color.copy(this.tmpGrass);
     this.ringMat?.color.copy(this.tmpRing);
     if (this.hemiLight) this.hemiLight.groundColor.copy(this.tmpHemi);
+    this.lawn.setFrenzy(t);
+  }
+
+  /** Grass cards must not be in the SAO depth override (rectangular lawn stains). */
+  setGrassInSao(include: boolean): void {
+    this.lawn.setGrassInSao(include);
   }
 
   private buildEnvironment(): void {
@@ -242,11 +251,11 @@ export class CastleStage {
     sun.shadow.normalBias = 0.035;
     const cam = sun.shadow.camera;
     cam.near = 40;
-    cam.far = 900;
-    cam.left = -320;
-    cam.right = 320;
-    cam.top = 280;
-    cam.bottom = -120;
+    cam.far = 1000;
+    cam.left = -480;
+    cam.right = 480;
+    cam.top = 320;
+    cam.bottom = -160;
     cam.updateProjectionMatrix();
     this.root.add(sun);
     this.root.add(sun.target);
@@ -260,6 +269,7 @@ export class CastleStage {
   update(dt: number): void {
     this.doors.update(dt);
     this.flags.update(dt);
+    this.lawn.update(dt);
 
     if (this.frenzyLook !== this.frenzyLookTarget) {
       const step = dt / FRENZY_LOOK_FADE_SEC;
@@ -274,6 +284,7 @@ export class CastleStage {
 
   dispose(): void {
     if (stageInstance === this) stageInstance = null;
+    this.lawn.dispose();
     this.skyTexture?.dispose();
     this.skyTexture = null;
     this.scene.remove(this.root);

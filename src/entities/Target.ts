@@ -67,7 +67,7 @@ export class Target {
   private onEscape: ((t: Target) => void) | null = null;
   private onFreeSlot: (() => void) | null = null;
   private visual: THREE.Object3D;
-  private spriteMat: THREE.SpriteMaterial | null = null;
+  private heartMat: THREE.MeshStandardMaterial | null = null;
   private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
@@ -79,7 +79,7 @@ export class Target {
   private warned = false;
   private slotFreed = false;
   private frenzyGlowMats: Array<{
-    mat: THREE.MeshBasicMaterial | THREE.SpriteMaterial;
+    mat: THREE.Material & { opacity: number };
     baseOpacity: number;
   }> = [];
   private frenzyGlowPulse = 0;
@@ -151,19 +151,10 @@ export class Target {
       this.ownsGoldMaterials = true;
       this.root.add(this.visual);
     } else {
-      const map = ModelCache.getTexture('heart');
-      this.spriteMat = new THREE.SpriteMaterial({
-        map,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-        opacity: 1,
-      });
-      const sprite = new THREE.Sprite(this.spriteMat);
-      const size = gameConfig.heartSize;
-      sprite.scale.set(size, size, 1);
-      this.visual = sprite;
-      this.root.add(sprite);
+      const mesh = ModelCache.createHeart();
+      this.heartMat = mesh.material as THREE.MeshStandardMaterial;
+      this.visual = mesh;
+      this.root.add(mesh);
     }
 
     const proxy = ModelCache.createHitProxy();
@@ -177,6 +168,7 @@ export class Target {
     this.setupPath(spec);
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
+    if (kind === 'heart') this.visual.lookAt(0, this.root.position.y, 635);
   }
 
   /**
@@ -184,19 +176,39 @@ export class Target {
    * not a detached halo).
    */
   private attachFrenzyGlow(): void {
-    const size =
-      this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
+    // Heart cards use a mapped additive plane — BackSide shells would be a
+    // solid rectangle around the transparent quad.
+    if (this.kind === 'heart' && this.heartMat && this.visual instanceof THREE.Mesh) {
+      for (const shell of [
+        { scale: 1.12, opacity: 1 },
+        { scale: 1.24, opacity: 0.675 },
+      ]) {
+        const backMat = this.heartMat.clone();
+        backMat.color.setHex(0x3aa8ff);
+        backMat.opacity = shell.opacity;
+        backMat.depthWrite = false;
+        backMat.blending = THREE.AdditiveBlending;
+        backMat.transparent = true;
+        this.frenzyGlowMats.push({ mat: backMat, baseOpacity: shell.opacity });
+        const back = new THREE.Mesh(this.visual.geometry, backMat);
+        back.scale.setScalar(shell.scale);
+        back.position.z = -0.02;
+        back.castShadow = false;
+        back.receiveShadow = false;
+        back.userData.skipSao = true;
+        this.visual.add(back);
+      }
+      return;
+    }
 
     // Collect first — adding children during traverse would recurse forever.
     const meshes: THREE.Mesh[] = [];
     this.visual.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh) || !obj.geometry) return;
-      // Skip invisible hit proxies if any got parented under visual.
       if (obj.material instanceof THREE.MeshBasicMaterial && !obj.material.visible) return;
       meshes.push(obj);
     });
 
-    // Two shells: bright rim + softer outer glow (thicker / +50% opacity).
     const shells: Array<{ scale: number; opacity: number; color: number }> = [
       { scale: 1.068, opacity: 1, color: 0x5ec8ff },
       { scale: 1.135, opacity: 0.825, color: 0x2a8cff },
@@ -216,25 +228,6 @@ export class Target {
         outline.scale.setScalar(shell.scale);
         outline.renderOrder = (obj.renderOrder || 0) - 1;
         obj.add(outline);
-      }
-    }
-
-    // Heart sprite — blue silhouette rim behind the icon.
-    if (this.kind === 'heart' && this.spriteMat) {
-      for (const shell of [
-        { scale: 1.12, opacity: 1 },
-        { scale: 1.24, opacity: 0.675 },
-      ]) {
-        const backMat = this.spriteMat.clone();
-        backMat.color.setHex(0x3aa8ff);
-        backMat.opacity = shell.opacity;
-        backMat.depthWrite = false;
-        backMat.blending = THREE.AdditiveBlending;
-        this.frenzyGlowMats.push({ mat: backMat, baseOpacity: shell.opacity });
-        const back = new THREE.Sprite(backMat);
-        back.scale.set(size * shell.scale, size * shell.scale, 1);
-        back.position.z = -0.5;
-        this.root.add(back);
       }
     }
   }
@@ -449,10 +442,10 @@ export class Target {
         const h = this.knockHalfH;
         this.visual.position.set(0, h * (Math.cos(angle) - 1), h * Math.sin(angle));
         // Soft fade on the last third so the body clears cleanly.
-        if (this.spriteMat) this.spriteMat.opacity = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35;
+        if (this.heartMat) this.heartMat.opacity = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35;
       } else {
         this.root.scale.setScalar(this.startScale * (1 - 0.7 * t));
-        if (this.spriteMat) this.spriteMat.opacity = 1 - t;
+        if (this.heartMat) this.heartMat.opacity = 1 - t;
       }
       if (t >= 1) this.destroy();
       return;
@@ -510,6 +503,10 @@ export class Target {
     }
 
     this.root.scale.setScalar(pop);
+
+    if (this.kind === 'heart' && !this.knockDown) {
+      this.visual.lookAt(0, this.root.position.y, 635);
+    }
 
     // Path movers keep going until the route ends — don't cut them mid-path.
     // Close targets telegraph exit by sinking (no blink-out). Windows still blink.
@@ -589,7 +586,10 @@ export class Target {
       ModelCache.disposeGoldMaterials(this.visual);
       this.ownsGoldMaterials = false;
     }
+    if (this.visual instanceof THREE.Mesh && this.heartMat) {
+      ModelCache.disposeHeart(this.visual);
+      this.heartMat = null;
+    }
     this.root.parent?.remove(this.root);
-    this.spriteMat?.dispose();
   }
 }

@@ -48,6 +48,10 @@ export class ModelCache {
 
     heartMap.colorSpace = THREE.SRGBColorSpace;
     heartMap.anisotropy = 1;
+    heartMap.generateMipmaps = false;
+    heartMap.minFilter = THREE.LinearFilter;
+    heartMap.magFilter = THREE.LinearFilter;
+    heartMap.needsUpdate = true;
     this.textures.set('heart', heartMap);
 
     this.templates.set('bubble', this.normalizeTemplate(bubbleGltf.scene, gameConfig.targetSize));
@@ -113,6 +117,50 @@ export class ModelCache {
       }
     });
     for (const map of maps) map.dispose();
+  }
+
+  private static heartGeo: THREE.PlaneGeometry | null = null;
+  private static heartDepthMat: THREE.MeshDepthMaterial | null = null;
+  private static heartAspect = 1;
+
+  /** Lit, shadow-casting heart card. Caller must dispose the cloned material. */
+  static createHeart(): THREE.Mesh {
+    const map = this.getTexture('heart');
+    if (!this.heartGeo) {
+      this.heartGeo = new THREE.PlaneGeometry(1, 1);
+      this.heartDepthMat = new THREE.MeshDepthMaterial({
+        map,
+        alphaTest: 0.55,
+        depthPacking: THREE.RGBADepthPacking,
+      });
+      const img = map.image as { width: number; height: number };
+      this.heartAspect = img.width / Math.max(1, img.height);
+    }
+    const mat = new THREE.MeshStandardMaterial({
+      map,
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0.72,
+      transparent: true,
+      alphaTest: 0.55,
+      depthTest: true,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(this.heartGeo, mat);
+    const size = gameConfig.heartSize;
+    mesh.scale.set(size * this.heartAspect, size, 1);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = true;
+    mesh.customDepthMaterial = this.heartDepthMat!;
+    mesh.userData.skipSao = true;
+    return mesh;
+  }
+
+  static disposeHeart(mesh: THREE.Mesh): void {
+    const mat = mesh.material;
+    if (mat instanceof THREE.Material) mat.dispose();
   }
 
   private static normalizeTemplate(root: THREE.Object3D, targetSize: number): THREE.Object3D {

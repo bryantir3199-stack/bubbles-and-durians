@@ -84,6 +84,21 @@ export class Game {
     this.composer.addPass(this.saoPass);
     this.composer.addPass(new OutputPass());
 
+    const saoRender = this.saoPass.render.bind(this.saoPass);
+    this.saoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      getCastleStage()?.setGrassInSao(false);
+      const skipped: THREE.Object3D[] = [];
+      this.scene.traverse((obj) => {
+        if (obj.userData.skipSao && obj.visible) {
+          obj.visible = false;
+          skipped.push(obj);
+        }
+      });
+      saoRender(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+      for (const obj of skipped) obj.visible = true;
+      getCastleStage()?.setGrassInSao(true);
+    };
+
     const gameRef = this;
     const makeCtx = (): SceneContext => ({
       canvas: this.canvas,
