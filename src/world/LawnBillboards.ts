@@ -13,23 +13,20 @@ const FRENZY_TINT = new THREE.Color(0xff9a48);
 type GrassSpot = { x: number; z: number; h: number; flip: boolean };
 type TreeSpot = { x: number; z: number; h: number; rot: number };
 
-/** Seven tufts on the approach lawn, off the gate path. */
+/** Five tufts near the keep lawn: 2 left, 3 right. */
 const GRASS_SPOTS: GrassSpot[] = [
-  { x: -72, z: 155, h: 22, flip: false },
-  { x: 78, z: 168, h: 20, flip: true },
-  { x: -118, z: 230, h: 24, flip: true },
-  { x: 128, z: 218, h: 21, flip: false },
-  { x: -64, z: 290, h: 26, flip: false },
-  { x: 88, z: 305, h: 25, flip: true },
-  { x: -155, z: 175, h: 23, flip: true },
+  { x: -102, z: 108, h: 22, flip: false },
+  { x: -168, z: 128, h: 24, flip: true },
+  { x: 92, z: 102, h: 21, flip: true },
+  { x: 158, z: 122, h: 23, flip: false },
+  { x: 118, z: 148, h: 20, flip: true },
 ];
 
-/** Four trees flanking the keep, toward the back of the stage. */
+/** Three background trees: two smaller (left, different scales), one large (right). */
 const TREE_SPOTS: TreeSpot[] = [
-  { x: -278, z: -8, h: 94, rot: 0.35 },
-  { x: -228, z: 48, h: 80, rot: 1.15 },
-  { x: 288, z: -4, h: 90, rot: -0.55 },
-  { x: 238, z: 52, h: 82, rot: 2.4 },
+  { x: -318, z: -72, h: 58, rot: 0.4 },
+  { x: -228, z: -118, h: 74, rot: 1.25 },
+  { x: 305, z: -95, h: 122, rot: -0.5 },
 ];
 
 /**
@@ -80,15 +77,21 @@ export class LawnBillboards {
     const map = await new THREE.TextureLoader().loadAsync(GRASS_URL);
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 1;
+    // Mipmaps average alpha with empty texels and paint a dark quad fringe.
+    map.generateMipmaps = false;
+    map.minFilter = THREE.LinearFilter;
+    map.magFilter = THREE.LinearFilter;
+    map.needsUpdate = true;
     this.grassMap = map;
 
     this.grassMat = new THREE.MeshBasicMaterial({
       map,
       color: 0xffffff,
       transparent: true,
-      alphaTest: 0.45,
+      alphaTest: 0.55,
       depthTest: true,
-      depthWrite: true,
+      // Depth-writing cards make SAO stamp a rectangular contact shadow on the lawn.
+      depthWrite: false,
       side: THREE.DoubleSide,
       toneMapped: false,
       fog: false,
@@ -105,6 +108,7 @@ export class LawnBillboards {
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       mesh.frustumCulled = true;
+      mesh.renderOrder = 2;
       this.group.add(mesh);
     }
   }
