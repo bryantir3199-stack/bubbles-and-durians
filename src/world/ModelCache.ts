@@ -123,7 +123,10 @@ export class ModelCache {
   private static heartDepthMat: THREE.MeshDepthMaterial | null = null;
   private static heartAspect = 1;
 
-  /** Lit, shadow-casting heart card. Caller must dispose the cloned material. */
+  /**
+   * Unlit heart card that still writes a cutout into the shadow map.
+   * Caller must dispose the cloned color material.
+   */
   static createHeart(): THREE.Mesh {
     const map = this.getTexture('heart');
     if (!this.heartGeo) {
@@ -136,11 +139,9 @@ export class ModelCache {
       const img = map.image as { width: number; height: number };
       this.heartAspect = img.width / Math.max(1, img.height);
     }
-    const mat = new THREE.MeshStandardMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map,
       color: 0xffffff,
-      metalness: 0,
-      roughness: 0.72,
       transparent: true,
       alphaTest: 0.55,
       depthTest: true,
@@ -151,7 +152,7 @@ export class ModelCache {
     const size = gameConfig.heartSize;
     mesh.scale.set(size * this.heartAspect, size, 1);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.receiveShadow = false;
     mesh.frustumCulled = true;
     mesh.customDepthMaterial = this.heartDepthMat!;
     mesh.userData.skipSao = true;

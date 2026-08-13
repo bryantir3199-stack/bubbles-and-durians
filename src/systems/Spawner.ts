@@ -18,6 +18,8 @@ export interface SpawnerOptions {
   domeOnly?: boolean;
   /** When true, only close-camera left/middle/right rises spawn. */
   closeOnly?: boolean;
+  /** Current lives — hearts are skipped when the bar is already full. */
+  getLives?: () => number;
 }
 
 /**
@@ -41,6 +43,7 @@ export class Spawner {
   private pathCooldownUntil = new Map<number, number>();
   private readonly domeOnly: boolean;
   private readonly closeOnly: boolean;
+  private readonly getLives: (() => number) | undefined;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
   /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
@@ -61,6 +64,7 @@ export class Spawner {
   ) {
     this.domeOnly = options?.domeOnly === true;
     this.closeOnly = options?.closeOnly === true;
+    this.getLives = options?.getLives;
   }
 
   start(): void {
@@ -385,6 +389,10 @@ export class Spawner {
     // First 30s: no gold durians.
     if (this.elapsed < gameConfig.earlyGameGraceMs) {
       weights.goldDurian = 0;
+    }
+    // Lives already at the cap — don't spawn extra hearts.
+    if ((this.getLives?.() ?? 0) >= gameConfig.maxLives) {
+      weights.heart = 0;
     }
     // Frenzy: keep overall 3.5× cadence, but cut absolute bubble rate by 50%.
     if (this.frenzyActive && weights.bubble > 0) {
