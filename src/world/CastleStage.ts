@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from '../config/spawnLayout';
 import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
+import { GrassBillboards } from './GrassBillboards';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -34,12 +35,13 @@ export function getCastleStage(): CastleStage | null {
 
 /**
  * Loads castle.glb, wires door pivots, sky image background,
- * shadow-casting sun, and JS wind on the baked banners.
+ * shadow-casting sun, cartoon grass billboards, and JS wind on the baked banners.
  */
 export class CastleStage {
   readonly root = new THREE.Group();
   readonly doors = new DoorController();
   private readonly flags = new FlagWaver();
+  private readonly grass = new GrassBillboards();
   private groundMat: THREE.MeshStandardMaterial | null = null;
   private ringMat: THREE.MeshStandardMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
@@ -72,6 +74,7 @@ export class CastleStage {
     const [gltf] = await Promise.all([
       new GLTFLoader().loadAsync(ASSET.glb),
       this.loadSkyBackground(),
+      this.grass.load(this.root),
     ]);
     const castle = gltf.scene;
 
@@ -200,6 +203,7 @@ export class CastleStage {
     this.groundMat?.color.copy(this.tmpGrass);
     this.ringMat?.color.copy(this.tmpRing);
     if (this.hemiLight) this.hemiLight.groundColor.copy(this.tmpHemi);
+    this.grass.setFrenzy(t);
   }
 
   private buildEnvironment(): void {
@@ -274,6 +278,7 @@ export class CastleStage {
 
   dispose(): void {
     if (stageInstance === this) stageInstance = null;
+    this.grass.dispose();
     this.skyTexture?.dispose();
     this.skyTexture = null;
     this.scene.remove(this.root);
