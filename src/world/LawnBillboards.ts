@@ -24,12 +24,12 @@ const GRASS_SPOTS: GrassSpot[] = [
   { x: -155, z: 175, h: 23, flip: true },
 ];
 
-/** Four trees flanking / behind the keep (away from the camera). */
+/** Four trees flanking the keep, toward the back of the stage. */
 const TREE_SPOTS: TreeSpot[] = [
-  { x: -248, z: -28, h: 92, rot: 0.35 },
-  { x: 258, z: -22, h: 86, rot: -0.55 },
-  { x: -222, z: 38, h: 78, rot: 1.15 },
-  { x: 232, z: 42, h: 82, rot: 2.4 },
+  { x: -278, z: -8, h: 94, rot: 0.35 },
+  { x: -228, z: 48, h: 80, rot: 1.15 },
+  { x: 288, z: -4, h: 90, rot: -0.55 },
+  { x: 238, z: 52, h: 82, rot: 2.4 },
 ];
 
 /**
