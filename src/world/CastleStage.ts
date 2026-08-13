@@ -269,6 +269,7 @@ export class CastleStage {
   update(dt: number): void {
     this.doors.update(dt);
     this.flags.update(dt);
+    this.lawn.update(dt);
 
     if (this.frenzyLook !== this.frenzyLookTarget) {
       const step = dt / FRENZY_LOOK_FADE_SEC;

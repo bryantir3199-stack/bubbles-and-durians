@@ -16,6 +16,16 @@ const RIGHT_TREE_H = 138;
 type GrassSpot = { x: number; z: number; h: number; flip: boolean };
 type TreeSpot = { x: number; z: number; h: number; rot: number };
 
+type Breather = {
+  obj: THREE.Object3D;
+  baseX: number;
+  baseY: number;
+  baseZ: number;
+  phase: number;
+  speed: number;
+  amp: number;
+};
+
 /** Five tufts around the trees: 2 left cluster, 3 right cluster. */
 const GRASS_SPOTS: GrassSpot[] = [
   { x: -448, z: -28, h: 24, flip: false },
@@ -45,6 +55,8 @@ export class LawnBillboards {
   private grassDepthMat: THREE.MeshDepthMaterial | null = null;
   private grassMap: THREE.Texture | null = null;
   private readonly treeMats: THREE.MeshStandardMaterial[] = [];
+  private readonly breathers: Breather[] = [];
+  private breathTime = 0;
 
   constructor() {
     this.grassGeo = new THREE.PlaneGeometry(1, 1);
@@ -71,6 +83,17 @@ export class LawnBillboards {
     if (this.grassMat) this.grassMat.color.copy(this.tmpTint);
   }
 
+  /** Out-of-phase vertical squash / stretch (pivot at the planted base). */
+  update(dt: number): void {
+    this.breathTime += dt;
+    const t = this.breathTime;
+    for (const b of this.breathers) {
+      const stretch = 1 + Math.sin(t * b.speed + b.phase) * b.amp;
+      const squash = 1 / Math.sqrt(stretch);
+      b.obj.scale.set(b.baseX * squash, b.baseY * stretch, b.baseZ * squash);
+    }
+  }
+
   dispose(): void {
     this.group.removeFromParent();
     this.grassGeo.dispose();
@@ -87,6 +110,7 @@ export class LawnBillboards {
     }
     this.treeMats.length = 0;
     for (const map of treeMaps) map.dispose();
+    this.breathers.length = 0;
   }
 
   private async loadGrass(): Promise<void> {
@@ -117,21 +141,32 @@ export class LawnBillboards {
       alphaTest: 0.55,
       depthPacking: THREE.RGBADepthPacking,
     });
+    const grassMat = this.grassMat;
+    const grassDepthMat = this.grassDepthMat;
 
     const img = map.image as { width: number; height: number };
     const aspect = img.width / Math.max(1, img.height);
 
-    for (const spot of GRASS_SPOTS) {
-      const mesh = new THREE.Mesh(this.grassGeo, this.grassMat);
+    GRASS_SPOTS.forEach((spot, i) => {
+      const mesh = new THREE.Mesh(this.grassGeo, grassMat);
       mesh.position.set(spot.x, 0.12, spot.z);
       mesh.scale.set(spot.h * aspect * (spot.flip ? -1 : 1), spot.h, 1);
       mesh.lookAt(CAM_X, mesh.position.y, CAM_Z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
-      mesh.customDepthMaterial = this.grassDepthMat;
+      mesh.customDepthMaterial = grassDepthMat;
       this.grassGroup.add(mesh);
-    }
+      this.breathers.push({
+        obj: mesh,
+        baseX: mesh.scale.x,
+        baseY: mesh.scale.y,
+        baseZ: mesh.scale.z,
+        phase: (i / GRASS_SPOTS.length) * Math.PI * 2 + 0.7,
+        speed: 1.55 + i * 0.22,
+        amp: 0.08,
+      });
+    });
   }
 
   private async loadTrees(): Promise<void> {
@@ -174,12 +209,22 @@ export class LawnBillboards {
     wrapper.add(raw);
 
     const nativeH = Math.max(size.y, 0.001);
-    for (const spot of TREE_SPOTS) {
+    TREE_SPOTS.forEach((spot, i) => {
       const inst = wrapper.clone(true);
-      inst.scale.setScalar(spot.h / nativeH);
+      const s = spot.h / nativeH;
+      inst.scale.setScalar(s);
       inst.position.set(spot.x, 0, spot.z);
       inst.rotation.y = spot.rot;
       this.group.add(inst);
-    }
+      this.breathers.push({
+        obj: inst,
+        baseX: s,
+        baseY: s,
+        baseZ: s,
+        phase: (i / TREE_SPOTS.length) * Math.PI * 2 + 1.9,
+        speed: 1.05 + i * 0.18,
+        amp: 0.055,
+      });
+    });
   }
 }
