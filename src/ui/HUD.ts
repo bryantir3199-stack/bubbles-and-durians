@@ -1,6 +1,7 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 import { playCountdownTickSound } from '../audio/sfx';
+import { isCoarsePointer } from '../core/display';
 
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
 const HEART_IMG = `<img class="hud-heart-icon" src="/assets/hud/heart.png" alt="" draggable="false" />`;
@@ -99,7 +100,7 @@ export class HUD {
         </div>
 
         <div class="hud-center">
-          <div class="hud-panel hud-ammo" role="button" tabindex="0" aria-label="Ammo — tap to reload" title="Tap to reload">
+          <div class="hud-panel hud-ammo" role="button" tabindex="0" aria-label="${isCoarsePointer() ? 'Ammo — shake or tap to reload' : 'Ammo — tap to reload'}" title="${isCoarsePointer() ? 'Shake or tap to reload' : 'Tap to reload'}">
             <span class="hud-panel-label hud-ammo-label">AMMO</span>
             <div class="hud-ammo-icons">${teeth}</div>
           </div>
@@ -109,7 +110,7 @@ export class HUD {
           ${rightPanel}
         </div>
       </div>
-      <div class="hud-reload-hint" hidden>RELOAD! (tap ammo / R)</div>
+      <div class="hud-reload-hint" hidden>${isCoarsePointer() ? 'RELOAD! (shake or tap ammo)' : 'RELOAD! (tap ammo / R)'}</div>
       <div class="crosshair" aria-hidden="true"></div>
     `;
     parent.appendChild(this.root);

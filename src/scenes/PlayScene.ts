@@ -8,6 +8,8 @@ import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
+import { isCoarsePointer } from '../core/display';
+import { onDeviceShake, requestShakePermission } from '../core/shake';
 import { clearUI } from '../ui/dom';
 import { getCastleStage } from '../world/CastleStage';
 import {
@@ -54,7 +56,6 @@ export class PlayScene implements GameScene {
   private frenzyActive = false;
   /** Endless: ms remaining in the active frenzy. */
   private frenzyTimeLeftMs = 0;
-  private touchStart: { x: number; y: number; id: number } | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -127,26 +128,8 @@ export class PlayScene implements GameScene {
     };
     const onDown = (e: PointerEvent) => {
       if (this.ended || this.paused) return;
-      // Touch: wait for pointerup so a swipe (hide Safari chrome) is not a shot.
-      if (e.pointerType === 'touch') {
-        e.preventDefault();
-        this.touchStart = { x: e.clientX, y: e.clientY, id: e.pointerId };
-        return;
-      }
+      if (e.pointerType === 'touch') e.preventDefault();
       this.handleShot(e.clientX, e.clientY);
-    };
-    const onUp = (e: PointerEvent) => {
-      const start = this.touchStart;
-      if (!start || e.pointerId !== start.id) return;
-      this.touchStart = null;
-      if (this.ended || this.paused) return;
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (dx * dx + dy * dy > 196) return;
-      this.handleShot(start.x, start.y);
-    };
-    const onCancel = (e: PointerEvent) => {
-      if (this.touchStart?.id === e.pointerId) this.touchStart = null;
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -163,14 +146,15 @@ export class PlayScene implements GameScene {
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerdown', onDown, { passive: false });
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     this.unsubs.push(() => window.removeEventListener('pointermove', onMove));
     this.unsubs.push(() => window.removeEventListener('pointerdown', onDown));
-    this.unsubs.push(() => window.removeEventListener('pointerup', onUp));
-    this.unsubs.push(() => window.removeEventListener('pointercancel', onCancel));
     this.unsubs.push(() => window.removeEventListener('keydown', onKey));
+
+    if (isCoarsePointer()) {
+      void requestShakePermission();
+      this.unsubs.push(onDeviceShake(() => this.onReload()));
+    }
 
     document.body.classList.add('playing');
     startStageBgm();
@@ -238,7 +222,6 @@ export class PlayScene implements GameScene {
     stopStageBgm();
     for (const u of this.unsubs) u();
     this.unsubs = [];
-    this.touchStart = null;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
     this.spawner?.setFrenzyActive(false);

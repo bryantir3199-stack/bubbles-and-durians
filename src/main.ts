@@ -1,7 +1,9 @@
 import { Game } from './core/Game';
-import { installMobileShell } from './core/mobileShell';
+import { isCoarsePointer } from './core/display';
 
-installMobileShell();
+if (isCoarsePointer()) {
+  document.documentElement.classList.add('touch-ui');
+}
 
 const container = document.getElementById('game-container');
 if (!container) {

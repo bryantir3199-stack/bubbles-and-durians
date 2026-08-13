@@ -1,5 +1,5 @@
 /**
- * Viewport, camera framing, and fullscreen helpers for mobile + desktop.
+ * Viewport, camera framing, and mobile helpers.
  *
  * Desktop is authored at 16:9 with a 42° vertical FOV. Wider viewports
  * (landscape phones) would otherwise show more of the world and look zoomed
@@ -16,19 +16,6 @@ export function isCoarsePointer(): boolean {
   );
 }
 
-export function isIPhone(): boolean {
-  return /iPhone|iPod/.test(navigator.userAgent);
-}
-
-export function isStandaloneDisplay(): boolean {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  return (
-    nav.standalone === true ||
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.matchMedia('(display-mode: fullscreen)').matches
-  );
-}
-
 export function isFullscreen(): boolean {
   const doc = document as Document & { webkitFullscreenElement?: Element | null };
   return !!(document.fullscreenElement || doc.webkitFullscreenElement);
@@ -39,9 +26,9 @@ type FsEl = HTMLElement & {
   webkitRequestFullscreen?: () => void;
 };
 
-/** Best-effort fullscreen. Works on Android / iPad / desktop; iPhone Safari usually rejects. */
+/** Best-effort fullscreen on a user gesture (Android / iPad). iPhone Safari ignores this. */
 export function tryEnterFullscreen(target: HTMLElement = document.documentElement): void {
-  if (isFullscreen() || isStandaloneDisplay()) return;
+  if (isFullscreen()) return;
   const el = target as FsEl;
   try {
     if (el.requestFullscreen) {
