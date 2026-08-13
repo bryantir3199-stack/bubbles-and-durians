@@ -54,6 +54,7 @@ export class PlayScene implements GameScene {
   private frenzyActive = false;
   /** Endless: ms remaining in the active frenzy. */
   private frenzyTimeLeftMs = 0;
+  private touchStart: { x: number; y: number; id: number } | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -121,13 +122,31 @@ export class PlayScene implements GameScene {
     }
 
     const onMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       this.hud?.setPointer(e.clientX, e.clientY);
     };
     const onDown = (e: PointerEvent) => {
       if (this.ended || this.paused) return;
-      // Ignore taps on the bottom cartoon HUD dock
-      if (e.clientY > window.innerHeight - 100) return;
+      // Touch: wait for pointerup so a swipe (hide Safari chrome) is not a shot.
+      if (e.pointerType === 'touch') {
+        e.preventDefault();
+        this.touchStart = { x: e.clientX, y: e.clientY, id: e.pointerId };
+        return;
+      }
       this.handleShot(e.clientX, e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      const start = this.touchStart;
+      if (!start || e.pointerId !== start.id) return;
+      this.touchStart = null;
+      if (this.ended || this.paused) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (dx * dx + dy * dy > 196) return;
+      this.handleShot(start.x, start.y);
+    };
+    const onCancel = (e: PointerEvent) => {
+      if (this.touchStart?.id === e.pointerId) this.touchStart = null;
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -143,10 +162,14 @@ export class PlayScene implements GameScene {
     };
 
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointerdown', onDown, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     this.unsubs.push(() => window.removeEventListener('pointermove', onMove));
     this.unsubs.push(() => window.removeEventListener('pointerdown', onDown));
+    this.unsubs.push(() => window.removeEventListener('pointerup', onUp));
+    this.unsubs.push(() => window.removeEventListener('pointercancel', onCancel));
     this.unsubs.push(() => window.removeEventListener('keydown', onKey));
 
     document.body.classList.add('playing');
@@ -215,6 +238,7 @@ export class PlayScene implements GameScene {
     stopStageBgm();
     for (const u of this.unsubs) u();
     this.unsubs = [];
+    this.touchStart = null;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
     this.spawner?.setFrenzyActive(false);
@@ -274,8 +298,11 @@ export class PlayScene implements GameScene {
     this.hud.playShootAnim();
     this.camKick = 1;
 
-    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    const rect = this.ctx.canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    this.pointer.x = ((clientX - rect.left) / w) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / h) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.ctx.three.camera);
 
     // Raycast proxies only (non-recursive)

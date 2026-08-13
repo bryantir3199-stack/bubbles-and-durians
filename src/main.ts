@@ -1,4 +1,7 @@
 import { Game } from './core/Game';
+import { installMobileShell } from './core/mobileShell';
+
+installMobileShell();
 
 const container = document.getElementById('game-container');
 if (!container) {

@@ -385,7 +385,8 @@ export class HUD {
   }
 
   setPointer(x: number, y: number): void {
-    const ch = this.root.querySelector('.crosshair') as HTMLElement;
+    const ch = this.root.querySelector('.crosshair') as HTMLElement | null;
+    if (!ch) return;
     ch.style.setProperty('--x', `${x}px`);
     ch.style.setProperty('--y', `${y}px`);
   }

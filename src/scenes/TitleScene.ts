@@ -1,4 +1,5 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { tryEnterFullscreen } from '../core/display';
 import { clearUI, panel } from '../ui/dom';
 
 export class TitleScene implements GameScene {
@@ -17,7 +18,10 @@ export class TitleScene implements GameScene {
     );
     this.ctx.uiRoot.appendChild(ui);
 
-    const advance = () => this.ctx.goto('modeSelect');
+    const advance = () => {
+      tryEnterFullscreen();
+      this.ctx.goto('modeSelect');
+    };
     ui.addEventListener('click', advance);
     ui.addEventListener('keydown', (e: Event) => {
       const key = (e as KeyboardEvent).key;

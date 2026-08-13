@@ -2,7 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bubbles &amp; Durians" />
+    <meta name="theme-color" content="#071018" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./assets/logo.png" />
     <title>Bubbles &amp; Durians</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,21 +29,37 @@
       html, body {
         width: 100%;
         height: 100%;
+        height: 100dvh;
         overflow: hidden;
+        position: fixed;
+        inset: 0;
         background: #071018;
         font-family: 'Fredoka', system-ui, sans-serif;
         color: var(--ink);
         user-select: none;
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
       }
       #game-container {
-        position: relative;
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        overflow: hidden;
       }
       .game-canvas {
         display: block;
         width: 100%;
         height: 100%;
+        touch-action: none;
+      }
+      html.ios-chrome,
+      html.ios-chrome body,
+      html.ios-chrome .game-canvas {
+        touch-action: pan-y;
       }
       .ui-root {
         position: absolute;
@@ -474,7 +497,7 @@
         align-items: flex-end;
         justify-content: space-between;
         gap: 8px;
-        padding: 0 0 18px;
+        padding: 0 0 max(18px, env(safe-area-inset-bottom, 0px));
         z-index: 12;
         pointer-events: none;
       }
@@ -815,6 +838,7 @@
       }
 
       body.playing { cursor: none; }
+      html.touch-ui body.playing { cursor: default; }
       .crosshair {
         position: fixed;
         top: 0; left: 0;
@@ -827,6 +851,7 @@
         background: url('/assets/reticle.png') center / contain no-repeat;
         transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%);
       }
+      html.touch-ui .crosshair { display: none; }
       .crosshair::before, .crosshair::after { content: none; }
       .crosshair.kick {
         animation: crosshairKick 0.16s ease-out;
@@ -836,6 +861,48 @@
         35% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(0.5); }
         100% { transform: translate(var(--x, 0px), var(--y, 0px)) translate(-50%, -50%) scale(1); }
       }
+
+      /* iPhone Safari: 1px of scroll lets landscape chrome collapse, then we lock. */
+      html.ios-chrome {
+        position: relative;
+        overflow-x: hidden;
+        overflow-y: auto;
+        height: 100%;
+        touch-action: pan-y;
+      }
+      html.ios-chrome body {
+        position: relative;
+        inset: auto;
+        height: calc(100% + 1px);
+        min-height: calc(100% + 1px);
+        overflow: visible;
+        touch-action: pan-y;
+      }
+      html.ios-locked,
+      html.ios-locked body {
+        overflow: hidden;
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        touch-action: none;
+      }
+      .fs-hint {
+        position: fixed;
+        top: max(10px, env(safe-area-inset-top, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 80;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: rgba(8, 16, 28, 0.78);
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        color: #fff;
+        font: 700 13px/1.2 'Fredoka', sans-serif;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+        text-shadow: 0 1px 0 #000;
+      }
+      .fs-hint[hidden] { display: none !important; }
       .crumb {
         position: fixed;
         width: var(--s, 16px);
