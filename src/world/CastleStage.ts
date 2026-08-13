@@ -206,6 +206,11 @@ export class CastleStage {
     this.lawn.setFrenzy(t);
   }
 
+  /** Grass cards must not be in the SAO depth override (rectangular lawn stains). */
+  setGrassInSao(include: boolean): void {
+    this.lawn.setGrassInSao(include);
+  }
+
   private buildEnvironment(): void {
     // Fallback until sky texture loads; Rhythm Heaven cyan.
     this.scene.background = new THREE.Color(NORMAL_SKY);
@@ -246,11 +251,11 @@ export class CastleStage {
     sun.shadow.normalBias = 0.035;
     const cam = sun.shadow.camera;
     cam.near = 40;
-    cam.far = 900;
-    cam.left = -320;
-    cam.right = 320;
-    cam.top = 280;
-    cam.bottom = -120;
+    cam.far = 1000;
+    cam.left = -480;
+    cam.right = 480;
+    cam.top = 320;
+    cam.bottom = -160;
     cam.updateProjectionMatrix();
     this.root.add(sun);
     this.root.add(sun.target);

@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-/** Grass cards skip SAO (layer 0) so the depth override cannot stamp a quad on the lawn. */
-export const GRASS_AO_SKIP_LAYER = 1;
 const GRASS_URL = 'assets/grass.png';
 const TREE_URL = 'assets/tree.glb';
 
@@ -12,33 +10,39 @@ const CAM_Z = 635;
 
 const FRENZY_TINT = new THREE.Color(0xff9a48);
 
+const TREE_YAW = Math.PI / 4;
+const RIGHT_TREE_H = 138;
+
 type GrassSpot = { x: number; z: number; h: number; flip: boolean };
 type TreeSpot = { x: number; z: number; h: number; rot: number };
 
-/** Five tufts near the keep lawn: 2 left, 3 right. */
+/** Five tufts around the trees: 2 left cluster, 3 right cluster. */
 const GRASS_SPOTS: GrassSpot[] = [
-  { x: -115, z: 92, h: 22, flip: false },
-  { x: -175, z: 112, h: 24, flip: true },
-  { x: 108, z: 90, h: 21, flip: true },
-  { x: 170, z: 108, h: 23, flip: false },
-  { x: 130, z: 128, h: 20, flip: true },
+  { x: -448, z: -28, h: 24, flip: false },
+  { x: -328, z: 6, h: 22, flip: true },
+  { x: 328, z: -14, h: 23, flip: true },
+  { x: 392, z: -22, h: 25, flip: false },
+  { x: 358, z: -64, h: 21, flip: true },
 ];
 
-/** Three background trees: two smaller (left, different scales), one large (right). */
+/** Three background trees, all yawed 45°. Right is the scale reference. */
 const TREE_SPOTS: TreeSpot[] = [
-  { x: -385, z: -48, h: 50, rot: 0.4 },
-  { x: -245, z: -18, h: 70, rot: 1.2 },
-  { x: 355, z: -40, h: 138, rot: -0.48 },
+  { x: -430, z: -48, h: RIGHT_TREE_H * 0.95, rot: TREE_YAW },
+  { x: -310, z: -18, h: RIGHT_TREE_H * 0.85, rot: TREE_YAW },
+  { x: 355, z: -40, h: RIGHT_TREE_H, rot: TREE_YAW },
 ];
 
 /**
- * Lawn props: unlit grass-card billboards + lit 3D tree models.
+ * Lawn props: lit grass-card billboards + 3D tree models.
+ * Grass is hidden during SAO so the depth override cannot stamp a quad halo.
  */
 export class LawnBillboards {
   private readonly group = new THREE.Group();
+  private readonly grassGroup = new THREE.Group();
   private readonly grassGeo: THREE.PlaneGeometry;
   private readonly tmpTint = new THREE.Color(0xffffff);
-  private grassMat: THREE.MeshBasicMaterial | null = null;
+  private grassMat: THREE.MeshStandardMaterial | null = null;
+  private grassDepthMat: THREE.MeshDepthMaterial | null = null;
   private grassMap: THREE.Texture | null = null;
   private readonly treeMats: THREE.MeshStandardMaterial[] = [];
 
@@ -46,6 +50,8 @@ export class LawnBillboards {
     this.grassGeo = new THREE.PlaneGeometry(1, 1);
     this.grassGeo.translate(0, 0.5, 0);
     this.group.name = 'lawn-billboards';
+    this.grassGroup.name = 'lawn-grass';
+    this.group.add(this.grassGroup);
   }
 
   async load(parent: THREE.Object3D): Promise<void> {
@@ -53,10 +59,16 @@ export class LawnBillboards {
     parent.add(this.group);
   }
 
-  /** Autumn multiply on the 3D trees only — grass stays an unlit sticker. */
+  /** Hide grass cards while SAO rebuilds depth (avoids rectangular lawn stains). */
+  setGrassInSao(include: boolean): void {
+    this.grassGroup.visible = include;
+  }
+
+  /** Autumn multiply on trees and grass. */
   setFrenzy(t: number): void {
     this.tmpTint.set(0xffffff).lerp(FRENZY_TINT, t);
     for (const mat of this.treeMats) mat.color.copy(this.tmpTint);
+    if (this.grassMat) this.grassMat.color.copy(this.tmpTint);
   }
 
   dispose(): void {
@@ -64,6 +76,8 @@ export class LawnBillboards {
     this.grassGeo.dispose();
     this.grassMat?.dispose();
     this.grassMat = null;
+    this.grassDepthMat?.dispose();
+    this.grassDepthMat = null;
     this.grassMap?.dispose();
     this.grassMap = null;
     const treeMaps = new Set<THREE.Texture>();
@@ -79,24 +93,29 @@ export class LawnBillboards {
     const map = await new THREE.TextureLoader().loadAsync(GRASS_URL);
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 1;
-    // Mipmaps average alpha with empty texels and paint a dark quad fringe.
     map.generateMipmaps = false;
     map.minFilter = THREE.LinearFilter;
     map.magFilter = THREE.LinearFilter;
     map.needsUpdate = true;
     this.grassMap = map;
 
-    this.grassMat = new THREE.MeshBasicMaterial({
+    this.grassMat = new THREE.MeshStandardMaterial({
       map,
       color: 0xffffff,
+      metalness: 0,
+      roughness: 0.92,
       transparent: true,
       alphaTest: 0.55,
       depthTest: true,
-      // Depth-writing cards make SAO stamp a rectangular contact shadow on the lawn.
-      depthWrite: false,
+      depthWrite: true,
       side: THREE.DoubleSide,
-      toneMapped: false,
-      fog: false,
+    });
+
+    // Shadow-map depth uses this so only the blades occlude, not the full quad.
+    this.grassDepthMat = new THREE.MeshDepthMaterial({
+      map,
+      alphaTest: 0.55,
+      depthPacking: THREE.RGBADepthPacking,
     });
 
     const img = map.image as { width: number; height: number };
@@ -107,12 +126,11 @@ export class LawnBillboards {
       mesh.position.set(spot.x, 0.12, spot.z);
       mesh.scale.set(spot.h * aspect * (spot.flip ? -1 : 1), spot.h, 1);
       mesh.lookAt(CAM_X, mesh.position.y, CAM_Z);
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       mesh.frustumCulled = true;
-      mesh.renderOrder = 2;
-      mesh.layers.set(GRASS_AO_SKIP_LAYER);
-      this.group.add(mesh);
+      mesh.customDepthMaterial = this.grassDepthMat;
+      this.grassGroup.add(mesh);
     }
   }
 
