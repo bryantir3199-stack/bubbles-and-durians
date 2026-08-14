@@ -15,7 +15,6 @@ import {
   coverVerticalFov,
   DESIGN_VFOV_DEG,
   getViewSize,
-  isCoarsePointer,
   onViewChange,
 } from './display';
 
@@ -35,51 +34,28 @@ export class Game {
   private last = 0;
   private raf = 0;
   private sharedStageReady = false;
-  private readonly usePostFx: boolean;
-  private readonly composer: EffectComposer | null;
-  private readonly saoPass: SAOPass | null;
+  private readonly composer: EffectComposer;
+  private readonly saoPass: SAOPass;
   private unsubView: (() => void) | null = null;
   private lastView = { w: 0, h: 0, left: 0, top: 0 };
-  private fpsEl: HTMLElement | null = null;
-  private fpsFrames = 0;
-  private fpsLast = 0;
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.usePostFx = !isCoarsePointer();
-
     this.uiRoot = document.createElement('div');
     this.uiRoot.id = 'ui-root';
     this.uiRoot.className = 'ui-root';
-    // HUD must not be a sibling inside the canvas parent — iOS composites that
-    // into a texture and locks WebGL around 30fps. Keep it on <body>.
-    document.body.appendChild(this.uiRoot);
-
-    if (!this.usePostFx) {
-      // Unlit + display-referred textures: skip linear/sRGB shader convert.
-      THREE.ColorManagement.enabled = false;
-      this.fpsEl = document.createElement('div');
-      this.fpsEl.className = 'hud-fps';
-      this.fpsEl.textContent = '… FPS';
-      document.body.appendChild(this.fpsEl);
-    }
+    container.appendChild(this.uiRoot);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
       alpha: false,
-      stencil: false,
-      depth: true,
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(this.pixelRatio());
-    this.renderer.outputColorSpace = this.usePostFx
-      ? THREE.SRGBColorSpace
-      : THREE.LinearSRGBColorSpace;
-    this.renderer.toneMapping = this.usePostFx
-      ? THREE.ACESFilmicToneMapping
-      : THREE.NoToneMapping;
-    this.renderer.toneMappingExposure = this.usePostFx ? 1.4 : 1;
-    this.renderer.shadowMap.enabled = this.usePostFx;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'game-canvas';
@@ -89,53 +65,48 @@ export class Game {
     this.camera.position.set(0, 110, 635);
     this.camera.lookAt(0, 110, 40);
 
-    if (this.usePostFx) {
-      const { width: w, height: h } = getViewSize();
-      this.composer = new EffectComposer(this.renderer);
-      this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const { width: w, height: h } = getViewSize();
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
 
-      // SAO fits RenderPass (needsSwap=false). Scale must match this large world
-      // (camera.far 2000) — values near 1 crush crevices to black.
-      this.saoPass = new SAOPass(this.scene, this.camera, new THREE.Vector2(w, h));
-      this.saoPass.params.output = SAOPass.OUTPUT.Default;
-      this.saoPass.params.saoBias = 0.65;
-      this.saoPass.params.saoIntensity = 0.03;
-      this.saoPass.params.saoScale = 22;
-      this.saoPass.params.saoKernelRadius = 70;
-      this.saoPass.params.saoMinResolution = 0;
-      this.saoPass.params.saoBlur = true;
-      this.saoPass.params.saoBlurRadius = 10;
-      this.saoPass.params.saoBlurStdDev = 5;
-      // Keep blur from bleeding sky (cleared white) into geometry edges.
-      this.saoPass.params.saoBlurDepthCutoff = 0.04;
-      // Unclamped ao > 1 → (1 - ao) goes negative → HDR multiply brightens
-      // (white halos) instead of darkening. Clamp so AO stays a darkening factor.
-      this.saoPass.saoMaterial.fragmentShader = this.saoPass.saoMaterial.fragmentShader.replace(
-        'gl_FragColor.xyz *=  1.0 - ambientOcclusion;',
-        'gl_FragColor.xyz *=  1.0 - clamp( ambientOcclusion, 0.0, 0.35 );',
-      );
-      this.saoPass.saoMaterial.needsUpdate = true;
-      this.composer.addPass(this.saoPass);
-      this.composer.addPass(new OutputPass());
+    // SAO fits RenderPass (needsSwap=false). Scale must match this large world
+    // (camera.far 2000) — values near 1 crush crevices to black.
+    this.saoPass = new SAOPass(this.scene, this.camera, new THREE.Vector2(w, h));
+    this.saoPass.params.output = SAOPass.OUTPUT.Default;
+    this.saoPass.params.saoBias = 0.65;
+    this.saoPass.params.saoIntensity = 0.03;
+    this.saoPass.params.saoScale = 22;
+    this.saoPass.params.saoKernelRadius = 70;
+    this.saoPass.params.saoMinResolution = 0;
+    this.saoPass.params.saoBlur = true;
+    this.saoPass.params.saoBlurRadius = 10;
+    this.saoPass.params.saoBlurStdDev = 5;
+    // Keep blur from bleeding sky (cleared white) into geometry edges.
+    this.saoPass.params.saoBlurDepthCutoff = 0.04;
+    // Unclamped ao > 1 → (1 - ao) goes negative → HDR multiply brightens
+    // (white halos) instead of darkening. Clamp so AO stays a darkening factor.
+    this.saoPass.saoMaterial.fragmentShader = this.saoPass.saoMaterial.fragmentShader.replace(
+      'gl_FragColor.xyz *=  1.0 - ambientOcclusion;',
+      'gl_FragColor.xyz *=  1.0 - clamp( ambientOcclusion, 0.0, 0.35 );',
+    );
+    this.saoPass.saoMaterial.needsUpdate = true;
+    this.composer.addPass(this.saoPass);
+    this.composer.addPass(new OutputPass());
 
-      const saoRender = this.saoPass.render.bind(this.saoPass);
-      this.saoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
-        getCastleStage()?.setGrassInSao(false);
-        const skipped: THREE.Object3D[] = [];
-        this.scene.traverse((obj) => {
-          if (obj.userData.skipSao && obj.visible) {
-            obj.visible = false;
-            skipped.push(obj);
-          }
-        });
-        saoRender(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
-        for (const obj of skipped) obj.visible = true;
-        getCastleStage()?.setGrassInSao(true);
-      };
-    } else {
-      this.composer = null;
-      this.saoPass = null;
-    }
+    const saoRender = this.saoPass.render.bind(this.saoPass);
+    this.saoPass.render = (renderer, writeBuffer, readBuffer, deltaTime, maskActive) => {
+      getCastleStage()?.setGrassInSao(false);
+      const skipped: THREE.Object3D[] = [];
+      this.scene.traverse((obj) => {
+        if (obj.userData.skipSao && obj.visible) {
+          obj.visible = false;
+          skipped.push(obj);
+        }
+      });
+      saoRender(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
+      for (const obj of skipped) obj.visible = true;
+      getCastleStage()?.setGrassInSao(true);
+    };
 
     const gameRef = this;
     const makeCtx = (): SceneContext => ({
@@ -175,9 +146,7 @@ export class Game {
       this.last = now;
       getCastleStage()?.update(dt);
       this.current?.update(dt);
-      if (this.composer) this.composer.render();
-      else this.renderer.render(this.scene, this.camera);
-      this.tickFps(now);
+      this.composer.render();
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -188,24 +157,8 @@ export class Game {
     await this.current.enter(data);
   }
 
-  private pixelRatio(cssW = 0, cssH = 0): number {
-    const dpr = window.devicePixelRatio || 1;
-    if (this.usePostFx) return Math.min(dpr, 1.25);
-    // Half-res, CSS-upscaled. Three r163+ is WebGL2-only, so iOS is stuck on
-    // WebGL-via-Metal; shrinking the drawing buffer is the remaining lever.
-    if (cssW > 0 && cssH > 0) return Math.min(0.5, 480 / Math.max(cssW, cssH));
-    return 0.5;
-  }
-
-  private tickFps(now: number): void {
-    if (!this.fpsEl) return;
-    this.fpsFrames += 1;
-    if (now - this.fpsLast < 500) return;
-    const fps = Math.round((this.fpsFrames * 1000) / Math.max(1, now - this.fpsLast));
-    this.fpsEl.textContent = `${fps} FPS`;
-    this.fpsEl.classList.toggle('is-slow', fps < 50);
-    this.fpsFrames = 0;
-    this.fpsLast = now;
+  private pixelRatio(): number {
+    return Math.min(window.devicePixelRatio || 1, 1.25);
   }
 
   private resize(): void {
@@ -227,16 +180,13 @@ export class Game {
     this.camera.fov = coverVerticalFov(this.camera.aspect);
     this.camera.updateProjectionMatrix();
 
-    const dpr = this.pixelRatio(w, h);
+    const dpr = this.pixelRatio();
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
-    // Composer resizes passes with pixel-ratio scale — don't override with CSS px.
-    if (this.composer) {
-      this.composer.setPixelRatio(dpr);
-      this.composer.setSize(w, h);
-    }
+    this.composer.setPixelRatio(dpr);
+    this.composer.setSize(w, h);
     this.current?.onResize?.(w, h);
   }
 
@@ -245,11 +195,8 @@ export class Game {
     this.unsubView = null;
     cancelAnimationFrame(this.raf);
     this.current?.exit();
-    this.fpsEl?.remove();
-    this.fpsEl = null;
-    this.uiRoot.remove();
-    this.saoPass?.dispose();
-    this.composer?.dispose();
+    this.saoPass.dispose();
+    this.composer.dispose();
     this.renderer.dispose();
   }
 }

@@ -4,8 +4,6 @@ import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from 
 import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
 import { LawnBillboards } from './LawnBillboards';
-import { isCoarsePointer } from '../core/display';
-import { unlitFromPbr } from './liteMaterials';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -44,9 +42,8 @@ export class CastleStage {
   readonly doors = new DoorController();
   private readonly flags = new FlagWaver();
   private readonly lawn = new LawnBillboards();
-  private readonly lite = isCoarsePointer();
-  private groundMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial | null = null;
-  private ringMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial | null = null;
+  private groundMat: THREE.MeshStandardMaterial | null = null;
+  private ringMat: THREE.MeshStandardMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
   private skyTexture: THREE.Texture | null = null;
   private frenzyLook = 0;
@@ -83,15 +80,14 @@ export class CastleStage {
 
     castle.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      obj.castShadow = !this.lite;
-      obj.receiveShadow = !this.lite;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
       obj.frustumCulled = true;
 
-      const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      const next = srcMats.map((mat) => {
-        if (this.lite) return unlitFromPbr(mat, 1.05);
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
         if (!(mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhysicalMaterial)) {
-          return mat;
+          continue;
         }
         mat.metalness = 0;
         mat.roughness = 1;
@@ -107,9 +103,7 @@ export class CastleStage {
           mat.map.needsUpdate = true;
         }
         mat.needsUpdate = true;
-        return mat;
-      });
-      obj.material = Array.isArray(obj.material) ? next : next[0]!;
+      }
     });
 
     castle.scale.setScalar(100);
@@ -126,7 +120,7 @@ export class CastleStage {
     castle.updateMatrixWorld(true);
     this.applyMarkers(castle);
     this.doors.setup(castle);
-    if (!this.lite) this.flags.setup(castle);
+    this.flags.setup(castle);
     setDoorController(this.doors);
   }
 
@@ -168,10 +162,6 @@ export class CastleStage {
   }
 
   private async loadSkyBackground(): Promise<void> {
-    if (this.lite) {
-      this.scene.background = new THREE.Color(NORMAL_SKY);
-      return;
-    }
     const tex = await new THREE.TextureLoader().loadAsync(ASSET.sky);
     tex.colorSpace = THREE.SRGBColorSpace;
     this.skyTexture = tex;
@@ -224,77 +214,62 @@ export class CastleStage {
   private buildEnvironment(): void {
     // Fallback until sky texture loads; Rhythm Heaven cyan.
     this.scene.background = new THREE.Color(NORMAL_SKY);
-    this.scene.fog = this.lite ? null : new THREE.Fog(NORMAL_FOG, 900, 1600);
+    this.scene.fog = new THREE.Fog(NORMAL_FOG, 900, 1600);
 
-    this.groundMat = this.lite
-      ? new THREE.MeshBasicMaterial({ color: NORMAL_GRASS })
-      : new THREE.MeshStandardMaterial({
-          color: NORMAL_GRASS,
-          metalness: 0,
-          roughness: 0.95,
-        });
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(560, this.lite ? 24 : 32),
-      this.groundMat,
-    );
+    this.groundMat = new THREE.MeshStandardMaterial({
+      color: NORMAL_GRASS,
+      metalness: 0,
+      roughness: 0.95,
+    });
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(560, 32), this.groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
-    ground.receiveShadow = !this.lite;
+    ground.receiveShadow = true;
     this.root.add(ground);
 
-    this.ringMat = this.lite
-      ? new THREE.MeshBasicMaterial({ color: NORMAL_GRASS_RING, side: THREE.DoubleSide })
-      : new THREE.MeshStandardMaterial({
-          color: NORMAL_GRASS_RING,
-          metalness: 0,
-          roughness: 0.95,
-          side: THREE.DoubleSide,
-        });
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(70, 240, this.lite ? 24 : 32),
-      this.ringMat,
-    );
+    this.ringMat = new THREE.MeshStandardMaterial({
+      color: NORMAL_GRASS_RING,
+      metalness: 0,
+      roughness: 0.95,
+      side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(70, 240, 32), this.ringMat);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
-    ring.receiveShadow = !this.lite;
+    ring.receiveShadow = true;
     this.root.add(ring);
 
-    // Unlit mobile materials ignore lights — skip them so iOS doesn't pay for a lighting loop.
-    if (!this.lite) {
-      this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
-      this.hemiLight = new THREE.HemisphereLight(0xb8dfff, NORMAL_HEMI_GROUND, 0.55);
-      this.root.add(this.hemiLight);
+    this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
+    this.hemiLight = new THREE.HemisphereLight(0xb8dfff, NORMAL_HEMI_GROUND, 0.55);
+    this.root.add(this.hemiLight);
 
-      const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
-      sun.position.set(160, 320, 180);
-      sun.castShadow = true;
-      sun.shadow.mapSize.set(2048, 2048);
-      sun.shadow.bias = -0.00025;
-      sun.shadow.normalBias = 0.035;
-      const cam = sun.shadow.camera;
-      cam.near = 40;
-      cam.far = 1000;
-      cam.left = -480;
-      cam.right = 480;
-      cam.top = 320;
-      cam.bottom = -160;
-      cam.updateProjectionMatrix();
-      this.root.add(sun);
-      this.root.add(sun.target);
-      sun.target.position.set(0, 40, 40);
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
+    sun.position.set(160, 320, 180);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.00025;
+    sun.shadow.normalBias = 0.035;
+    const cam = sun.shadow.camera;
+    cam.near = 40;
+    cam.far = 1000;
+    cam.left = -480;
+    cam.right = 480;
+    cam.top = 320;
+    cam.bottom = -160;
+    cam.updateProjectionMatrix();
+    this.root.add(sun);
+    this.root.add(sun.target);
+    sun.target.position.set(0, 40, 40);
 
-      const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
-      fill.position.set(-200, 160, 100);
-      this.root.add(fill);
-    }
+    const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
+    fill.position.set(-200, 160, 100);
+    this.root.add(fill);
   }
 
   update(dt: number): void {
     this.doors.update(dt);
-    if (!this.lite) {
-      this.flags.update(dt);
-      this.lawn.update(dt);
-    }
+    this.flags.update(dt);
+    this.lawn.update(dt);
 
     if (this.frenzyLook !== this.frenzyLookTarget) {
       const step = dt / FRENZY_LOOK_FADE_SEC;
