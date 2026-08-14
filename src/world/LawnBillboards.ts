@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { isCoarsePointer } from '../core/display';
+import { lambertFromPbr } from './liteMaterials';
 
 const GRASS_URL = 'assets/grass.png';
 const TREE_URL = 'assets/tree.glb';
@@ -60,12 +62,13 @@ export class LawnBillboards {
   private readonly grassGroup = new THREE.Group();
   private readonly grassGeo: THREE.PlaneGeometry;
   private readonly tmpTint = new THREE.Color(0xffffff);
-  private grassMat: THREE.MeshStandardMaterial | null = null;
+  private grassMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
   private grassDepthMat: THREE.MeshDepthMaterial | null = null;
   private grassMap: THREE.Texture | null = null;
-  private readonly treeMats: THREE.MeshStandardMaterial[] = [];
+  private readonly treeMats: Array<THREE.MeshStandardMaterial | THREE.MeshLambertMaterial> = [];
   private readonly breathers: Breather[] = [];
   private breathTime = 0;
+  private readonly lite = isCoarsePointer();
 
   constructor() {
     this.grassGeo = new THREE.PlaneGeometry(1, 1);
@@ -144,24 +147,36 @@ export class LawnBillboards {
     map.needsUpdate = true;
     this.grassMap = map;
 
-    this.grassMat = new THREE.MeshStandardMaterial({
-      map,
-      color: 0xffffff,
-      metalness: 0,
-      roughness: 0.92,
-      transparent: true,
-      alphaTest: 0.55,
-      depthTest: true,
-      depthWrite: true,
-      side: THREE.DoubleSide,
-    });
+    this.grassMat = this.lite
+      ? new THREE.MeshLambertMaterial({
+          map,
+          color: 0xffffff,
+          transparent: true,
+          alphaTest: 0.55,
+          depthTest: true,
+          depthWrite: true,
+          side: THREE.DoubleSide,
+        })
+      : new THREE.MeshStandardMaterial({
+          map,
+          color: 0xffffff,
+          metalness: 0,
+          roughness: 0.92,
+          transparent: true,
+          alphaTest: 0.55,
+          depthTest: true,
+          depthWrite: true,
+          side: THREE.DoubleSide,
+        });
 
     // Shadow-map depth uses this so only the blades occlude, not the full quad.
-    this.grassDepthMat = new THREE.MeshDepthMaterial({
-      map,
-      alphaTest: 0.55,
-      depthPacking: THREE.RGBADepthPacking,
-    });
+    this.grassDepthMat = this.lite
+      ? null
+      : new THREE.MeshDepthMaterial({
+          map,
+          alphaTest: 0.55,
+          depthPacking: THREE.RGBADepthPacking,
+        });
     const grassMat = this.grassMat;
     const grassDepthMat = this.grassDepthMat;
 
@@ -173,11 +188,12 @@ export class LawnBillboards {
       mesh.position.set(spot.x, 0.12, spot.z);
       mesh.scale.set(spot.h * aspect * (spot.flip ? -1 : 1), spot.h, 1);
       mesh.lookAt(CAM_X, mesh.position.y, CAM_Z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      mesh.castShadow = !this.lite;
+      mesh.receiveShadow = !this.lite;
       mesh.frustumCulled = true;
-      mesh.customDepthMaterial = grassDepthMat;
+      if (grassDepthMat) mesh.customDepthMaterial = grassDepthMat;
       this.grassGroup.add(mesh);
+      if (this.lite) return;
       const phase = (i / GRASS_SPOTS.length) * Math.PI * 2 + 0.7;
       this.breathers.push({
         obj: mesh,
@@ -203,25 +219,34 @@ export class LawnBillboards {
     raw.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
       obj.castShadow = false;
-      obj.receiveShadow = true;
+      obj.receiveShadow = !this.lite;
       obj.frustumCulled = true;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const mat of mats) {
-        if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
-        mat.metalness = 0;
-        mat.roughness = 0.85;
-        mat.transparent = true;
-        mat.alphaTest = 0.45;
-        mat.depthWrite = true;
-        mat.side = THREE.DoubleSide;
-        if (mat.map) {
-          mat.map.colorSpace = THREE.SRGBColorSpace;
-          mat.map.anisotropy = 1;
-          mat.map.needsUpdate = true;
+      const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const next = srcMats.map((mat) => {
+        const converted = this.lite ? lambertFromPbr(mat) : mat;
+        if (
+          converted instanceof THREE.MeshStandardMaterial ||
+          converted instanceof THREE.MeshLambertMaterial
+        ) {
+          if (converted instanceof THREE.MeshStandardMaterial) {
+            converted.metalness = 0;
+            converted.roughness = 0.85;
+          }
+          converted.transparent = true;
+          converted.alphaTest = 0.45;
+          converted.depthWrite = true;
+          converted.side = THREE.DoubleSide;
+          if (converted.map) {
+            converted.map.colorSpace = THREE.SRGBColorSpace;
+            converted.map.anisotropy = 1;
+            converted.map.needsUpdate = true;
+          }
+          converted.needsUpdate = true;
+          if (!this.treeMats.includes(converted)) this.treeMats.push(converted);
         }
-        mat.needsUpdate = true;
-        if (!this.treeMats.includes(mat)) this.treeMats.push(mat);
-      }
+        return converted;
+      });
+      obj.material = Array.isArray(obj.material) ? next : next[0]!;
     });
 
     raw.updateMatrixWorld(true);
@@ -243,6 +268,7 @@ export class LawnBillboards {
       inst.position.set(spot.x, 0, spot.z);
       inst.rotation.y = spot.rot;
       this.group.add(inst);
+      if (this.lite) return;
       const phase = (i / TREE_SPOTS.length) * Math.PI * 2 + 1.9;
       this.breathers.push({
         obj: inst,

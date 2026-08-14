@@ -11,6 +11,7 @@ const PLAY_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v1
 const SPEAKER_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l6-4v14l-6-4H4z"/><path d="M16.5 8.5c1.4 1.2 2.2 2.8 2.2 4.5s-.8 3.3-2.2 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.8 6c2.1 1.8 3.4 4.2 3.4 7s-1.3 5.2-3.4 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const MUTE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l6-4v14l-6-4H4z"/><path d="M17 9l5 6M22 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const RELOAD_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6V3L8 7l4 4V8a4 4 0 1 1-4 4H6a6 6 0 1 0 6-6z"/></svg>`;
+const CLOCK_ICON = `<svg class="hud-clock-icon" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 1.9"/></g></svg>`;
 
 export type HUDCallbacks = {
   onReload: () => void;
@@ -170,9 +171,12 @@ export class HUD {
   }
 
   private mobileMarkup(mode: GameMode, frenzyMeter: string): string {
+    const teeth = Array.from({ length: gameConfig.magazineSize }, () =>
+      `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
+    ).join('');
     const rightStat =
       mode === 'timed'
-        ? `<span class="hud-m-stat hud-time" aria-label="Time">TIME <span class="hud-time-sec">180</span><span class="hud-time-dot">.</span><span class="hud-time-ms">000</span></span>`
+        ? `<span class="hud-m-stat hud-time" aria-label="Time">${CLOCK_ICON}<span class="hud-time-sec">180.00</span></span>`
         : `<span class="hud-m-stat hud-lives" aria-label="Lives">LIVES <span class="hud-lives-value">${gameConfig.startLives}</span></span>`;
 
     return `
@@ -184,9 +188,9 @@ export class HUD {
           <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
         </div>
         <div class="hud-mobile-stats">
-          <span class="hud-m-stat" aria-label="Score">SCORE <span class="hud-score-num">0</span></span>
-          <span class="hud-combo" aria-label="Combo" hidden>COMBO <span class="hud-combo-mult">2X</span></span>
-          <span class="hud-m-stat hud-m-ammo" aria-label="Ammo">AMMO <span class="hud-ammo-num">${gameConfig.magazineSize}</span></span>
+          <span class="hud-m-stat hud-score" aria-label="Score">SCORE <span class="hud-score-num">0</span></span>
+          <span class="hud-combo" aria-label="Combo" hidden>COMBO<span class="hud-combo-mult">2X</span></span>
+          <span class="hud-m-stat hud-ammo" aria-label="Ammo"><span class="hud-ammo-icons">${teeth}</span></span>
           ${rightStat}
         </div>
         <button type="button" class="hud-reload-btn" aria-label="Reload" title="Reload">${RELOAD_ICON}</button>
@@ -311,20 +315,27 @@ export class HUD {
   }
 
   setTimer(secondsLeft: number): void {
-    if (!this.timerSecEl || !this.timerMsEl || !this.timerEl) return;
-    const totalMs = Math.max(0, Math.ceil(secondsLeft * 1000));
-    const s = Math.floor(totalMs / 1000);
-    const ms = totalMs % 1000;
-    this.timerSecEl.textContent = String(s);
-    this.timerMsEl.textContent = ms.toString().padStart(3, '0');
-    this.timerEl.classList.toggle('critical', secondsLeft <= 10);
+    if (!this.timerEl || !this.timerSecEl) return;
+    const t = Math.max(0, secondsLeft);
+    if (this.mobile) {
+      this.timerSecEl.textContent = t.toFixed(2);
+    } else {
+      if (!this.timerMsEl) return;
+      const totalMs = Math.max(0, Math.ceil(t * 1000));
+      const s = Math.floor(totalMs / 1000);
+      const ms = totalMs % 1000;
+      this.timerSecEl.textContent = String(s);
+      this.timerMsEl.textContent = ms.toString().padStart(3, '0');
+    }
+    this.timerEl.classList.toggle('critical', t <= 10);
     if (!this.thirtyBannerShown && secondsLeft <= 30) {
       this.thirtyBannerShown = true;
       this.showThirtySecondsBanner();
     }
-    if (s >= 1 && s <= 10 && s !== this.lastCountdownSec) {
-      this.lastCountdownSec = s;
-      this.showCountdownBeat(s);
+    const whole = Math.floor(t);
+    if (whole >= 1 && whole <= 10 && whole !== this.lastCountdownSec) {
+      this.lastCountdownSec = whole;
+      this.showCountdownBeat(whole);
     }
   }
 

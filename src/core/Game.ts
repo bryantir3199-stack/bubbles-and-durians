@@ -54,7 +54,10 @@ export class Game {
       antialias: false,
       alpha: false,
       stencil: false,
+      depth: true,
       powerPreference: 'high-performance',
+      // mediump fragment math is a large win on iOS GPUs vs PBR highp.
+      precision: this.usePostFx ? 'highp' : 'mediump',
     });
     this.renderer.setPixelRatio(this.pixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -168,10 +171,13 @@ export class Game {
     await this.current.enter(data);
   }
 
-  private pixelRatio(): number {
+  private pixelRatio(cssW = 0, cssH = 0): number {
     const dpr = window.devicePixelRatio || 1;
-    // Desktop: 1.25 for SAO. Mobile: 1.5 without MSAA/shadows to hold 60fps.
-    return Math.min(dpr, this.usePostFx ? 1.25 : 1.5);
+    if (this.usePostFx) return Math.min(dpr, 1.25);
+    // DOM HUD composites at 60fps while a 1.5–3x WebGL buffer falls behind.
+    // Draw 1:1 with CSS pixels, and cap the long edge so large phones/iPads stay cheap.
+    if (cssW > 0 && cssH > 0) return Math.min(1, 900 / Math.max(cssW, cssH));
+    return 1;
   }
 
   private resize(): void {
@@ -184,7 +190,7 @@ export class Game {
     this.camera.fov = coverVerticalFov(this.camera.aspect);
     this.camera.updateProjectionMatrix();
 
-    const dpr = this.pixelRatio();
+    const dpr = this.pixelRatio(w, h);
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
     this.canvas.style.width = `${w}px`;

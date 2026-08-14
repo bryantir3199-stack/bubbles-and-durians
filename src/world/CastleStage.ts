@@ -5,6 +5,7 @@ import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
 import { LawnBillboards } from './LawnBillboards';
 import { isCoarsePointer } from '../core/display';
+import { lambertFromPbr } from './liteMaterials';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -43,8 +44,9 @@ export class CastleStage {
   readonly doors = new DoorController();
   private readonly flags = new FlagWaver();
   private readonly lawn = new LawnBillboards();
-  private groundMat: THREE.MeshStandardMaterial | null = null;
-  private ringMat: THREE.MeshStandardMaterial | null = null;
+  private readonly lite = isCoarsePointer();
+  private groundMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
+  private ringMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
   private skyTexture: THREE.Texture | null = null;
   private frenzyLook = 0;
@@ -81,15 +83,15 @@ export class CastleStage {
 
     castle.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      const mobile = isCoarsePointer();
-      obj.castShadow = !mobile;
-      obj.receiveShadow = !mobile;
+      obj.castShadow = !this.lite;
+      obj.receiveShadow = !this.lite;
       obj.frustumCulled = true;
 
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const mat of mats) {
+      const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const next = srcMats.map((mat) => {
+        if (this.lite) return lambertFromPbr(mat, 1.05);
         if (!(mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhysicalMaterial)) {
-          continue;
+          return mat;
         }
         mat.metalness = 0;
         mat.roughness = 1;
@@ -105,7 +107,9 @@ export class CastleStage {
           mat.map.needsUpdate = true;
         }
         mat.needsUpdate = true;
-      }
+        return mat;
+      });
+      obj.material = Array.isArray(obj.material) ? next : next[0]!;
     });
 
     castle.scale.setScalar(100);
@@ -122,7 +126,7 @@ export class CastleStage {
     castle.updateMatrixWorld(true);
     this.applyMarkers(castle);
     this.doors.setup(castle);
-    this.flags.setup(castle);
+    if (!this.lite) this.flags.setup(castle);
     setDoorController(this.doors);
   }
 
@@ -218,38 +222,49 @@ export class CastleStage {
     this.scene.background = new THREE.Color(NORMAL_SKY);
     this.scene.fog = new THREE.Fog(NORMAL_FOG, 900, 1600);
 
-    this.groundMat = new THREE.MeshStandardMaterial({
-      color: NORMAL_GRASS,
-      metalness: 0,
-      roughness: 0.95,
-    });
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(560, 32), this.groundMat);
+    this.groundMat = this.lite
+      ? new THREE.MeshLambertMaterial({ color: NORMAL_GRASS })
+      : new THREE.MeshStandardMaterial({
+          color: NORMAL_GRASS,
+          metalness: 0,
+          roughness: 0.95,
+        });
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(560, this.lite ? 24 : 32),
+      this.groundMat,
+    );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
-    ground.receiveShadow = !isCoarsePointer();
+    ground.receiveShadow = !this.lite;
     this.root.add(ground);
 
-    this.ringMat = new THREE.MeshStandardMaterial({
-      color: NORMAL_GRASS_RING,
-      metalness: 0,
-      roughness: 0.95,
-      side: THREE.DoubleSide,
-    });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(70, 240, 32), this.ringMat);
+    this.ringMat = this.lite
+      ? new THREE.MeshLambertMaterial({ color: NORMAL_GRASS_RING, side: THREE.DoubleSide })
+      : new THREE.MeshStandardMaterial({
+          color: NORMAL_GRASS_RING,
+          metalness: 0,
+          roughness: 0.95,
+          side: THREE.DoubleSide,
+        });
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(70, 240, this.lite ? 24 : 32),
+      this.ringMat,
+    );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
-    ring.receiveShadow = !isCoarsePointer();
+    ring.receiveShadow = !this.lite;
     this.root.add(ring);
 
-    this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
-    this.hemiLight = new THREE.HemisphereLight(0xb8dfff, NORMAL_HEMI_GROUND, 0.55);
-    this.root.add(this.hemiLight);
+    this.root.add(new THREE.AmbientLight(0xfff6e8, this.lite ? 1.05 : 0.7));
+    if (!this.lite) {
+      this.hemiLight = new THREE.HemisphereLight(0xb8dfff, NORMAL_HEMI_GROUND, 0.55);
+      this.root.add(this.hemiLight);
+    }
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
+    const sun = new THREE.DirectionalLight(0xfff5e0, this.lite ? 1.2 : 1.75);
     sun.position.set(160, 320, 180);
-    const mobile = isCoarsePointer();
-    sun.castShadow = !mobile;
-    if (!mobile) {
+    sun.castShadow = !this.lite;
+    if (!this.lite) {
       sun.shadow.mapSize.set(2048, 2048);
       sun.shadow.bias = -0.00025;
       sun.shadow.normalBias = 0.035;
@@ -266,15 +281,19 @@ export class CastleStage {
     this.root.add(sun.target);
     sun.target.position.set(0, 40, 40);
 
-    const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
-    fill.position.set(-200, 160, 100);
-    this.root.add(fill);
+    if (!this.lite) {
+      const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
+      fill.position.set(-200, 160, 100);
+      this.root.add(fill);
+    }
   }
 
   update(dt: number): void {
     this.doors.update(dt);
-    this.flags.update(dt);
-    this.lawn.update(dt);
+    if (!this.lite) {
+      this.flags.update(dt);
+      this.lawn.update(dt);
+    }
 
     if (this.frenzyLook !== this.frenzyLookTarget) {
       const step = dt / FRENZY_LOOK_FADE_SEC;

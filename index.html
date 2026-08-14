@@ -1156,6 +1156,9 @@
         transform: none;
         padding: 0;
         margin: 0;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.28em;
         font: 800 clamp(13px, 3.8vh, 20px)/1.1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
         -webkit-text-stroke: 3px #111;
@@ -1164,17 +1167,70 @@
         white-space: nowrap;
         text-shadow: none;
       }
+      html.touch-ui .hud-score,
+      html.touch-ui .hud-ammo,
+      html.touch-ui .hud-time,
+      html.touch-ui .hud-lives {
+        background-image: none;
+        overflow: visible;
+        pointer-events: none;
+        cursor: default;
+      }
       html.touch-ui .hud-combo-text,
+      html.touch-ui .hud-combo-mult,
       html.touch-ui .hud-score-num,
-      html.touch-ui .hud-ammo-num,
       html.touch-ui .hud-time-sec,
-      html.touch-ui .hud-time-dot,
-      html.touch-ui .hud-time-ms,
       html.touch-ui .hud-lives-value {
+        position: static;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        display: inline;
+        width: auto;
+        height: auto;
         font: inherit;
         color: inherit;
         -webkit-text-stroke: inherit;
         paint-order: inherit;
+        letter-spacing: inherit;
+      }
+      html.touch-ui .hud-time {
+        align-items: center;
+      }
+      html.touch-ui .hud-clock-icon {
+        width: 1.15em;
+        height: 1.15em;
+        flex: 0 0 auto;
+        overflow: visible;
+        color: #fff;
+        filter:
+          drop-shadow(0 0 1.2px #000)
+          drop-shadow(1px 0 0 #000)
+          drop-shadow(-1px 0 0 #000)
+          drop-shadow(0 1px 0 #000)
+          drop-shadow(0 -1px 0 #000);
+      }
+      html.touch-ui .hud-ammo-icons {
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.1em;
+        pointer-events: none;
+      }
+      html.touch-ui .hud-tooth {
+        width: 1.15em;
+        height: 1.15em;
+        flex: 0 0 auto;
+      }
+      html.touch-ui .hud-tooth.pop-in { animation: none; }
+      html.touch-ui .hud-tooth-icon {
+        filter:
+          drop-shadow(0 0 1.2px #000)
+          drop-shadow(1px 1px 0 #000);
       }
       html.touch-ui .hud-combo.max { color: #ffe566; }
       html.touch-ui .hud-combo.pop { animation: none; }
