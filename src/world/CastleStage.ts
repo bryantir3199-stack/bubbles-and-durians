@@ -5,7 +5,7 @@ import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
 import { LawnBillboards } from './LawnBillboards';
 import { isCoarsePointer } from '../core/display';
-import { lambertFromPbr } from './liteMaterials';
+import { unlitFromPbr } from './liteMaterials';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -45,8 +45,8 @@ export class CastleStage {
   private readonly flags = new FlagWaver();
   private readonly lawn = new LawnBillboards();
   private readonly lite = isCoarsePointer();
-  private groundMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
-  private ringMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
+  private groundMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial | null = null;
+  private ringMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
   private skyTexture: THREE.Texture | null = null;
   private frenzyLook = 0;
@@ -89,7 +89,7 @@ export class CastleStage {
 
       const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
       const next = srcMats.map((mat) => {
-        if (this.lite) return lambertFromPbr(mat, 1.05);
+        if (this.lite) return unlitFromPbr(mat, 1.05);
         if (!(mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhysicalMaterial)) {
           return mat;
         }
@@ -223,7 +223,7 @@ export class CastleStage {
     this.scene.fog = new THREE.Fog(NORMAL_FOG, 900, 1600);
 
     this.groundMat = this.lite
-      ? new THREE.MeshLambertMaterial({ color: NORMAL_GRASS })
+      ? new THREE.MeshBasicMaterial({ color: NORMAL_GRASS })
       : new THREE.MeshStandardMaterial({
           color: NORMAL_GRASS,
           metalness: 0,
@@ -239,7 +239,7 @@ export class CastleStage {
     this.root.add(ground);
 
     this.ringMat = this.lite
-      ? new THREE.MeshLambertMaterial({ color: NORMAL_GRASS_RING, side: THREE.DoubleSide })
+      ? new THREE.MeshBasicMaterial({ color: NORMAL_GRASS_RING, side: THREE.DoubleSide })
       : new THREE.MeshStandardMaterial({
           color: NORMAL_GRASS_RING,
           metalness: 0,
@@ -255,16 +255,15 @@ export class CastleStage {
     ring.receiveShadow = !this.lite;
     this.root.add(ring);
 
-    this.root.add(new THREE.AmbientLight(0xfff6e8, this.lite ? 1.05 : 0.7));
+    // Unlit mobile materials ignore lights — skip them so iOS doesn't pay for a lighting loop.
     if (!this.lite) {
+      this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
       this.hemiLight = new THREE.HemisphereLight(0xb8dfff, NORMAL_HEMI_GROUND, 0.55);
       this.root.add(this.hemiLight);
-    }
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, this.lite ? 1.2 : 1.75);
-    sun.position.set(160, 320, 180);
-    sun.castShadow = !this.lite;
-    if (!this.lite) {
+      const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
+      sun.position.set(160, 320, 180);
+      sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
       sun.shadow.bias = -0.00025;
       sun.shadow.normalBias = 0.035;
@@ -276,12 +275,10 @@ export class CastleStage {
       cam.top = 320;
       cam.bottom = -160;
       cam.updateProjectionMatrix();
-    }
-    this.root.add(sun);
-    this.root.add(sun.target);
-    sun.target.position.set(0, 40, 40);
+      this.root.add(sun);
+      this.root.add(sun.target);
+      sun.target.position.set(0, 40, 40);
 
-    if (!this.lite) {
       const fill = new THREE.DirectionalLight(0xd8ecff, 0.35);
       fill.position.set(-200, 160, 100);
       this.root.add(fill);

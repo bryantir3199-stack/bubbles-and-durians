@@ -39,6 +39,7 @@ export class Game {
   private readonly composer: EffectComposer | null;
   private readonly saoPass: SAOPass | null;
   private unsubView: (() => void) | null = null;
+  private lastView = { w: 0, h: 0, left: 0, top: 0 };
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -61,8 +62,10 @@ export class Game {
     });
     this.renderer.setPixelRatio(this.pixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.4;
+    this.renderer.toneMapping = this.usePostFx
+      ? THREE.ACESFilmicToneMapping
+      : THREE.NoToneMapping;
+    this.renderer.toneMappingExposure = this.usePostFx ? 1.4 : 1;
     this.renderer.shadowMap.enabled = this.usePostFx;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
@@ -182,9 +185,18 @@ export class Game {
 
   private resize(): void {
     const { width: w, height: h, offsetLeft, offsetTop } = getViewSize();
+    const sizeChanged = w !== this.lastView.w || h !== this.lastView.h;
+    const posChanged = offsetLeft !== this.lastView.left || offsetTop !== this.lastView.top;
+    if (!sizeChanged && !posChanged) return;
+    this.lastView = { w, h, left: offsetLeft, top: offsetTop };
+
     this.container.style.width = `${w}px`;
     this.container.style.height = `${h}px`;
-    this.container.style.transform = `translate(${offsetLeft}px, ${offsetTop}px)`;
+    this.container.style.left = `${offsetLeft}px`;
+    this.container.style.top = `${offsetTop}px`;
+    this.container.style.transform = 'none';
+
+    if (!sizeChanged) return;
 
     this.camera.aspect = w / h;
     this.camera.fov = coverVerticalFov(this.camera.aspect);

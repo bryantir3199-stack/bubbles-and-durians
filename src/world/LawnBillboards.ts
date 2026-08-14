@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isCoarsePointer } from '../core/display';
-import { lambertFromPbr } from './liteMaterials';
+import { unlitFromPbr } from './liteMaterials';
 
 const GRASS_URL = 'assets/grass.png';
 const TREE_URL = 'assets/tree.glb';
@@ -62,10 +62,10 @@ export class LawnBillboards {
   private readonly grassGroup = new THREE.Group();
   private readonly grassGeo: THREE.PlaneGeometry;
   private readonly tmpTint = new THREE.Color(0xffffff);
-  private grassMat: THREE.MeshStandardMaterial | THREE.MeshLambertMaterial | null = null;
+  private grassMat: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial | null = null;
   private grassDepthMat: THREE.MeshDepthMaterial | null = null;
   private grassMap: THREE.Texture | null = null;
-  private readonly treeMats: Array<THREE.MeshStandardMaterial | THREE.MeshLambertMaterial> = [];
+  private readonly treeMats: Array<THREE.MeshStandardMaterial | THREE.MeshBasicMaterial> = [];
   private readonly breathers: Breather[] = [];
   private breathTime = 0;
   private readonly lite = isCoarsePointer();
@@ -148,7 +148,7 @@ export class LawnBillboards {
     this.grassMap = map;
 
     this.grassMat = this.lite
-      ? new THREE.MeshLambertMaterial({
+      ? new THREE.MeshBasicMaterial({
           map,
           color: 0xffffff,
           transparent: true,
@@ -223,10 +223,10 @@ export class LawnBillboards {
       obj.frustumCulled = true;
       const srcMats = Array.isArray(obj.material) ? obj.material : [obj.material];
       const next = srcMats.map((mat) => {
-        const converted = this.lite ? lambertFromPbr(mat) : mat;
+        const converted = this.lite ? unlitFromPbr(mat) : mat;
         if (
           converted instanceof THREE.MeshStandardMaterial ||
-          converted instanceof THREE.MeshLambertMaterial
+          converted instanceof THREE.MeshBasicMaterial
         ) {
           if (converted instanceof THREE.MeshStandardMaterial) {
             converted.metalness = 0;
