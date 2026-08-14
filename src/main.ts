@@ -1,4 +1,9 @@
 import { Game } from './core/Game';
+import { isCoarsePointer } from './core/display';
+
+if (isCoarsePointer()) {
+  document.documentElement.classList.add('touch-ui');
+}
 
 const container = document.getElementById('game-container');
 if (!container) {

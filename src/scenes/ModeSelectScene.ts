@@ -1,5 +1,7 @@
 import type { GameMode } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { tryEnterFullscreen } from '../core/display';
+import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
 
 export class ModeSelectScene implements GameScene {
@@ -26,7 +28,8 @@ export class ModeSelectScene implements GameScene {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const mode = el.dataset.mode as GameMode;
-        this.ctx.goto('play', { mode });
+        tryEnterFullscreen();
+        void requestShakePermission().then(() => this.ctx.goto('play', { mode }));
       });
     });
     bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));

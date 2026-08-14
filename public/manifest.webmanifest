@@ -1,0 +1,16 @@
+{
+  "name": "Bubbles & Durians",
+  "short_name": "Durians",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#071018",
+  "theme_color": "#071018",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ]
+}

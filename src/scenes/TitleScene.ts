@@ -1,4 +1,6 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { isCoarsePointer, tryEnterFullscreen } from '../core/display';
+import { requestShakePermission } from '../core/shake';
 import { clearUI, panel } from '../ui/dom';
 
 export class TitleScene implements GameScene {
@@ -12,12 +14,15 @@ export class TitleScene implements GameScene {
       'menu title-splash',
       `<div class="title-splash-content">
         <img class="title-logo" src="assets/logo.png" alt="Bubbles & Durians" />
-        <p class="click-anywhere">CLICK ANYWHERE</p>
+        <p class="click-anywhere">${isCoarsePointer() ? 'TAP ANYWHERE' : 'CLICK ANYWHERE'}</p>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
 
-    const advance = () => this.ctx.goto('modeSelect');
+    const advance = () => {
+      tryEnterFullscreen();
+      void requestShakePermission().then(() => this.ctx.goto('modeSelect'));
+    };
     ui.addEventListener('click', advance);
     ui.addEventListener('keydown', (e: Event) => {
       const key = (e as KeyboardEvent).key;

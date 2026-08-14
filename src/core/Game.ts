@@ -11,6 +11,12 @@ import { PlayScene } from '../scenes/PlayScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
 import { getCastleStage } from '../world/CastleStage';
+import {
+  coverVerticalFov,
+  DESIGN_VFOV_DEG,
+  getViewSize,
+  onViewChange,
+} from './display';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -22,6 +28,7 @@ export class Game {
   readonly camera: THREE.PerspectiveCamera;
   readonly uiRoot: HTMLElement;
   private canvas: HTMLCanvasElement;
+  private container: HTMLElement;
   private current: GameScene | null = null;
   private scenes: Record<SceneId, GameScene>;
   private last = 0;
@@ -29,8 +36,11 @@ export class Game {
   private sharedStageReady = false;
   private readonly composer: EffectComposer;
   private readonly saoPass: SAOPass;
+  private unsubView: (() => void) | null = null;
+  private lastView = { w: 0, h: 0, left: 0, top: 0 };
 
   constructor(container: HTMLElement) {
+    this.container = container;
     this.uiRoot = document.createElement('div');
     this.uiRoot.id = 'ui-root';
     this.uiRoot.className = 'ui-root';
@@ -41,7 +51,7 @@ export class Game {
       alpha: false,
       powerPreference: 'high-performance',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+    this.renderer.setPixelRatio(this.pixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.4;
@@ -51,12 +61,11 @@ export class Game {
     this.canvas.className = 'game-canvas';
     container.appendChild(this.canvas);
 
-    this.camera = new THREE.PerspectiveCamera(42, 1, 1, 2000);
+    this.camera = new THREE.PerspectiveCamera(DESIGN_VFOV_DEG, 1, 1, 2000);
     this.camera.position.set(0, 110, 635);
     this.camera.lookAt(0, 110, 40);
 
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const { width: w, height: h } = getViewSize();
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
 
@@ -124,7 +133,7 @@ export class Game {
       leaderboard: new LeaderboardScene(makeCtx()),
     };
 
-    window.addEventListener('resize', () => this.resize());
+    this.unsubView = onViewChange(() => this.resize());
     this.resize();
   }
 
@@ -148,18 +157,42 @@ export class Game {
     await this.current.enter(data);
   }
 
+  private pixelRatio(): number {
+    return Math.min(window.devicePixelRatio || 1, 1.25);
+  }
+
   private resize(): void {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const { width: w, height: h, offsetLeft, offsetTop } = getViewSize();
+    const sizeChanged = w !== this.lastView.w || h !== this.lastView.h;
+    const posChanged = offsetLeft !== this.lastView.left || offsetTop !== this.lastView.top;
+    if (!sizeChanged && !posChanged) return;
+    this.lastView = { w, h, left: offsetLeft, top: offsetTop };
+
+    this.container.style.width = `${w}px`;
+    this.container.style.height = `${h}px`;
+    this.container.style.left = `${offsetLeft}px`;
+    this.container.style.top = `${offsetTop}px`;
+    this.container.style.transform = 'none';
+
+    if (!sizeChanged) return;
+
     this.camera.aspect = w / h;
+    this.camera.fov = coverVerticalFov(this.camera.aspect);
     this.camera.updateProjectionMatrix();
+
+    const dpr = this.pixelRatio();
+    this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(w, h, false);
-    // Composer resizes passes with pixel-ratio scale — don't override with CSS px.
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
+    this.composer.setPixelRatio(dpr);
     this.composer.setSize(w, h);
     this.current?.onResize?.(w, h);
   }
 
   dispose(): void {
+    this.unsubView?.();
+    this.unsubView = null;
     cancelAnimationFrame(this.raf);
     this.current?.exit();
     this.saoPass.dispose();

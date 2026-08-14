@@ -8,6 +8,8 @@ import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
+import { isCoarsePointer } from '../core/display';
+import { onDeviceShake, requestShakePermission } from '../core/shake';
 import { clearUI } from '../ui/dom';
 import { getCastleStage } from '../world/CastleStage';
 import {
@@ -121,12 +123,12 @@ export class PlayScene implements GameScene {
     }
 
     const onMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
       this.hud?.setPointer(e.clientX, e.clientY);
     };
     const onDown = (e: PointerEvent) => {
       if (this.ended || this.paused) return;
-      // Ignore taps on the bottom cartoon HUD dock
-      if (e.clientY > window.innerHeight - 100) return;
+      if (e.pointerType === 'touch') e.preventDefault();
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -143,11 +145,16 @@ export class PlayScene implements GameScene {
     };
 
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointerdown', onDown, { passive: false });
     window.addEventListener('keydown', onKey);
     this.unsubs.push(() => window.removeEventListener('pointermove', onMove));
     this.unsubs.push(() => window.removeEventListener('pointerdown', onDown));
     this.unsubs.push(() => window.removeEventListener('keydown', onKey));
+
+    if (isCoarsePointer()) {
+      void requestShakePermission();
+      this.unsubs.push(onDeviceShake(() => this.onReload()));
+    }
 
     document.body.classList.add('playing');
     startStageBgm();
@@ -274,8 +281,11 @@ export class PlayScene implements GameScene {
     this.hud.playShootAnim();
     this.camKick = 1;
 
-    this.pointer.x = (clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    const rect = this.ctx.canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    this.pointer.x = ((clientX - rect.left) / w) * 2 - 1;
+    this.pointer.y = -((clientY - rect.top) / h) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.ctx.three.camera);
 
     // Raycast proxies only (non-recursive)
