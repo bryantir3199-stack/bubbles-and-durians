@@ -47,20 +47,20 @@ export class Game {
     this.uiRoot.className = 'ui-root';
     container.appendChild(this.uiRoot);
 
-    // SAO is too heavy (and too soft) on phones. Render directly with MSAA
-    // and a higher pixel ratio so the stage stays sharp.
+    // SAO is too heavy on phones. Skip post-FX and extra GPU work so play can hold 60fps.
     this.usePostFx = !isCoarsePointer();
 
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.usePostFx,
+      antialias: false,
       alpha: false,
+      stencil: false,
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(this.pixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.4;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = this.usePostFx;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'game-canvas';
@@ -170,8 +170,8 @@ export class Game {
 
   private pixelRatio(): number {
     const dpr = window.devicePixelRatio || 1;
-    // Desktop keeps the SAO cap; phones render without SAO so they can go sharper.
-    return Math.min(dpr, this.usePostFx ? 1.25 : 2);
+    // Desktop: 1.25 for SAO. Mobile: 1.5 without MSAA/shadows to hold 60fps.
+    return Math.min(dpr, this.usePostFx ? 1.25 : 1.5);
   }
 
   private resize(): void {

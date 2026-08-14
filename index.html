@@ -69,7 +69,8 @@
       .ui-root .name-field,
       .ui-root .title-splash,
       .ui-root .hud-ammo,
-      .ui-root .hud-ctrl {
+      .ui-root .hud-ctrl,
+      .ui-root .hud-reload-btn {
         pointer-events: auto;
       }
 
@@ -1110,87 +1111,117 @@
         overflow: auto;
       }
 
-      html.touch-ui .hud-dock {
+      html.touch-ui .hud-mobile-bar {
+        position: absolute;
         top: 0;
-        bottom: auto;
-        align-items: flex-start;
-        gap: 4px;
-        padding: max(2px, env(safe-area-inset-top, 0px)) 0 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: max(6px, env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));
+        pointer-events: none;
       }
-      html.touch-ui .hud-left { transform: translateX(-10px); }
-      html.touch-ui .hud-right { transform: translateX(10px); }
-      html.touch-ui .hud-score,
-      html.touch-ui .hud-ammo,
-      html.touch-ui .hud-time,
-      html.touch-ui .hud-lives {
-        transform: scaleY(-1);
-      }
-      html.touch-ui .hud-score > *,
-      html.touch-ui .hud-ammo > *,
-      html.touch-ui .hud-time > *,
-      html.touch-ui .hud-lives > * {
-        transform: scaleY(-1);
-      }
-      html.touch-ui .hud-ammo:active {
-        transform: scaleY(-1) scale(0.985);
-      }
-      html.touch-ui .hud-score,
-      html.touch-ui .hud-time,
-      html.touch-ui .hud-lives {
-        width: clamp(92px, 20vw, 132px);
-        height: clamp(34px, 8.5vh, 46px);
-      }
-      html.touch-ui .hud-ammo {
-        width: min(48vw, 260px);
-        height: clamp(34px, 8.5vh, 46px);
-      }
-      html.touch-ui .hud-ammo-icons {
-        left: 7%;
-        right: 7%;
-        bottom: 6px;
-        gap: 4px;
-      }
-      html.touch-ui .hud-panel-label { font-size: 11px; }
-      html.touch-ui .hud-score-num {
-        font-size: clamp(16px, 4.6vh, 26px);
-        -webkit-text-stroke-width: 2px;
-      }
-      html.touch-ui .hud-time-sec {
-        font-size: clamp(14px, 4.2vh, 22px);
-      }
-      html.touch-ui .hud-time-dot,
-      html.touch-ui .hud-time-ms {
-        font-size: clamp(10px, 2.8vh, 14px);
-      }
-      html.touch-ui .hud-combo {
-        width: 68px;
-        height: 22px;
-        bottom: auto;
-        top: calc(100% + 6px);
-        transform-origin: left top;
-      }
-      html.touch-ui .hud-combo-text { font-size: 9px; }
-      html.touch-ui .hud-tooth { width: 16px; height: 16px; }
-      html.touch-ui .hud-heart { width: 16px; height: 16px; }
-      html.touch-ui .hud-controls {
+      html.touch-ui .hud-mobile-bar .hud-controls {
+        position: static;
         top: auto;
-        bottom: max(8px, env(safe-area-inset-bottom, 0px));
-        left: max(8px, env(safe-area-inset-left, 0px));
+        left: auto;
         gap: 6px;
+        flex: 0 0 auto;
       }
-      html.touch-ui .hud-ctrl {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+      html.touch-ui .hud-mobile-bar .hud-ctrl {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
         border-width: 2px;
+        background: rgba(18, 28, 42, 0.55);
+      }
+      html.touch-ui .hud-mobile-stats {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.35em 1.1em;
+        pointer-events: none;
+      }
+      html.touch-ui .hud-m-stat,
+      html.touch-ui .hud-combo {
+        position: static;
+        width: auto;
+        height: auto;
+        background: none;
+        transform: none;
+        padding: 0;
+        margin: 0;
+        font: 800 clamp(13px, 3.8vh, 20px)/1.1 'Baloo 2', 'Fredoka', sans-serif;
+        color: #fff;
+        -webkit-text-stroke: 3px #111;
+        paint-order: stroke fill;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        text-shadow: none;
+      }
+      html.touch-ui .hud-combo-text,
+      html.touch-ui .hud-score-num,
+      html.touch-ui .hud-ammo-num,
+      html.touch-ui .hud-time-sec,
+      html.touch-ui .hud-time-dot,
+      html.touch-ui .hud-time-ms,
+      html.touch-ui .hud-lives-value {
+        font: inherit;
+        color: inherit;
+        -webkit-text-stroke: inherit;
+        paint-order: inherit;
+      }
+      html.touch-ui .hud-combo.max { color: #ffe566; }
+      html.touch-ui .hud-combo.pop { animation: none; }
+      html.touch-ui .hud-time.critical,
+      html.touch-ui .hud-lives.critical { color: #ff6b8a; }
+      html.touch-ui .hud-reload-btn {
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        background: rgba(18, 28, 42, 0.72);
+        color: #fff;
+        box-shadow: 0 2px 0 #111;
+        cursor: pointer;
+        pointer-events: auto;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+      html.touch-ui .hud-reload-btn svg {
+        width: 56%;
+        height: 56%;
+        fill: currentColor;
+        display: block;
+        pointer-events: none;
+      }
+      html.touch-ui .hud-reload-btn.is-empty {
+        color: #ff6b8a;
+        animation: reloadFlash 0.55s ease-in-out infinite;
+      }
+      html.touch-ui .hud-reload-btn.reloading {
+        animation: none;
+        opacity: 0.7;
+      }
+      html.touch-ui .hud-reload-btn.flash {
+        animation: blink 0.08s linear 3;
       }
       html.touch-ui .hud-frenzy-meter {
-        top: calc(env(safe-area-inset-top, 0px) + 50px);
-        width: min(180px, 36vw);
+        top: calc(env(safe-area-inset-top, 0px) + 48px);
+        width: min(200px, 42vw);
       }
       html.touch-ui .hud-frenzy-label { font-size: 10px; }
-      html.touch-ui .hud-frenzy-track { height: 12px; border-width: 2px; }
-      html.touch-ui .hud-reload-hint { font-size: 28px; }
+      html.touch-ui .hud-frenzy-track { height: 10px; border-width: 2px; }
+      html.touch-ui .hud-reload-hint { font-size: 26px; }
     </style>
   </head>
   <body>

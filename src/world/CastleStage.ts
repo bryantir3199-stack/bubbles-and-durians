@@ -4,6 +4,7 @@ import { applyCastleMarkers, type DoorBounds, type Vec3, type WindowSpot } from 
 import { DoorController, setDoorController } from './DoorController';
 import { FlagWaver } from './FlagWaver';
 import { LawnBillboards } from './LawnBillboards';
+import { isCoarsePointer } from '../core/display';
 
 const ASSET = {
   glb: 'assets/castle/castle.glb',
@@ -80,8 +81,9 @@ export class CastleStage {
 
     castle.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
+      const mobile = isCoarsePointer();
+      obj.castShadow = !mobile;
+      obj.receiveShadow = !mobile;
       obj.frustumCulled = true;
 
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
@@ -224,7 +226,7 @@ export class CastleStage {
     const ground = new THREE.Mesh(new THREE.CircleGeometry(560, 32), this.groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
-    ground.receiveShadow = true;
+    ground.receiveShadow = !isCoarsePointer();
     this.root.add(ground);
 
     this.ringMat = new THREE.MeshStandardMaterial({
@@ -236,7 +238,7 @@ export class CastleStage {
     const ring = new THREE.Mesh(new THREE.RingGeometry(70, 240, 32), this.ringMat);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.05;
-    ring.receiveShadow = true;
+    ring.receiveShadow = !isCoarsePointer();
     this.root.add(ring);
 
     this.root.add(new THREE.AmbientLight(0xfff6e8, 0.7));
@@ -245,18 +247,21 @@ export class CastleStage {
 
     const sun = new THREE.DirectionalLight(0xfff5e0, 1.75);
     sun.position.set(160, 320, 180);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.bias = -0.00025;
-    sun.shadow.normalBias = 0.035;
-    const cam = sun.shadow.camera;
-    cam.near = 40;
-    cam.far = 1000;
-    cam.left = -480;
-    cam.right = 480;
-    cam.top = 320;
-    cam.bottom = -160;
-    cam.updateProjectionMatrix();
+    const mobile = isCoarsePointer();
+    sun.castShadow = !mobile;
+    if (!mobile) {
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.bias = -0.00025;
+      sun.shadow.normalBias = 0.035;
+      const cam = sun.shadow.camera;
+      cam.near = 40;
+      cam.far = 1000;
+      cam.left = -480;
+      cam.right = 480;
+      cam.top = 320;
+      cam.bottom = -160;
+      cam.updateProjectionMatrix();
+    }
     this.root.add(sun);
     this.root.add(sun.target);
     sun.target.position.set(0, 40, 40);
