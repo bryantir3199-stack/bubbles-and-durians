@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isCoarsePointer } from '../core/display';
-import { unlitFromPbr } from './liteMaterials';
+import { capTextureSize, unlitFromPbr } from './liteMaterials';
 
 const GRASS_URL = 'assets/grass.png';
 const TREE_URL = 'assets/tree.glb';
@@ -146,6 +146,7 @@ export class LawnBillboards {
     map.magFilter = THREE.LinearFilter;
     map.needsUpdate = true;
     this.grassMap = map;
+    if (this.lite) capTextureSize(map, 512);
 
     this.grassMat = this.lite
       ? new THREE.MeshBasicMaterial({

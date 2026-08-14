@@ -40,16 +40,29 @@ export class Game {
   private readonly saoPass: SAOPass | null;
   private unsubView: (() => void) | null = null;
   private lastView = { w: 0, h: 0, left: 0, top: 0 };
+  private fpsEl: HTMLElement | null = null;
+  private fpsFrames = 0;
+  private fpsLast = 0;
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.usePostFx = !isCoarsePointer();
+
     this.uiRoot = document.createElement('div');
     this.uiRoot.id = 'ui-root';
     this.uiRoot.className = 'ui-root';
-    container.appendChild(this.uiRoot);
+    // HUD must not be a sibling inside the canvas parent — iOS composites that
+    // into a texture and locks WebGL around 30fps. Keep it on <body>.
+    document.body.appendChild(this.uiRoot);
 
-    // SAO is too heavy on phones. Skip post-FX and extra GPU work so play can hold 60fps.
-    this.usePostFx = !isCoarsePointer();
+    if (!this.usePostFx) {
+      // Unlit + display-referred textures: skip linear/sRGB shader convert.
+      THREE.ColorManagement.enabled = false;
+      this.fpsEl = document.createElement('div');
+      this.fpsEl.className = 'hud-fps';
+      this.fpsEl.textContent = '… FPS';
+      document.body.appendChild(this.fpsEl);
+    }
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -57,11 +70,11 @@ export class Game {
       stencil: false,
       depth: true,
       powerPreference: 'high-performance',
-      // mediump fragment math is a large win on iOS GPUs vs PBR highp.
-      precision: this.usePostFx ? 'highp' : 'mediump',
     });
     this.renderer.setPixelRatio(this.pixelRatio());
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.outputColorSpace = this.usePostFx
+      ? THREE.SRGBColorSpace
+      : THREE.LinearSRGBColorSpace;
     this.renderer.toneMapping = this.usePostFx
       ? THREE.ACESFilmicToneMapping
       : THREE.NoToneMapping;
@@ -164,6 +177,7 @@ export class Game {
       this.current?.update(dt);
       if (this.composer) this.composer.render();
       else this.renderer.render(this.scene, this.camera);
+      this.tickFps(now);
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -177,10 +191,21 @@ export class Game {
   private pixelRatio(cssW = 0, cssH = 0): number {
     const dpr = window.devicePixelRatio || 1;
     if (this.usePostFx) return Math.min(dpr, 1.25);
-    // DOM HUD composites at 60fps while a 1.5–3x WebGL buffer falls behind.
-    // Draw 1:1 with CSS pixels, and cap the long edge so large phones/iPads stay cheap.
-    if (cssW > 0 && cssH > 0) return Math.min(1, 900 / Math.max(cssW, cssH));
-    return 1;
+    // Half-res, CSS-upscaled. Three r163+ is WebGL2-only, so iOS is stuck on
+    // WebGL-via-Metal; shrinking the drawing buffer is the remaining lever.
+    if (cssW > 0 && cssH > 0) return Math.min(0.5, 480 / Math.max(cssW, cssH));
+    return 0.5;
+  }
+
+  private tickFps(now: number): void {
+    if (!this.fpsEl) return;
+    this.fpsFrames += 1;
+    if (now - this.fpsLast < 500) return;
+    const fps = Math.round((this.fpsFrames * 1000) / Math.max(1, now - this.fpsLast));
+    this.fpsEl.textContent = `${fps} FPS`;
+    this.fpsEl.classList.toggle('is-slow', fps < 50);
+    this.fpsFrames = 0;
+    this.fpsLast = now;
   }
 
   private resize(): void {
@@ -220,6 +245,9 @@ export class Game {
     this.unsubView = null;
     cancelAnimationFrame(this.raf);
     this.current?.exit();
+    this.fpsEl?.remove();
+    this.fpsEl = null;
+    this.uiRoot.remove();
     this.saoPass?.dispose();
     this.composer?.dispose();
     this.renderer.dispose();

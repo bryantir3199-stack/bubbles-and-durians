@@ -168,6 +168,10 @@ export class CastleStage {
   }
 
   private async loadSkyBackground(): Promise<void> {
+    if (this.lite) {
+      this.scene.background = new THREE.Color(NORMAL_SKY);
+      return;
+    }
     const tex = await new THREE.TextureLoader().loadAsync(ASSET.sky);
     tex.colorSpace = THREE.SRGBColorSpace;
     this.skyTexture = tex;
@@ -220,7 +224,7 @@ export class CastleStage {
   private buildEnvironment(): void {
     // Fallback until sky texture loads; Rhythm Heaven cyan.
     this.scene.background = new THREE.Color(NORMAL_SKY);
-    this.scene.fog = new THREE.Fog(NORMAL_FOG, 900, 1600);
+    this.scene.fog = this.lite ? null : new THREE.Fog(NORMAL_FOG, 900, 1600);
 
     this.groundMat = this.lite
       ? new THREE.MeshBasicMaterial({ color: NORMAL_GRASS })

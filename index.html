@@ -51,11 +51,36 @@
         overflow: hidden;
       }
       html.touch-ui #game-container {
-        /* A transformed + overflow-hidden parent forces iOS to composite WebGL
-           into a texture and cap it around 30fps. Keep the canvas untransformed. */
-        overflow: visible;
+        overflow: hidden;
         transform: none !important;
       }
+      html.touch-ui .game-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+      html.touch-ui .ui-root {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+      }
+      html.touch-ui .hud-fps {
+        position: fixed;
+        bottom: max(8px, env(safe-area-inset-bottom, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 40;
+        pointer-events: none;
+        font: 800 13px/1 'Baloo 2', 'Fredoka', sans-serif;
+        color: #8dffb0;
+        -webkit-text-stroke: 2px #111;
+        paint-order: stroke fill;
+        letter-spacing: 0.06em;
+      }
+      html.touch-ui .hud-fps.is-slow { color: #ff6b8a; }
       .game-canvas {
         display: block;
         width: 100%;
