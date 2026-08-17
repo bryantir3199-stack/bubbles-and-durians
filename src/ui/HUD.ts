@@ -1,5 +1,5 @@
 import { gameConfig } from '../config/gameConfig';
-import type { GameMode } from '../config/gameConfig';
+import type { GameMode, TimedPresetConfig } from '../config/gameConfig';
 import { playCountdownTickSound } from '../audio/sfx';
 import { isCoarsePointer } from '../core/display';
 
@@ -48,9 +48,16 @@ export class HUD {
   private paused = false;
   private readonly mode: GameMode;
   private readonly mobile = isCoarsePointer();
+  private readonly timedConfig: TimedPresetConfig | null;
 
-  constructor(parent: HTMLElement, mode: GameMode, callbacks: HUDCallbacks) {
+  constructor(
+    parent: HTMLElement,
+    mode: GameMode,
+    callbacks: HUDCallbacks,
+    timedConfig?: TimedPresetConfig,
+  ) {
     this.mode = mode;
+    this.timedConfig = mode === 'timed' ? (timedConfig ?? null) : null;
     this.root = document.createElement('div');
     this.root.className = this.mobile ? 'hud hud-mobile' : 'hud';
 
@@ -114,12 +121,13 @@ export class HUD {
     bindCtrl(this.pauseBtn, () => callbacks.onPauseToggle());
     bindCtrl(this.muteBtn, () => callbacks.onMuteToggle());
 
-    if (mode === 'timed') {
-      this.setTimer(gameConfig.timedSeconds);
+    if (mode === 'timed' && this.timedConfig) {
+      this.setTimer(this.timedConfig.seconds);
     }
   }
 
   private desktopMarkup(mode: GameMode, frenzyMeter: string): string {
+    const timedSeconds = this.timedConfig?.seconds ?? 0;
     const teeth = Array.from({ length: gameConfig.magazineSize }, () =>
       `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
     ).join('');
@@ -129,7 +137,7 @@ export class HUD {
       <div class="hud-panel hud-time" aria-label="Time">
         <span class="hud-panel-label hud-time-label">TIME</span>
         <div class="hud-time-value">
-          <span class="hud-time-sec">180</span>
+          <span class="hud-time-sec">${timedSeconds}</span>
           <span class="hud-time-dot">.</span>
           <span class="hud-time-ms">000</span>
         </div>
@@ -180,12 +188,13 @@ export class HUD {
   }
 
   private mobileMarkup(mode: GameMode, frenzyMeter: string): string {
+    const timedSeconds = this.timedConfig?.seconds ?? 0;
     const teeth = Array.from({ length: gameConfig.magazineSize }, () =>
       `<span class="hud-tooth filled">${TOOTH_IMG}</span>`,
     ).join('');
     const rightStat =
       mode === 'timed'
-        ? `<span class="hud-m-stat hud-time" aria-label="Time">${CLOCK_ICON}<span class="hud-time-sec">180.00</span></span>`
+        ? `<span class="hud-m-stat hud-time" aria-label="Time">${CLOCK_ICON}<span class="hud-time-sec">${timedSeconds.toFixed(2)}</span></span>`
         : `<span class="hud-m-stat hud-lives" aria-label="Lives">LIVES <span class="hud-lives-value">${gameConfig.startLives}</span></span>`;
 
     return `
@@ -341,9 +350,10 @@ export class HUD {
       this.timerMsEl.textContent = ms.toString().padStart(3, '0');
     }
     this.timerEl.classList.toggle('critical', t <= 10);
-    if (!this.thirtyBannerShown && secondsLeft <= 30) {
+    const finalBoostSeconds = this.timedConfig?.finalBoostSeconds ?? 30;
+    if (!this.thirtyBannerShown && secondsLeft <= finalBoostSeconds) {
       this.thirtyBannerShown = true;
-      this.showThirtySecondsBanner();
+      this.showThirtySecondsBanner(finalBoostSeconds);
     }
     const whole = Math.floor(t);
     if (whole >= 1 && whole <= 10 && whole !== this.lastCountdownSec) {
@@ -352,12 +362,12 @@ export class HUD {
     }
   }
 
-  /** One-shot marquee when timed mode hits the final 30 seconds. */
-  private showThirtySecondsBanner(): void {
+  /** One-shot marquee when timed mode hits the final stretch. */
+  private showThirtySecondsBanner(finalBoostSeconds: number): void {
     const el = document.createElement('div');
     el.className = 'hud-announce hud-thirty-banner';
     el.setAttribute('aria-hidden', 'true');
-    el.textContent = '30s Remains';
+    el.textContent = `${finalBoostSeconds}s Remains`;
     this.root.appendChild(el);
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }

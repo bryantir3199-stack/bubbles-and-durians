@@ -20,6 +20,8 @@ export interface SpawnerOptions {
   closeOnly?: boolean;
   /** Current lives — hearts are skipped when the bar is already full. */
   getLives?: () => number;
+  /** Timed mode: seconds remaining when the final spawn-rate boost begins. */
+  timedFinalBoostSeconds?: number;
 }
 
 /**
@@ -44,6 +46,7 @@ export class Spawner {
   private readonly domeOnly: boolean;
   private readonly closeOnly: boolean;
   private readonly getLives: (() => number) | undefined;
+  private readonly timedFinalBoostSeconds: number;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
   /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
@@ -65,6 +68,7 @@ export class Spawner {
     this.domeOnly = options?.domeOnly === true;
     this.closeOnly = options?.closeOnly === true;
     this.getLives = options?.getLives;
+    this.timedFinalBoostSeconds = options?.timedFinalBoostSeconds ?? 30;
   }
 
   start(): void {
@@ -145,7 +149,7 @@ export class Spawner {
     if (
       this.mode === 'timed' &&
       timeLeftSeconds !== undefined &&
-      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+      timeLeftSeconds <= this.timedFinalBoostSeconds
     ) {
       const boosted = this.computeInterval(timeLeftSeconds);
       if (this.nextAt - this.elapsed > boosted) {
@@ -213,7 +217,7 @@ export class Spawner {
     if (this.mode === 'timed') {
       if (
         timeLeftSeconds !== undefined &&
-        timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+        timeLeftSeconds <= this.timedFinalBoostSeconds
       ) {
         rateMult *= gameConfig.timedFinalSpawnRateMult;
       }
@@ -236,7 +240,7 @@ export class Spawner {
     }
     if (
       timeLeftSeconds !== undefined &&
-      timeLeftSeconds <= gameConfig.timedFinalBoostSeconds
+      timeLeftSeconds <= this.timedFinalBoostSeconds
     ) {
       return `${Math.round((gameConfig.timedFinalSpawnRateMult - 1) * 100)}%`;
     }

@@ -1,4 +1,5 @@
-import type { GameMode } from '../config/gameConfig';
+import type { GameMode, TimedPreset } from '../config/gameConfig';
+import { defaultTimedPreset, getTimedPreset } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
@@ -6,6 +7,7 @@ import { clearUI, panel, bindClick } from '../ui/dom';
 export class GameOverScene implements GameScene {
   readonly id = 'gameOver' as const;
   private mode: GameMode = 'endless';
+  private timedPreset: TimedPreset | undefined;
   private score = 0;
   private nameValue = '';
   private submitting = false;
@@ -17,6 +19,7 @@ export class GameOverScene implements GameScene {
 
   enter(data?: SceneData): void {
     this.mode = data?.mode ?? 'endless';
+    this.timedPreset = data?.timedPreset;
     this.score = data?.score ?? 0;
     this.nameValue = '';
     this.submitting = false;
@@ -26,7 +29,7 @@ export class GameOverScene implements GameScene {
       'menu game-over',
       `<div class="menu-card">
         <h1 class="danger">GAME OVER</h1>
-        <p class="muted">${this.mode === 'endless' ? 'Endless' : 'Timed'} Mode</p>
+        <p class="muted">${this.modeLabel()}</p>
         <p class="score-big">Score: ${this.score}</p>
         <p>Enter name for leaderboard</p>
         <div class="name-field" id="name-field">_</div>
@@ -74,6 +77,12 @@ export class GameOverScene implements GameScene {
     if (this.onKey) window.removeEventListener('keydown', this.onKey);
     this.onKey = null;
     clearUI(this.ctx.uiRoot);
+  }
+
+  private modeLabel(): string {
+    if (this.mode === 'endless') return 'Endless Mode';
+    const preset = getTimedPreset(this.timedPreset ?? defaultTimedPreset);
+    return `Timed Mode · ${preset.label} (${preset.seconds}s)`;
   }
 
   private async doSubmit(): Promise<void> {

@@ -1,4 +1,23 @@
 export type GameMode = 'endless' | 'timed';
+export type TimedPreset = 'short' | 'medium' | 'long';
+
+export interface TimedPresetConfig {
+  seconds: number;
+  finalBoostSeconds: number;
+  label: string;
+}
+
+export const timedPresets: Record<TimedPreset, TimedPresetConfig> = {
+  short: { seconds: 90, finalBoostSeconds: 20, label: 'Short' },
+  medium: { seconds: 180, finalBoostSeconds: 30, label: 'Medium' },
+  long: { seconds: 360, finalBoostSeconds: 30, label: 'Long' },
+};
+
+export const defaultTimedPreset: TimedPreset = 'medium';
+
+export function getTimedPreset(preset: TimedPreset = defaultTimedPreset): TimedPresetConfig {
+  return timedPresets[preset];
+}
 
 export const gameConfig = {
   startLives: 3,
@@ -6,14 +25,11 @@ export const gameConfig = {
   magazineSize: 7,
   /** Delay between each ammo pip filling during reload. */
   reloadShellMs: 85,
-  timedSeconds: 180,
   /** Hard cap — never more than this many live targets */
   maxTargets: 6,
   /** Prior cadence was 2920/1690; ~12% faster spawn rate → intervals / 1.12. */
   spawnIntervalMs: 2610,
   minSpawnIntervalMs: 1510,
-  /** Timed mode: last N seconds get a spawn-rate boost. */
-  timedFinalBoostSeconds: 30,
   /** Timed mode: multiply spawn rate by this during the final boost window (2.25 = +125%). */
   timedFinalSpawnRateMult: 2.25,
   /**

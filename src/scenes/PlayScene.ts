@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gameConfig } from '../config/gameConfig';
+import { gameConfig, defaultTimedPreset, getTimedPreset, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 import { GATE_PATHS } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
@@ -29,11 +29,13 @@ import {
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
   private mode: GameMode = 'endless';
+  private timedPreset: TimedPreset = defaultTimedPreset;
+  private timedConfig: TimedPresetConfig = getTimedPreset(defaultTimedPreset);
   private score = 0;
   private combo = 1;
   private comboShots = 0;
   private lives: number = gameConfig.startLives;
-  private timeLeft: number = gameConfig.timedSeconds;
+  private timeLeft = getTimedPreset(defaultTimedPreset).seconds;
   private ended = false;
   private paused = false;
   private spawner: Spawner | null = null;
@@ -62,11 +64,13 @@ export class PlayScene implements GameScene {
   enter(data?: SceneData): void {
     clearUI(this.ctx.uiRoot);
     this.mode = data?.mode ?? 'endless';
+    this.timedPreset = data?.timedPreset ?? defaultTimedPreset;
+    this.timedConfig = getTimedPreset(this.timedPreset);
     this.score = 0;
     this.combo = 1;
     this.comboShots = 0;
     this.lives = gameConfig.startLives;
-    this.timeLeft = gameConfig.timedSeconds;
+    this.timeLeft = this.timedConfig.seconds;
     this.ended = false;
     this.paused = false;
     this.frenzyMeter = 0;
@@ -89,12 +93,19 @@ export class PlayScene implements GameScene {
       domeOnly: wantsDomeOnly(),
       closeOnly: wantsCloseOnly(),
       getLives: () => this.lives,
+      timedFinalBoostSeconds:
+        this.mode === 'timed' ? this.timedConfig.finalBoostSeconds : undefined,
     });
-    this.hud = new HUD(this.ctx.uiRoot, this.mode, {
-      onReload: () => this.onReload(),
-      onPauseToggle: () => this.togglePause(),
-      onMuteToggle: () => this.onMuteToggle(),
-    });
+    this.hud = new HUD(
+      this.ctx.uiRoot,
+      this.mode,
+      {
+        onReload: () => this.onReload(),
+        onPauseToggle: () => this.togglePause(),
+        onMuteToggle: () => this.onMuteToggle(),
+      },
+      this.mode === 'timed' ? this.timedConfig : undefined,
+    );
     this.hud.setScore(this.score);
     this.hud.setCombo(this.combo, this.comboShots);
     this.hud.setLives(this.lives);
@@ -454,7 +465,11 @@ export class PlayScene implements GameScene {
     this.ended = true;
     this.spawner?.stop();
     window.setTimeout(() => {
-      this.ctx.goto('gameOver', { mode: this.mode, score: this.score });
+      this.ctx.goto('gameOver', {
+        mode: this.mode,
+        timedPreset: this.mode === 'timed' ? this.timedPreset : undefined,
+        score: this.score,
+      });
     }, 400);
   }
 }

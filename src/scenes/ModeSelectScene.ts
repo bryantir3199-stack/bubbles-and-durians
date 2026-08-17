@@ -1,4 +1,4 @@
-import type { GameMode } from '../config/gameConfig';
+import { defaultTimedPreset, type GameMode, type TimedPreset } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { tryEnterFullscreen } from '../core/display';
 import { requestShakePermission } from '../core/shake';
@@ -16,7 +16,10 @@ export class ModeSelectScene implements GameScene {
       `<div class="main-menu-content">
         <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
         <nav class="main-menu-nav" aria-label="Main menu">
-          <button type="button" class="menu-option timed" data-mode="timed">TIMED MODE</button>
+          <p class="menu-section-label">Timed</p>
+          <button type="button" class="menu-option timed" data-mode="timed" data-timed="short">SHORT · 90s</button>
+          <button type="button" class="menu-option timed" data-mode="timed" data-timed="medium">MEDIUM · 3 min</button>
+          <button type="button" class="menu-option timed" data-mode="timed" data-timed="long">LONG · 6 min</button>
           <button type="button" class="menu-option endless" data-mode="endless">ENDLESS MODE</button>
           <button type="button" class="menu-option" data-action="lb">VIEW LEADERBOARD</button>
         </nav>
@@ -28,8 +31,11 @@ export class ModeSelectScene implements GameScene {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const mode = el.dataset.mode as GameMode;
+        const timedPreset = (el.dataset.timed as TimedPreset | undefined) ?? defaultTimedPreset;
         tryEnterFullscreen();
-        void requestShakePermission().then(() => this.ctx.goto('play', { mode }));
+        void requestShakePermission().then(() =>
+          this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined }),
+        );
       });
     });
     bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));
