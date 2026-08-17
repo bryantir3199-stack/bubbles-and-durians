@@ -629,23 +629,29 @@
         line-height: 1;
       }
 
-      /* COMBO ribbon — above score, with clear gap */
+      /* COMBO ribbon — above score, with 4-hit buildup pips */
       .hud-combo {
         position: absolute;
         left: clamp(6px, 1.1vw, 15px);
         bottom: calc(100% + 32px);
         width: clamp(82px, 12vw, 150px);
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        transform: rotate(-6deg);
+        transform-origin: left bottom;
+        z-index: 2;
+      }
+      .hud-combo[hidden] { display: none !important; }
+      .hud-combo-badge {
         height: clamp(27px, 3.75vw, 44px);
         background: url('/assets/hud/combo.png') center / 100% 100% no-repeat;
         display: flex;
         align-items: center;
         justify-content: center;
-        transform: rotate(-6deg);
-        transform-origin: left bottom;
-        z-index: 2;
         padding: 0 6px 3px;
       }
-      .hud-combo[hidden] { display: none !important; }
       .hud-combo-text {
         font: 800 italic clamp(11px, 1.65vw, 17px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #e53935;
@@ -654,7 +660,28 @@
         paint-order: stroke fill;
         white-space: nowrap;
       }
+      .hud-combo-track {
+        display: flex;
+        gap: 3px;
+        height: clamp(7px, 1.05vw, 10px);
+        padding: 0 12% 0 6%;
+      }
+      .hud-combo-pip {
+        flex: 1;
+        min-width: 0;
+        border: 2px solid #fff;
+        border-radius: 3px;
+        background: rgba(18, 28, 42, 0.72);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+        transition: background 0.12s ease;
+      }
+      .hud-combo-pip.filled {
+        background: linear-gradient(180deg, #ffe566 0%, #ffb300 100%);
+      }
       .hud-combo.max .hud-combo-text { color: #ff1744; }
+      .hud-combo.max .hud-combo-pip.filled {
+        background: linear-gradient(180deg, #ff8a80 0%, #ff1744 100%);
+      }
       .hud-combo.pop { animation: comboPop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
       @keyframes comboPop {
         0% { transform: rotate(-6deg) scale(0.7); }
@@ -1059,8 +1086,11 @@
         .hud-ammo { width: min(100%, 70vw); height: clamp(44px, 12vw, 63px); }
         .hud-ammo-icons { left: 7%; right: 7%; bottom: 8px; gap: 5px; }
         .hud-panel-label { font-size: 13px; }
-        .hud-combo { width: 75px; height: 24px; bottom: calc(100% + 22px); }
+        .hud-combo { width: 75px; bottom: calc(100% + 22px); gap: 3px; }
+        .hud-combo-badge { height: 24px; }
         .hud-combo-text { font-size: 10px; }
+        .hud-combo-track { height: 6px; gap: 2px; }
+        .hud-combo-pip { border-width: 1px; border-radius: 2px; }
         .hud-tooth { width: 20px; height: 20px; }
         .hud-heart { width: 20px; height: 20px; }
         .hud-controls { top: 8px; left: 8px; gap: 6px; }

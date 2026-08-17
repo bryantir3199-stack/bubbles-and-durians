@@ -74,9 +74,11 @@ export const gameConfig = {
   lifetimeMs: {
     durian: { min: 4500, max: 7000 },
     goldDurian: { min: 5500, max: 8500 },
-    bubble: { min: 4000, max: 6500 },
+    bubble: { min: 2000, max: 3000 },
     heart: { min: 4000, max: 6000 },
   },
+  /** Close-camera bubble hold after rise (other close kinds still use 50% of lifetimeMs). */
+  closeBubbleLifetimeMs: { min: 1000, max: 2000 },
   /**
    * Spawn mix (timed): durian : bubble : gold = 20 : 10 : 2
    * (~62% / ~31% / ~6%). Gold is still below a flat 6:3:1 (~10%)

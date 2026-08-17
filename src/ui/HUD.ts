@@ -30,6 +30,8 @@ export class HUD {
   private reloadBtn: HTMLButtonElement | null = null;
   private comboEl: HTMLElement;
   private comboMultEl: HTMLElement;
+  private comboTrackEl: HTMLElement | null = null;
+  private comboPips: HTMLElement[] = [];
   private timerEl: HTMLElement | null = null;
   private timerSecEl: HTMLElement | null = null;
   private timerMsEl: HTMLElement | null = null;
@@ -77,6 +79,8 @@ export class HUD {
     this.reloadBtn = this.root.querySelector('.hud-reload-btn');
     this.comboEl = this.root.querySelector('.hud-combo')!;
     this.comboMultEl = this.root.querySelector('.hud-combo-mult')!;
+    this.comboTrackEl = this.root.querySelector('.hud-combo-track');
+    this.comboPips = [...this.root.querySelectorAll<HTMLElement>('.hud-combo-pip')];
     this.timerEl = this.root.querySelector('.hud-time');
     this.timerSecEl = this.root.querySelector('.hud-time-sec');
     this.timerMsEl = this.root.querySelector('.hud-time-ms');
@@ -148,7 +152,12 @@ export class HUD {
       <div class="hud-dock">
         <div class="hud-left">
           <div class="hud-combo" aria-label="Combo" hidden>
-            <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
+            <div class="hud-combo-badge">
+              <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
+            </div>
+            <div class="hud-combo-track" role="meter" aria-label="Combo progress" aria-valuemin="0" aria-valuemax="${gameConfig.shotsPerComboLevel}" aria-valuenow="0">
+              ${Array.from({ length: gameConfig.shotsPerComboLevel }, () => '<span class="hud-combo-pip"></span>').join('')}
+            </div>
           </div>
           <div class="hud-panel hud-score" aria-label="Score">
             <span class="hud-panel-label hud-score-label">SCORE</span>
@@ -239,14 +248,18 @@ export class HUD {
 
   setCombo(multiplier: number, progressShots = 0): void {
     const max = gameConfig.maxCombo;
+    const perLevel = gameConfig.shotsPerComboLevel;
     const level = Math.max(1, Math.min(max, Math.floor(multiplier)));
-    const progress = Math.max(0, Math.floor(progressShots));
+    const progress = Math.max(0, Math.min(perLevel, Math.floor(progressShots)));
+    const filled = level >= max ? perLevel : progress;
     const active = level > 1 || progress > 0;
     this.comboMultEl.textContent = `${level}X`;
     this.comboEl.hidden = !active;
     this.comboEl.classList.toggle('active', active);
     this.comboEl.classList.toggle('max', level >= max);
     this.comboEl.dataset.level = String(level);
+    this.comboPips.forEach((pip, i) => pip.classList.toggle('filled', i < filled));
+    this.comboTrackEl?.setAttribute('aria-valuenow', String(filled));
     if (active && level !== this.lastComboLevel) {
       this.comboEl.classList.remove('pop');
       void this.comboEl.offsetWidth;

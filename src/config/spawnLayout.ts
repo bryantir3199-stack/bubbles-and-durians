@@ -55,6 +55,8 @@ export const CLOSE_SPOTS: WindowSpot[] = [
 export const CLOSE_RISE_HEIGHT = 100;
 /** Seconds for the rise-from-below entrance. */
 export const CLOSE_RISE_DURATION = 0.5;
+/** Close-camera bubbles pop up faster than other close targets. */
+export const CLOSE_BUBBLE_RISE_DURATION = 0.25;
 /** Seconds to sink fully below the frame before despawn. */
 export const CLOSE_SINK_DURATION = 0.55;
 

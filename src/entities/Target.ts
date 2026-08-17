@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import {
+  CLOSE_BUBBLE_RISE_DURATION,
   CLOSE_RISE_DURATION,
   CLOSE_RISE_HEIGHT,
   CLOSE_SINK_DURATION,
@@ -135,10 +136,13 @@ export class Target {
             : gameConfig.hitsRequired.durian;
     this.hitsLeft = this.maxHits;
 
-    const lifeRange = gameConfig.lifetimeMs[kind];
+    const lifeRange =
+      spec.pattern === 'close' && kind === 'bubble'
+        ? gameConfig.closeBubbleLifetimeMs
+        : gameConfig.lifetimeMs[kind];
     this.lifetime = randBetween(lifeRange.min, lifeRange.max);
-    // Close-camera pops linger half as long as regular holds.
-    if (spec.pattern === 'close') this.lifetime *= 0.5;
+    // Close-camera pops linger half as long as regular holds (bubbles use their own range).
+    if (spec.pattern === 'close' && kind !== 'bubble') this.lifetime *= 0.5;
 
     if (kind === 'bubble') {
       this.visual = ModelCache.cloneModel('bubble');
@@ -263,7 +267,7 @@ export class Target {
       this.bobBaseY = p.y;
       this.riseToY = p.y;
       this.riseFromY = p.y - CLOSE_RISE_HEIGHT;
-      this.riseDur = CLOSE_RISE_DURATION;
+      this.riseDur = this.kind === 'bubble' ? CLOSE_BUBBLE_RISE_DURATION : CLOSE_RISE_DURATION;
       this.riseT = 0;
       this.root.position.set(p.x, this.riseFromY, p.z);
       this.phase = 'rise';
