@@ -2,6 +2,7 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer, tryEnterFullscreen } from '../core/display';
 import { requestShakePermission } from '../core/shake';
 import { clearUI, panel } from '../ui/dom';
+import { bindHighScoreBanner, highScoreBannerHtml } from '../ui/highScore';
 
 export class TitleScene implements GameScene {
   readonly id = 'title' as const;
@@ -12,12 +13,14 @@ export class TitleScene implements GameScene {
     clearUI(this.ctx.uiRoot);
     const ui = panel(
       'menu title-splash',
-      `<div class="title-splash-content">
+      `${highScoreBannerHtml()}
+      <div class="title-splash-content">
         <img class="title-logo" src="assets/logo.png" alt="Bubbles & Durians" />
         <p class="click-anywhere">${isCoarsePointer() ? 'TAP ANYWHERE' : 'CLICK ANYWHERE'}</p>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
+    bindHighScoreBanner(ui);
 
     const advance = () => {
       if (isCoarsePointer()) tryEnterFullscreen();

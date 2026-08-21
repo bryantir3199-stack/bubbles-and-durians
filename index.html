@@ -88,6 +88,7 @@
       }
       .menu.title-splash,
       .menu.main-menu {
+        position: relative;
         background:
           linear-gradient(180deg, rgba(6, 10, 18, 0.28) 0%, rgba(6, 10, 18, 0.45) 100%),
           url('/assets/title-bg.jpg') center / cover no-repeat;
@@ -131,6 +132,44 @@
           0 6px 18px rgba(0, 0, 0, 0.65);
         animation: clickPulse 1.8s ease-in-out infinite;
         pointer-events: none;
+      }
+      .high-score-banner {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2;
+        margin: 0;
+        padding: max(14px, env(safe-area-inset-top, 0px)) 20px 8px;
+        font: 500 clamp(15px, 2.4vw, 20px) / 1.2 'Fredoka', system-ui, sans-serif;
+        letter-spacing: 0.04em;
+        color: #f4e6c8;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+        text-shadow:
+          0 0 18px rgba(255, 214, 140, 0.35),
+          0 2px 0 #1a1208,
+          0 6px 18px rgba(0, 0, 0, 0.65);
+      }
+      .high-score-banner[hidden] {
+        display: none;
+      }
+      .high-score-label,
+      .high-score-name,
+      .high-score-value {
+        font: inherit;
+      }
+      .high-score-label {
+        font-weight: 700;
+      }
+      .high-score-name {
+        color: #f7e9cf;
+      }
+      .high-score-value {
+        color: var(--gold);
       }
       .main-menu-nav {
         display: flex;
@@ -1210,6 +1249,11 @@
         margin-top: 8px;
         font-size: clamp(14px, 4.4vh, 22px);
         letter-spacing: 0.12em;
+      }
+      html.touch-ui .high-score-banner {
+        padding: max(8px, env(safe-area-inset-top, 0px)) 12px 6px;
+        font-size: clamp(12px, 3.2vh, 16px);
+        letter-spacing: 0.08em;
       }
       html.touch-ui .main-menu-logo {
         width: auto;

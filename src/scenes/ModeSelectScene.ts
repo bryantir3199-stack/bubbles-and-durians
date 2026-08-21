@@ -9,6 +9,7 @@ import {
 } from '../core/display';
 import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
+import { bindHighScoreBanner, highScoreBannerHtml } from '../ui/highScore';
 
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
@@ -44,7 +45,8 @@ export class ModeSelectScene implements GameScene {
       : '';
     const ui = panel(
       'menu main-menu',
-      `<div class="main-menu-content">
+      `${highScoreBannerHtml()}
+      <div class="main-menu-content">
         <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
         <nav class="main-menu-nav" aria-label="Main menu">
           <p class="menu-section-label">Learn</p>
@@ -59,6 +61,7 @@ export class ModeSelectScene implements GameScene {
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
+    bindHighScoreBanner(ui);
 
     ui.querySelectorAll<HTMLElement>('[data-mode]').forEach((el) => {
       el.addEventListener('click', (e) => {

@@ -49,6 +49,37 @@ export async function fetchTopScores(mode: GameMode, limit = 10): Promise<ScoreR
   return (data ?? []) as ScoreRow[];
 }
 
+let highScoreCache: ScoreRow | null | undefined;
+let highScoreInflight: Promise<ScoreRow | null> | null = null;
+
+function pickHigherScore(a: ScoreRow | undefined, b: ScoreRow | undefined): ScoreRow | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  if (a.score !== b.score) return a.score >= b.score ? a : b;
+  return new Date(a.created_at) >= new Date(b.created_at) ? a : b;
+}
+
+/** Overall #1 across ranked modes. Cached until the next submitted score. */
+export async function fetchHighScore(): Promise<ScoreRow | null> {
+  if (highScoreCache !== undefined) return highScoreCache;
+  if (highScoreInflight) return highScoreInflight;
+
+  highScoreInflight = Promise.all([fetchTopScores('endless', 1), fetchTopScores('timed', 1)])
+    .then(([endless, timed]) => {
+      highScoreCache = pickHigherScore(endless[0], timed[0]);
+      return highScoreCache;
+    })
+    .finally(() => {
+      highScoreInflight = null;
+    });
+
+  return highScoreInflight;
+}
+
+export function invalidateHighScoreCache(): void {
+  highScoreCache = undefined;
+}
+
 export async function submitScore(
   playerName: string,
   score: number,
@@ -76,5 +107,6 @@ export async function submitScore(
     console.warn('Score submit failed:', error.message);
     return { ok: false, error: error.message };
   }
+  invalidateHighScoreCache();
   return { ok: true };
 }
