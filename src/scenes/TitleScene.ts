@@ -20,7 +20,7 @@ export class TitleScene implements GameScene {
     this.ctx.uiRoot.appendChild(ui);
 
     const advance = () => {
-      tryEnterFullscreen();
+      if (isCoarsePointer()) tryEnterFullscreen();
       void requestShakePermission().then(() => this.ctx.goto('modeSelect'));
     };
     ui.addEventListener('click', advance);

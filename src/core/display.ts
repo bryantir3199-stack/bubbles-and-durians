@@ -26,6 +26,12 @@ type FsEl = HTMLElement & {
   webkitRequestFullscreen?: () => void;
 };
 
+export function canUseFullscreen(target: HTMLElement = document.documentElement): boolean {
+  const el = target as FsEl;
+  const doc = document as Document & { webkitExitFullscreen?: () => void };
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen || document.exitFullscreen || doc.webkitExitFullscreen);
+}
+
 /** Best-effort fullscreen on a user gesture (Android / iPad). iPhone Safari ignores this. */
 export function tryEnterFullscreen(target: HTMLElement = document.documentElement): void {
   if (isFullscreen()) return;
@@ -41,6 +47,27 @@ export function tryEnterFullscreen(target: HTMLElement = document.documentElemen
   } catch {
     // iPhone Safari has no Fullscreen API for arbitrary elements.
   }
+}
+
+export function tryExitFullscreen(): void {
+  if (!isFullscreen()) return;
+  const doc = document as Document & { webkitExitFullscreen?: () => void };
+  try {
+    if (document.exitFullscreen) {
+      void document.exitFullscreen().catch(() => {
+        doc.webkitExitFullscreen?.();
+      });
+    } else {
+      doc.webkitExitFullscreen?.();
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function toggleFullscreen(target: HTMLElement = document.documentElement): void {
+  if (isFullscreen()) tryExitFullscreen();
+  else tryEnterFullscreen(target);
 }
 
 export type ViewSize = {
