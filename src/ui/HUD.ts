@@ -62,7 +62,7 @@ export class HUD {
     this.root.className = this.mobile ? 'hud hud-mobile' : 'hud';
 
     const frenzyMeter =
-      mode === 'endless'
+      mode !== 'timed'
         ? `
       <div class="hud-frenzy-meter" aria-label="Frenzy meter">
         <span class="hud-frenzy-label">FRENZY</span>
@@ -246,7 +246,7 @@ export class HUD {
 
   /** Large centered “FRENZY” announce at the start of a frenzy. */
   showFrenzyAnnounce(): void {
-    if (this.mode !== 'endless') return;
+    if (this.mode === 'timed') return;
     const el = document.createElement('div');
     el.className = 'hud-announce hud-frenzy-announce';
     el.setAttribute('aria-hidden', 'true');

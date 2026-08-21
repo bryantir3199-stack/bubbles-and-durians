@@ -94,6 +94,29 @@ export class Spawner {
     this.logSpawnRateLabel(this.rateLabel(undefined));
   }
 
+  /**
+   * Place a specific target for tutorial / scripted beats.
+   * Bypasses mix weights, early-game grace, and the live-count cap.
+   */
+  forceSpawn(
+    kind: TargetKind,
+    pattern: SpawnPattern,
+    options?: { frenzySpawned?: boolean; windowId?: string; pathIndex?: number },
+  ): Target | null {
+    const spec = this.lockSpec(pattern, options);
+    if (!spec) return null;
+    const target = new Target(
+      this.scene,
+      kind,
+      spec,
+      this.onEscape,
+      () => this.releaseSpec(spec),
+      options?.frenzySpawned === true,
+    );
+    this.targets.push(target);
+    return target;
+  }
+
   stop(): void {
     this.running = false;
   }
@@ -104,7 +127,7 @@ export class Spawner {
    * Raising the rate shortens any pending next-spawn wait immediately.
    */
   setEndlessRateMult(mult: number): void {
-    if (this.mode !== 'endless') return;
+    if (this.mode === 'timed') return;
     const prev = this.endlessRateMult;
     this.endlessRateMult = Math.max(0.01, mult);
     if (this.endlessRateMult > prev) {
@@ -121,7 +144,7 @@ export class Spawner {
    * drops to `frenzyBubbleSpawnMult` of normal (via weight retargeting).
    */
   setFrenzyActive(active: boolean): void {
-    if (this.mode !== 'endless') return;
+    if (this.mode === 'timed') return;
     this.frenzyActive = active;
     this.setEndlessRateMult(active ? gameConfig.frenzySpawnRateMult : 1);
   }
@@ -131,17 +154,17 @@ export class Spawner {
    * @param timeLeftSeconds — timed-mode seconds remaining (ignored in endless)
    */
   update(dt: number, timeLeftSeconds?: number): void {
+    for (const t of this.targets) t.update(dt);
+    for (let i = this.targets.length - 1; i >= 0; i--) {
+      if (!this.targets[i]!.root.parent) this.targets.splice(i, 1);
+    }
+
     if (!this.running) return;
     const dtMs = dt * 1000;
     this.elapsed += dtMs;
     // Linear ramp pauses during Frenzy — only non-Frenzy time climbs the rate.
     if (this.mode === 'endless' && !this.frenzyActive) {
       this.rampElapsed += dtMs;
-    }
-
-    for (const t of this.targets) t.update(dt);
-    for (let i = this.targets.length - 1; i >= 0; i--) {
-      if (!this.targets[i]!.root.parent) this.targets.splice(i, 1);
     }
 
     // Timed final boost: once remaining time enters the window, tighten the
@@ -325,6 +348,44 @@ export class Spawner {
       }
     }
     return free;
+  }
+
+  private lockSpec(
+    pattern: SpawnPattern,
+    options?: { windowId?: string; pathIndex?: number },
+  ): TargetSpawnSpec | null {
+    if (pattern === 'window') {
+      const spots = WINDOWS.filter((w) => !this.occupiedWindows.has(w.id));
+      if (spots.length === 0) return null;
+      const preferred = options?.windowId
+        ? spots.find((s) => s.id === options.windowId)
+        : undefined;
+      const spot = preferred ?? spots[Math.floor(spots.length / 2)] ?? spots[0]!;
+      this.occupiedWindows.add(spot.id);
+      this.windowCooldownUntil.delete(spot.id);
+      return { pattern: 'window', windowId: spot.id, windowSpot: spot };
+    }
+
+    if (pattern === 'close') {
+      const spots = CLOSE_SPOTS.filter((s) => !this.occupiedClose.has(s.id));
+      if (spots.length === 0) return null;
+      const preferred = options?.windowId
+        ? spots.find((s) => s.id === options.windowId)
+        : spots.find((s) => s.id === 'close-middle');
+      const spot = preferred ?? spots[0]!;
+      this.occupiedClose.add(spot.id);
+      this.closeCooldownUntil.delete(spot.id);
+      return { pattern: 'close', windowId: spot.id, windowSpot: spot };
+    }
+
+    const free = this.freePathIndices();
+    if (free.length === 0) return null;
+    const preferred = options?.pathIndex;
+    const pathIndex =
+      preferred !== undefined && free.includes(preferred) ? preferred : free[0]!;
+    this.busyPaths.add(pathIndex);
+    this.pathCooldownUntil.delete(pathIndex);
+    return { pattern: 'path', pathIndex, pathForward: true };
   }
 
   private pickSpec(): TargetSpawnSpec | null {

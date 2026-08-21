@@ -70,7 +70,9 @@
       .ui-root .title-splash,
       .ui-root .hud-ammo,
       .ui-root .hud-ctrl,
-      .ui-root .hud-reload-btn {
+      .ui-root .hud-reload-btn,
+      .ui-root .tut-coach,
+      .ui-root .tut-btn {
         pointer-events: auto;
       }
 
@@ -160,6 +162,7 @@
       }
       .menu-option.timed { color: #ffe566; }
       .menu-option.endless { color: #9fd0ff; }
+      .menu-option.tutorial { color: #b8f07a; }
       .menu-section-label {
         margin: 0 0 -4px;
         font: 700 clamp(12px, 2vw, 14px) / 1 var(--title-serif);
@@ -1008,6 +1011,86 @@
         opacity: 0;
       }
 
+      /* Tutorial coach */
+      .tut-coach {
+        position: absolute;
+        left: 50%;
+        top: max(72px, calc(env(safe-area-inset-top, 0px) + 62px));
+        bottom: auto;
+        transform: translateX(-50%);
+        z-index: 26;
+        width: min(540px, 92vw);
+        padding: 12px 16px 14px;
+        pointer-events: auto;
+        text-align: left;
+        background: rgba(8, 16, 28, 0.88);
+        border: 2px solid rgba(244, 230, 200, 0.78);
+        border-radius: 12px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(8px);
+        animation: titleRise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+      .tut-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+      .tut-kicker {
+        font: 700 12px/1 var(--title-serif);
+        letter-spacing: 0.16em;
+        color: #b8f07a;
+        text-transform: uppercase;
+      }
+      .tut-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .tut-title {
+        font: 800 clamp(20px, 3.4vw, 28px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
+        color: #fff;
+        margin: 0 0 4px;
+        letter-spacing: 0.02em;
+        text-shadow: 0 2px 0 #000;
+      }
+      .tut-body {
+        margin: 0;
+        color: #d7e6f5;
+        font: 500 15px/1.45 'Fredoka', sans-serif;
+      }
+      .tut-wait {
+        margin: 8px 0 0;
+        color: var(--gold);
+        font: 700 14px/1.3 'Fredoka', sans-serif;
+      }
+      .tut-wait.tut-ok { color: #7cff7c; }
+      .tut-wait.tut-warn { color: #ff8aa3; }
+      .tut-btn {
+        padding: 6px 12px;
+        font: 700 13px/1 'Fredoka', sans-serif;
+        letter-spacing: 0.08em;
+        color: #fff;
+        background: #334455;
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        border-radius: 8px;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      .tut-btn.tut-next {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 10px 14px;
+        font-size: 18px;
+        background: var(--accent);
+      }
+      .tut-btn.tut-next:hover { background: var(--accent-hot); }
+      .tut-btn.tut-skip:hover,
+      .tut-btn.tut-quit:hover {
+        background: #445566;
+      }
+
       .hud-announce {
         font: 800 clamp(52px, 11vw, 110px)/1 'Baloo 2', 'Fredoka', sans-serif;
         color: #fff;
@@ -1350,6 +1433,15 @@
       html.touch-ui .hud-frenzy-announce {
         position: fixed;
       }
+      html.touch-ui .tut-coach {
+        top: max(78px, calc(env(safe-area-inset-top, 0px) + 70px));
+        bottom: auto;
+        width: min(560px, 96vw);
+        padding: 10px 12px 12px;
+      }
+      html.touch-ui .tut-title { font-size: clamp(16px, 4.2vh, 22px); }
+      html.touch-ui .tut-body { font-size: 13px; }
+      html.touch-ui .tut-btn.tut-next { font-size: 16px; padding: 8px 12px; }
     </style>
   </head>
   <body>

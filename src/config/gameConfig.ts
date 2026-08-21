@@ -1,4 +1,5 @@
-export type GameMode = 'endless' | 'timed';
+export type GameMode = 'endless' | 'timed' | 'tutorial';
+export type RankedMode = 'endless' | 'timed';
 export type TimedPreset = 'short' | 'medium' | 'long';
 
 export interface TimedPresetConfig {
@@ -113,6 +114,12 @@ export const gameConfig = {
       goldDurian: 2,
       bubble: 10,
       heart: 0,
+    },
+    tutorial: {
+      durian: 20,
+      goldDurian: 2,
+      bubble: 10,
+      heart: 2,
     },
   },
 } as const;

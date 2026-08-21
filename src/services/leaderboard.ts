@@ -1,11 +1,11 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { GameMode } from '../config/gameConfig';
+import type { GameMode, RankedMode } from '../config/gameConfig';
 
 export interface ScoreRow {
   id: string;
   player_name: string;
   score: number;
-  mode: GameMode;
+  mode: RankedMode;
   created_at: string;
 }
 
@@ -26,7 +26,12 @@ export function isLeaderboardConfigured(): boolean {
   return getClient() !== null;
 }
 
+function isRankedMode(mode: GameMode): mode is RankedMode {
+  return mode === 'endless' || mode === 'timed';
+}
+
 export async function fetchTopScores(mode: GameMode, limit = 10): Promise<ScoreRow[]> {
+  if (!isRankedMode(mode)) return [];
   const sb = getClient();
   if (!sb) return [];
 
@@ -49,6 +54,9 @@ export async function submitScore(
   score: number,
   mode: GameMode,
 ): Promise<{ ok: boolean; error?: string }> {
+  if (!isRankedMode(mode)) {
+    return { ok: false, error: 'Tutorial scores are not ranked' };
+  }
   const sb = getClient();
   if (!sb) {
     return { ok: false, error: 'Leaderboard not configured. Add Supabase keys to .env' };

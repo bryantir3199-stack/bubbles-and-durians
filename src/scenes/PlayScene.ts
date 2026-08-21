@@ -8,6 +8,8 @@ import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
+import { TutorialCoach } from '../ui/TutorialCoach';
+import { TutorialDirector } from '../systems/TutorialDirector';
 import { isCoarsePointer } from '../core/display';
 import { onDeviceShake, requestShakePermission } from '../core/shake';
 import { clearUI } from '../ui/dom';
@@ -58,6 +60,8 @@ export class PlayScene implements GameScene {
   private frenzyActive = false;
   /** Endless: ms remaining in the active frenzy. */
   private frenzyTimeLeftMs = 0;
+  private tutorial: TutorialDirector | null = null;
+  private tutorialCoach: TutorialCoach | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -77,10 +81,12 @@ export class PlayScene implements GameScene {
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
     getCastleStage()?.resetFrenzyLook();
-    this.escapesArmed = false;
-    window.setTimeout(() => {
-      this.escapesArmed = true;
-    }, 4500);
+    this.escapesArmed = this.mode === 'tutorial';
+    if (!this.escapesArmed) {
+      window.setTimeout(() => {
+        this.escapesArmed = true;
+      }, 4500);
+    }
 
     // Static camera — no aim parallax (down 30, back 75 from prior 0/140/560)
     this.camBase.set(0, 110, 635);
@@ -169,7 +175,8 @@ export class PlayScene implements GameScene {
 
     document.body.classList.add('playing');
     startStageBgm();
-    this.spawner.start();
+    if (this.mode === 'tutorial') this.beginTutorial();
+    else this.spawner.start();
   }
 
   update(dt: number): void {
@@ -188,6 +195,7 @@ export class PlayScene implements GameScene {
     }
 
     this.spawner?.update(dt, this.mode === 'timed' ? this.timeLeft : undefined);
+    this.tutorial?.update(dt);
     this.announceVisibleGoldDurians();
 
     if (this.camKick > 0) {
@@ -235,6 +243,10 @@ export class PlayScene implements GameScene {
     this.unsubs = [];
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
+    this.tutorial?.destroy();
+    this.tutorial = null;
+    this.tutorialCoach?.destroy();
+    this.tutorialCoach = null;
     this.spawner?.setFrenzyActive(false);
     getCastleStage()?.resetFrenzyLook();
     this.spawner?.stop();
@@ -261,7 +273,8 @@ export class PlayScene implements GameScene {
 
   private onReload(): void {
     if (this.ended || this.paused) return;
-    this.ammo?.tryReload();
+    const started = this.ammo?.tryReload();
+    if (started) this.tutorial?.onReload();
   }
 
   private togglePause(): void {
@@ -305,6 +318,7 @@ export class PlayScene implements GameScene {
     if (hits.length === 0) {
       // Missed shot — break combo
       this.resetCombo();
+      this.tutorial?.onShot({ hit: false });
       return;
     }
 
@@ -318,6 +332,7 @@ export class PlayScene implements GameScene {
     }
     if (!target || !target.active) {
       this.resetCombo();
+      this.tutorial?.onShot({ hit: false });
       return;
     }
 
@@ -327,8 +342,8 @@ export class PlayScene implements GameScene {
       this.registerComboShot(clientX, clientY);
       this.hud.spawnCrumbs(clientX, clientY);
     }
-    if (!destroyed) return;
-    this.resolveDestroyedTarget(target, clientX, clientY);
+    if (destroyed) this.resolveDestroyedTarget(target, clientX, clientY);
+    this.tutorial?.onShot({ hit: true, kind: target.kind, destroyed });
   }
 
   private isDurianKind(kind: Target['kind']): boolean {
@@ -354,7 +369,7 @@ export class PlayScene implements GameScene {
       this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
-      if (this.mode === 'endless') this.changeLives(-1);
+      if (this.usesLives()) this.changeLives(-1);
     } else if (kind === 'heart') {
       // Hearts grant a life without breaking the combo streak.
       this.changeLives(1);
@@ -371,7 +386,8 @@ export class PlayScene implements GameScene {
       // Missed a durian — break combo
       this.resetCombo();
     }
-    if (this.mode !== 'endless' || !this.escapesArmed) return;
+    this.tutorial?.onEscape(target.kind);
+    if (!this.usesLives() || !this.escapesArmed) return;
     // During Frenzy, or for targets spawned in Frenzy (even after it ends),
     // escapes / unshot targets do not cost a life.
     if (this.frenzyActive || target.frenzySpawned) return;
@@ -450,20 +466,77 @@ export class PlayScene implements GameScene {
 
   private changeLives(delta: number): void {
     // Timed mode has no lives — only the clock ends the run.
-    if (this.mode !== 'endless') return;
+    if (!this.usesLives()) return;
     if (delta > 0) {
       this.lives = Math.min(gameConfig.maxLives, this.lives + delta);
     } else {
       this.lives = Math.max(0, this.lives + delta);
     }
     this.hud?.setLives(this.lives);
-    if (this.lives <= 0) this.endGame();
+    if (this.lives <= 0 && this.mode !== 'tutorial') this.endGame();
+  }
+
+  private usesLives(): boolean {
+    return this.mode === 'endless' || this.mode === 'tutorial';
+  }
+
+  private beginTutorial(): void {
+    this.tutorialCoach = new TutorialCoach(this.ctx.uiRoot, {
+      onSkip: () => {
+        if (!this.paused) this.tutorial?.skipStep();
+      },
+      onQuit: () => this.tutorial?.quit(),
+      onContinue: () => {
+        if (!this.paused) this.tutorial?.continueStep();
+      },
+    });
+    this.tutorial = new TutorialDirector(
+      {
+        spawn: (kind, pattern, options) => {
+          if (!this.spawner) return false;
+          return this.spawner.forceSpawn(kind, pattern, options) !== null;
+        },
+        clearTargets: () => this.spawner?.clearAll(),
+        reload: () => {
+          this.ammo?.tryReload();
+        },
+        ammo: () => this.ammo?.current ?? 0,
+        magSize: () => this.ammo?.max ?? gameConfig.magazineSize,
+        reloading: () => this.ammo?.isReloading ?? false,
+        setLives: (n) => {
+          this.lives = Math.max(0, Math.min(gameConfig.maxLives, n));
+          this.hud?.setLives(this.lives);
+        },
+        resetCombo: () => this.resetCombo(),
+        setFrenzyLook: (active) => {
+          this.frenzyActive = active;
+          this.spawner?.setFrenzyActive(active);
+          getCastleStage()?.setFrenzyActive(active);
+          this.hud?.setFrenzyMeter(active ? 1 : 0, active);
+          if (active) this.hud?.showFrenzyAnnounce();
+        },
+        finish: () => {
+          this.ended = true;
+          this.ctx.goto('modeSelect');
+        },
+        quit: () => {
+          this.ended = true;
+          this.ctx.goto('modeSelect');
+        },
+      },
+      this.tutorialCoach,
+    );
+    this.tutorial.start();
   }
 
   private endGame(): void {
     if (this.ended) return;
     this.ended = true;
     this.spawner?.stop();
+    if (this.mode === 'tutorial') {
+      this.ctx.goto('modeSelect');
+      return;
+    }
     window.setTimeout(() => {
       this.ctx.goto('gameOver', {
         mode: this.mode,
