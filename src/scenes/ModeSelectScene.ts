@@ -19,7 +19,6 @@ export class ModeSelectScene implements GameScene {
           <p class="menu-section-label">Timed</p>
           <button type="button" class="menu-option timed" data-mode="timed" data-timed="short">SHORT · 90s</button>
           <button type="button" class="menu-option timed" data-mode="timed" data-timed="medium">MEDIUM · 3 min</button>
-          <button type="button" class="menu-option timed" data-mode="timed" data-timed="long">LONG · 6 min</button>
           <button type="button" class="menu-option endless" data-mode="endless">ENDLESS MODE</button>
           <button type="button" class="menu-option" data-action="lb">VIEW LEADERBOARD</button>
         </nav>
