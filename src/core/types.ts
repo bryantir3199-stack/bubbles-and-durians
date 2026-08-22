@@ -8,6 +8,7 @@ export interface SceneData {
   timedPreset?: TimedPreset;
   score?: number;
   highlightScore?: number;
+  playerName?: string;
 }
 
 export interface SceneContext {

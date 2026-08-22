@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { GameMode, RankedMode } from '../config/gameConfig';
+import { validatePlayerName } from '../config/playerName';
 
 export interface ScoreRow {
   id: string;
@@ -40,6 +41,7 @@ export async function fetchTopScores(mode: GameMode, limit = 10): Promise<ScoreR
     .select('id, player_name, score, mode, created_at')
     .eq('mode', mode)
     .order('score', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -80,6 +82,25 @@ export function invalidateHighScoreCache(): void {
   highScoreCache = undefined;
 }
 
+/** 1-based rank: 1 + number of strictly higher scores. */
+export async function fetchScoreRank(mode: GameMode, score: number): Promise<number | null> {
+  if (!isRankedMode(mode)) return null;
+  const sb = getClient();
+  if (!sb) return null;
+
+  const { count, error } = await sb
+    .from('scores')
+    .select('id', { count: 'exact', head: true })
+    .eq('mode', mode)
+    .gt('score', Math.floor(score));
+
+  if (error || count == null) {
+    console.warn('Rank fetch failed:', error?.message);
+    return null;
+  }
+  return count + 1;
+}
+
 export async function submitScore(
   playerName: string,
   score: number,
@@ -93,12 +114,12 @@ export async function submitScore(
     return { ok: false, error: 'Leaderboard not configured. Add Supabase keys to .env' };
   }
 
-  const name = playerName.trim().slice(0, 16);
-  if (!name) return { ok: false, error: 'Enter a name' };
+  const parsed = validatePlayerName(playerName);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
   if (score < 0) return { ok: false, error: 'Invalid score' };
 
   const { error } = await sb.from('scores').insert({
-    player_name: name,
+    player_name: parsed.name,
     score: Math.floor(score),
     mode,
   });

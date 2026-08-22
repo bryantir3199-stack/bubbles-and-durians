@@ -1,6 +1,14 @@
 import type { GameMode, TimedPreset } from '../config/gameConfig';
 import { defaultTimedPreset, getTimedPreset } from '../config/gameConfig';
+import {
+  PLAYER_NAME_CHARS,
+  PLAYER_NAME_LENGTH,
+  cyclePlayerChar,
+  isBannedPlayerName,
+  validatePlayerName,
+} from '../config/playerName';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { isCoarsePointer } from '../core/display';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
 
@@ -9,9 +17,10 @@ export class GameOverScene implements GameScene {
   private mode: GameMode = 'endless';
   private timedPreset: TimedPreset | undefined;
   private score = 0;
-  private nameValue = '';
+  private letters: string[] = ['', '', ''];
+  private cursor = 0;
   private submitting = false;
-  private nameEl: HTMLElement | null = null;
+  private slotsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
   private onKey: ((e: KeyboardEvent) => void) | null = null;
 
@@ -21,18 +30,20 @@ export class GameOverScene implements GameScene {
     this.mode = data?.mode ?? 'endless';
     this.timedPreset = data?.timedPreset;
     this.score = data?.score ?? 0;
-    this.nameValue = '';
+    this.letters = ['', '', ''];
+    this.cursor = 0;
     this.submitting = false;
 
     clearUI(this.ctx.uiRoot);
+    const slots = Array.from({ length: PLAYER_NAME_LENGTH }, (_, i) => this.slotHtml(i)).join('');
     const ui = panel(
       'menu game-over',
       `<div class="menu-card">
         <h1 class="danger">GAME OVER</h1>
         <p class="muted">${this.modeLabel()}</p>
         <p class="score-big">Score: ${this.score}</p>
-        <p>Enter name for leaderboard</p>
-        <div class="name-field" id="name-field">_</div>
+        <p>Enter 3 initials</p>
+        <div class="name-initials" id="name-initials">${slots}</div>
         <p class="status" id="status">${isLeaderboardConfigured() ? '' : 'Offline — set .env for online scores'}</p>
         <div class="btn-row">
           <button type="button" class="btn primary" data-action="submit">SUBMIT</button>
@@ -42,33 +53,49 @@ export class GameOverScene implements GameScene {
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
-    this.nameEl = ui.querySelector('#name-field');
+    this.slotsEl = ui.querySelector('#name-initials');
     this.statusEl = ui.querySelector('#status');
+    this.bindSlots(ui);
 
     bindClick(ui, '[data-action="submit"]', () => void this.doSubmit());
     bindClick(ui, '[data-action="skip"]', () => {
-      this.ctx.goto('leaderboard', { mode: this.mode, highlightScore: this.score });
+      this.ctx.goto('leaderboard', { mode: this.mode, score: this.score });
     });
     bindClick(ui, '[data-action="menu"]', () => this.ctx.goto('modeSelect'));
 
     this.onKey = (event: KeyboardEvent) => {
       if (this.submitting) return;
       if (event.key === 'Backspace') {
-        this.nameValue = this.nameValue.slice(0, -1);
+        event.preventDefault();
+        this.backspace();
       } else if (event.key === 'Enter') {
+        event.preventDefault();
         void this.doSubmit();
-        return;
-      } else if (event.key.length === 1 && this.nameValue.length < 16) {
-        if (/^[a-zA-Z0-9 _\-!?.]$/.test(event.key)) {
-          this.nameValue += event.key;
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.setCursor(this.cursor - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.setCursor(this.cursor + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.cycle(this.cursor, 1);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.cycle(this.cursor, -1);
+      } else if (event.key.length === 1) {
+        const ch = event.key.toUpperCase();
+        if (PLAYER_NAME_CHARS.includes(ch)) {
+          event.preventDefault();
+          this.setLetter(this.cursor, ch, true);
         }
       }
-      if (this.nameEl) this.nameEl.textContent = this.nameValue.length > 0 ? this.nameValue : '_';
     };
     window.addEventListener('keydown', this.onKey);
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
+    this.redrawSlots();
   }
 
   update(): void {}
@@ -76,7 +103,95 @@ export class GameOverScene implements GameScene {
   exit(): void {
     if (this.onKey) window.removeEventListener('keydown', this.onKey);
     this.onKey = null;
+    this.slotsEl = null;
+    this.statusEl = null;
     clearUI(this.ctx.uiRoot);
+  }
+
+  private slotHtml(index: number): string {
+    return `<div class="name-slot" data-slot="${index}">
+      <button type="button" class="name-step" data-cycle="1" data-slot="${index}" aria-label="Next letter">▲</button>
+      <button type="button" class="name-letter" data-slot="${index}">_</button>
+      <button type="button" class="name-step" data-cycle="-1" data-slot="${index}" aria-label="Previous letter">▼</button>
+    </div>`;
+  }
+
+  private bindSlots(root: HTMLElement): void {
+    root.querySelectorAll<HTMLElement>('[data-slot]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = Number(el.dataset.slot);
+        if (!Number.isInteger(index)) return;
+        const cycle = Number((el as HTMLElement).dataset.cycle);
+        if (cycle === 1 || cycle === -1) {
+          this.setCursor(index);
+          this.cycle(index, cycle);
+          return;
+        }
+        if (el.classList.contains('name-letter')) {
+          this.setCursor(index);
+          if (isCoarsePointer()) this.cycle(index, 1);
+        }
+      });
+    });
+  }
+
+  private setCursor(index: number): void {
+    this.cursor = Math.max(0, Math.min(PLAYER_NAME_LENGTH - 1, index));
+    this.redrawSlots();
+  }
+
+  private setLetter(index: number, ch: string, advance: boolean): void {
+    this.letters[index] = ch;
+    if (advance && index < PLAYER_NAME_LENGTH - 1) this.cursor = index + 1;
+    else this.cursor = index;
+    this.redrawSlots();
+    this.syncStatus();
+  }
+
+  private cycle(index: number, dir: 1 | -1): void {
+    this.letters[index] = cyclePlayerChar(this.letters[index] ?? '', dir);
+    this.redrawSlots();
+    this.syncStatus();
+  }
+
+  private backspace(): void {
+    if (this.letters[this.cursor]) {
+      this.letters[this.cursor] = '';
+    } else if (this.cursor > 0) {
+      this.cursor -= 1;
+      this.letters[this.cursor] = '';
+    }
+    this.redrawSlots();
+    this.syncStatus();
+  }
+
+  private currentName(): string {
+    return this.letters.join('');
+  }
+
+  private redrawSlots(): void {
+    if (!this.slotsEl) return;
+    const banned = isBannedPlayerName(this.currentName());
+    this.slotsEl.classList.toggle('is-blocked', banned);
+    this.slotsEl.querySelectorAll<HTMLElement>('.name-slot').forEach((slot, i) => {
+      slot.classList.toggle('is-active', i === this.cursor);
+      const letter = slot.querySelector('.name-letter');
+      if (letter) letter.textContent = this.letters[i] || '_';
+    });
+  }
+
+  private syncStatus(): void {
+    if (!this.statusEl || this.submitting) return;
+    if (!isLeaderboardConfigured()) return;
+    const name = this.currentName();
+    if (name.length === PLAYER_NAME_LENGTH && isBannedPlayerName(name)) {
+      this.statusEl.className = 'status danger-text';
+      this.statusEl.textContent = 'That name isn’t allowed';
+      return;
+    }
+    this.statusEl.className = 'status';
+    this.statusEl.textContent = '';
   }
 
   private modeLabel(): string {
@@ -88,11 +203,18 @@ export class GameOverScene implements GameScene {
 
   private async doSubmit(): Promise<void> {
     if (this.submitting || !this.statusEl) return;
+    const parsed = validatePlayerName(this.currentName());
+    if (!parsed.ok) {
+      this.statusEl.className = 'status danger-text';
+      this.statusEl.textContent = parsed.error;
+      return;
+    }
+
     this.submitting = true;
     this.statusEl.className = 'status';
     this.statusEl.textContent = 'Submitting…';
 
-    const result = await submitScore(this.nameValue || 'Player', this.score, this.mode);
+    const result = await submitScore(parsed.name, this.score, this.mode);
     if (!result.ok) {
       this.statusEl.className = 'status danger-text';
       this.statusEl.textContent = result.error ?? 'Submit failed';
@@ -103,7 +225,12 @@ export class GameOverScene implements GameScene {
     this.statusEl.className = 'status ok-text';
     this.statusEl.textContent = 'Score saved!';
     window.setTimeout(() => {
-      this.ctx.goto('leaderboard', { mode: this.mode, highlightScore: this.score });
+      this.ctx.goto('leaderboard', {
+        mode: this.mode,
+        score: this.score,
+        highlightScore: this.score,
+        playerName: parsed.name,
+      });
     }, 500);
   }
 }
