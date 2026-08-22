@@ -16,6 +16,7 @@ import {
 import { ModelCache } from '../world/ModelCache';
 import { getDoorController } from '../world/DoorController';
 import { SweatParticles } from '../effects/SweatParticles';
+import { DustParticles } from '../effects/DustParticles';
 
 function randBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -29,6 +30,9 @@ const CAM_X = 0;
 const CAM_Z = 635;
 /** Distance before a corner to show a left/right turn profile instead of camera-facing. */
 const PATH_TURN_LOOKAHEAD = 55;
+/** Path-run squash/stretch: cycles per second and vertical amplitude. */
+const RUN_SQUASH_HZ = 11;
+const RUN_SQUASH_AMP = 0.07;
 
 const _pathInDir = new THREE.Vector3();
 const _pathOutDir = new THREE.Vector3();
@@ -53,6 +57,8 @@ export interface TargetSpawnSpec {
   pathStartOffset?: number;
   /** Lead bubble in a path pair — gets chased by a durian on the same lane. */
   pathPairLead?: boolean;
+  /** Either member of a path chase pair (lead or chaser). */
+  pathPair?: boolean;
 }
 
 /**
@@ -125,6 +131,11 @@ export class Target {
   /** Tutorial / scripted beats — never time out or blink away. */
   private readonly pinned: boolean;
   private sweat: SweatParticles | null = null;
+  private dust: DustParticles | null = null;
+  /** Phase for path-run squash/stretch (radians). */
+  private runSquashPhase = Math.random() * Math.PI * 2;
+  /** Path chase pair — keeps full run squash rate; solo path runners are slower. */
+  private readonly pathPair: boolean;
 
   constructor(
     scene: THREE.Scene,
@@ -140,6 +151,7 @@ export class Target {
     this.windowId = spec.windowId ?? null;
     this.frenzySpawned = frenzySpawned;
     this.pinned = pinned;
+    this.pathPair = !!spec.pathPair || !!spec.pathPairLead;
     this.onEscape = onEscape;
     this.onFreeSlot = onFreeSlot;
     this.root = new THREE.Group();
@@ -190,7 +202,11 @@ export class Target {
 
     this.setupPath(spec);
     if (kind === 'bubble' && spec.pathPairLead) {
-      this.sweat = new SweatParticles(this.visual);
+      this.sweat = new SweatParticles(this.root, this.visual);
+    }
+    if (spec.pattern === 'path' && kind !== 'heart') {
+      this.dust = new DustParticles(this.root);
+      this.runSquashPhase = Math.random() * Math.PI * 2;
     }
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
@@ -460,6 +476,7 @@ export class Target {
 
     if (this.fading) {
       this.sweat?.update(dt, this.pathMoveDir);
+      this.dust?.update(dt, this.pathMoveDir, false);
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
       if (this.knockDown) {
@@ -483,6 +500,7 @@ export class Target {
     // Close targets sink below the frame, then despawn once off-camera.
     if (this.phase === 'sink') {
       this.sweat?.update(dt, this.pathMoveDir);
+      this.dust?.update(dt, this.pathMoveDir, false);
       this.sinkT += dt / this.sinkDur;
       const t = Math.min(1, this.sinkT);
       // Ease-in quad — starts moving right away, accelerates out of frame.
@@ -535,6 +553,7 @@ export class Target {
     }
 
     this.root.scale.setScalar(pop);
+    this.syncRunSquash(dt);
 
     if (this.kind === 'heart' && !this.knockDown) {
       this.visual.lookAt(CAM_X, this.root.position.y, CAM_Z);
@@ -562,6 +581,27 @@ export class Target {
     }
 
     this.sweat?.update(dt, this.pathMoveDir);
+    this.dust?.update(dt, this.pathMoveDir, this.phase === 'move' && this.pattern === 'path');
+  }
+
+  /** Subtle rapid squash/stretch while path-running (not hearts), feet planted. */
+  private syncRunSquash(dt: number): void {
+    if (this.kind === 'heart' || this.knockDown) return;
+    if (this.pattern === 'path' && this.phase === 'move') {
+      // Solo path runners: 75% slower squash than chase-pair members.
+      const hz = this.pathPair ? RUN_SQUASH_HZ : RUN_SQUASH_HZ * 0.25;
+      this.runSquashPhase += dt * hz * Math.PI * 2;
+      const s = Math.sin(this.runSquashPhase);
+      const sy = 1 + s * RUN_SQUASH_AMP;
+      const sxz = 1 - s * RUN_SQUASH_AMP * 0.55;
+      this.visual.scale.set(sxz, sy, sxz);
+      // Scale is centered on the mesh; lift so the feet stay put.
+      const halfH = gameConfig.targetSize * 0.5;
+      this.visual.position.y = halfH * (sy - 1);
+      return;
+    }
+    this.visual.scale.set(1, 1, 1);
+    this.visual.position.y = 0;
   }
 
   /** Unit direction along the current path segment (XZ-heavy travel). */
@@ -687,6 +727,8 @@ export class Target {
     if (this.knockDown) {
       // Settle the hit-pulse scale so the tip-over reads cleanly.
       this.root.scale.setScalar(1);
+      this.visual.scale.set(1, 1, 1);
+      this.visual.position.set(0, 0, 0);
       this.knockHalfH =
         (this.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize) * 0.5;
       for (const d of this.hpDots) d.visible = false;
@@ -715,6 +757,8 @@ export class Target {
     }
     this.sweat?.dispose();
     this.sweat = null;
+    this.dust?.dispose();
+    this.dust = null;
     this.root.parent?.remove(this.root);
   }
 }

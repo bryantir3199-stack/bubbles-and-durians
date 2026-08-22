@@ -104,9 +104,12 @@ function applyDropSprite(
 /**
  * Anime sweat burst for a panicked path-pair bubble — three white comma drops
  * fan outward from the temple, pop fast, fade at end of a short arc.
+ *
+ * Attached to `attachParent` (usually the target root) so run squash/stretch on
+ * the visual does not scale the droplets. Facing comes from `facingParent`.
  */
 export class SweatParticles {
-  private readonly parent: THREE.Object3D;
+  private readonly facing: THREE.Object3D;
   private readonly group = new THREE.Group();
   private readonly droplets: Droplet[] = [];
   private readonly pending: PendingDrop[] = [];
@@ -116,9 +119,9 @@ export class SweatParticles {
   private readonly sprayDir = new THREE.Vector3(-1, 0, 0);
   private lastProfileFlipped = false;
 
-  constructor(parent: THREE.Object3D) {
-    this.parent = parent;
-    parent.add(this.group);
+  constructor(attachParent: THREE.Object3D, facingParent: THREE.Object3D) {
+    this.facing = facingParent;
+    attachParent.add(this.group);
   }
 
   update(dt: number, travelDir?: THREE.Vector3): void {
@@ -126,12 +129,16 @@ export class SweatParticles {
       this.travelDir.copy(travelDir).normalize();
     }
 
+    // Match face yaw only — do not follow visual.position (squash feet-anchor).
+    this.group.position.set(0, 0, 0);
+    this.group.rotation.y = this.facing.rotation.y;
+
     this.syncLocalBack();
     this.computeSprayLocal(this.sprayDir);
     // Authored face is +X local; sweat always erupts from the card back (−X).
     this.spawnPoint.set(-BUBBLE_R, SPAWN_Y, 0);
 
-    const flipped = isProfileFlipped(this.parent);
+    const flipped = isProfileFlipped(this.facing);
     if (flipped !== this.lastProfileFlipped) {
       this.lastProfileFlipped = flipped;
       // Don't carry queued bursts across a profile flip with stale timing.
@@ -167,7 +174,7 @@ export class SweatParticles {
       d.sprite.position.addScaledVector(d.vel, dt);
 
       const t = d.life / d.maxLife;
-      applyDropSprite(d.sprite, d.vel, d.scale, isProfileFlipped(this.parent));
+      applyDropSprite(d.sprite, d.vel, d.scale, isProfileFlipped(this.facing));
       const mat = d.sprite.material as THREE.SpriteMaterial;
       mat.opacity = t > 0.25 ? 1 : t / 0.25;
     }
@@ -181,7 +188,7 @@ export class SweatParticles {
       return;
     }
     _worldBack.normalize();
-    this.parent.getWorldQuaternion(_parentQuat);
+    this.facing.getWorldQuaternion(_parentQuat);
     _invParentQuat.copy(_parentQuat).invert();
     _localBack.copy(_worldBack).applyQuaternion(_invParentQuat);
   }
@@ -222,7 +229,7 @@ export class SweatParticles {
     sprite.position.addScaledVector(_tangent, (fanIndex - 1) * 5.5);
     sprite.userData.skipSao = true;
     const scale = 7.5 + Math.random() * 1.5;
-    applyDropSprite(sprite, _vel, scale, isProfileFlipped(this.parent));
+    applyDropSprite(sprite, _vel, scale, isProfileFlipped(this.facing));
 
     const maxLife = 0.42 + Math.random() * 0.12;
     this.group.add(sprite);

@@ -351,7 +351,7 @@ export class Spawner {
     const bubble = new Target(
       this.scene,
       'bubble',
-      { ...spec, pathStartOffset: gap, pathPairLead: true },
+      { ...spec, pathStartOffset: gap, pathPairLead: true, pathPair: true },
       this.onEscape,
       releasePath,
       this.frenzyActive,
@@ -359,7 +359,7 @@ export class Spawner {
     const durian = new Target(
       this.scene,
       'durian',
-      { ...spec, pathStartOffset: 0 },
+      { ...spec, pathStartOffset: 0, pathPair: true },
       this.onEscape,
       releasePath,
       this.frenzyActive,
