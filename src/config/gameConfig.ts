@@ -1,5 +1,5 @@
 export type GameMode = 'endless' | 'timed' | 'tutorial';
-export type RankedMode = 'endless' | 'timed';
+export type RankedMode = 'endless' | 'timed-short' | 'timed-medium';
 export type TimedPreset = 'short' | 'medium' | 'long';
 
 export interface TimedPresetConfig {
@@ -18,6 +18,14 @@ export const defaultTimedPreset: TimedPreset = 'short';
 
 export function getTimedPreset(preset: TimedPreset = defaultTimedPreset): TimedPresetConfig {
   return timedPresets[preset];
+}
+
+export function toRankedMode(mode: GameMode, timedPreset?: TimedPreset): RankedMode | null {
+  if (mode === 'endless') return 'endless';
+  if (mode !== 'timed') return null;
+  if (timedPreset === 'medium') return 'timed-medium';
+  if (timedPreset === 'long') return null;
+  return 'timed-short';
 }
 
 export const gameConfig = {

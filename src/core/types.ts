@@ -1,4 +1,4 @@
-import type { GameMode, TimedPreset } from '../config/gameConfig';
+import type { GameMode, RankedMode, TimedPreset } from '../config/gameConfig';
 import type * as THREE from 'three';
 
 export type SceneId = 'boot' | 'title' | 'modeSelect' | 'play' | 'gameOver' | 'leaderboard';
@@ -6,6 +6,7 @@ export type SceneId = 'boot' | 'title' | 'modeSelect' | 'play' | 'gameOver' | 'l
 export interface SceneData {
   mode?: GameMode;
   timedPreset?: TimedPreset;
+  rankedMode?: RankedMode;
   score?: number;
   highlightScore?: number;
   playerName?: string;

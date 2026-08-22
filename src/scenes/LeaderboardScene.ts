@@ -1,4 +1,5 @@
-import type { GameMode } from '../config/gameConfig';
+import type { RankedMode } from '../config/gameConfig';
+import { toRankedMode } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import {
   fetchScoreRank,
@@ -8,9 +9,16 @@ import {
 } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
 
+const BOARDS: { id: RankedMode; label: string }[] = [
+  { id: 'endless', label: 'ENDLESS' },
+  { id: 'timed-short', label: 'SHORT · 90s' },
+  { id: 'timed-medium', label: 'MEDIUM · 3 MIN' },
+];
+
 export class LeaderboardScene implements GameScene {
   readonly id = 'leaderboard' as const;
-  private mode: GameMode = 'endless';
+  private board: RankedMode = 'endless';
+  private runBoard: RankedMode | undefined;
   private runScore: number | undefined;
   private highlightScore: number | undefined;
   private playerName: string | undefined;
@@ -20,21 +28,35 @@ export class LeaderboardScene implements GameScene {
   constructor(private ctx: SceneContext) {}
 
   enter(data?: SceneData): void {
-    this.mode = data?.mode ?? 'endless';
-    this.runScore = data?.score;
-    this.highlightScore = data?.highlightScore;
-    this.playerName = data?.playerName;
+    const fromRun = data?.score != null || data?.highlightScore != null;
+    if (fromRun) {
+      this.runScore = data?.score;
+      this.highlightScore = data?.highlightScore;
+      this.playerName = data?.playerName;
+      this.runBoard =
+        data?.rankedMode ?? toRankedMode(data?.mode ?? 'endless', data?.timedPreset) ?? 'endless';
+    } else if (data?.rankedMode == null) {
+      this.runScore = undefined;
+      this.highlightScore = undefined;
+      this.playerName = undefined;
+      this.runBoard = undefined;
+    }
+
+    this.board =
+      data?.rankedMode ?? toRankedMode(data?.mode ?? 'endless', data?.timedPreset) ?? 'endless';
     clearUI(this.ctx.uiRoot);
+
+    const tabs = BOARDS.map(
+      (tab) =>
+        `<button type="button" class="tab ${this.board === tab.id ? 'active' : ''}" data-board="${tab.id}">${tab.label}</button>`,
+    ).join('');
 
     const ui = panel(
       'menu leaderboard',
       `<div class="menu-wide">
         <h1>LEADERBOARDS</h1>
         <div class="lb-run" id="lb-run" hidden></div>
-        <div class="tabs">
-          <button type="button" class="tab ${this.mode === 'endless' ? 'active' : ''}" data-mode="endless">ENDLESS</button>
-          <button type="button" class="tab ${this.mode === 'timed' ? 'active' : ''}" data-mode="timed">TIMED</button>
-        </div>
+        <div class="tabs">${tabs}</div>
         <div class="lb-panel">
           <div class="lb-list" id="lb-list"><p class="muted">Loading…</p></div>
         </div>
@@ -46,12 +68,12 @@ export class LeaderboardScene implements GameScene {
     this.runEl = ui.querySelector('#lb-run');
     this.renderRunBanner(null);
 
-    ui.querySelectorAll<HTMLElement>('[data-mode]').forEach((el) => {
+    ui.querySelectorAll<HTMLElement>('[data-board]').forEach((el) => {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        const mode = el.dataset.mode as GameMode;
-        if (mode === this.mode) return;
-        this.ctx.goto('leaderboard', { mode });
+        const board = el.dataset.board as RankedMode;
+        if (board === this.board) return;
+        this.ctx.goto('leaderboard', { rankedMode: board });
       });
     });
     bindClick(ui, '[data-action="back"]', () => this.ctx.goto('modeSelect'));
@@ -68,8 +90,16 @@ export class LeaderboardScene implements GameScene {
     clearUI(this.ctx.uiRoot);
   }
 
+  private showingRun(): boolean {
+    return this.runScore != null && this.runBoard === this.board;
+  }
+
   private renderRunBanner(rank: number | null): void {
-    if (!this.runEl || this.runScore == null) return;
+    if (!this.runEl) return;
+    if (!this.showingRun() || this.runScore == null) {
+      this.runEl.hidden = true;
+      return;
+    }
     const score = this.runScore.toLocaleString('en-US');
     let detail: string;
     if (this.highlightScore == null) {
@@ -95,18 +125,19 @@ export class LeaderboardScene implements GameScene {
       return;
     }
 
-    const rows = await fetchTopScores(this.mode, 10);
+    const rows = await fetchTopScores(this.board, 10);
     if (!this.listEl) return;
 
-    const highlightIndex = this.findHighlightIndex(rows);
+    const highlightOnBoard = this.showingRun() && this.highlightScore != null;
+    const highlightIndex = highlightOnBoard ? this.findHighlightIndex(rows) : -1;
     let rank: number | null = highlightIndex >= 0 ? highlightIndex + 1 : null;
-    if (rank == null && this.highlightScore != null) {
-      rank = await fetchScoreRank(this.mode, this.highlightScore);
+    if (rank == null && highlightOnBoard && this.highlightScore != null) {
+      rank = await fetchScoreRank(this.board, this.highlightScore);
       if (!this.listEl) return;
     }
     this.renderRunBanner(rank);
 
-    if (rows.length === 0 && highlightIndex < 0 && this.highlightScore == null) {
+    if (rows.length === 0 && highlightIndex < 0) {
       this.listEl.innerHTML = '<p class="muted">No scores yet — be the first!</p>';
       return;
     }
@@ -132,7 +163,7 @@ export class LeaderboardScene implements GameScene {
       .join('');
 
     let extra = '';
-    if (this.highlightScore != null && highlightIndex < 0) {
+    if (this.showingRun() && this.highlightScore != null && highlightIndex < 0) {
       extra =
         (rows.length > 0 ? `<div class="lb-gap">· · ·</div>` : '') +
         this.rowHtml(

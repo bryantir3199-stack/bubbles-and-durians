@@ -1,5 +1,5 @@
 import type { GameMode, TimedPreset } from '../config/gameConfig';
-import { defaultTimedPreset, getTimedPreset } from '../config/gameConfig';
+import { defaultTimedPreset, getTimedPreset, toRankedMode } from '../config/gameConfig';
 import {
   PLAYER_NAME_CHARS,
   PLAYER_NAME_LENGTH,
@@ -59,7 +59,12 @@ export class GameOverScene implements GameScene {
 
     bindClick(ui, '[data-action="submit"]', () => void this.doSubmit());
     bindClick(ui, '[data-action="skip"]', () => {
-      this.ctx.goto('leaderboard', { mode: this.mode, score: this.score });
+      this.ctx.goto('leaderboard', {
+        mode: this.mode,
+        timedPreset: this.timedPreset,
+        rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
+        score: this.score,
+      });
     });
     bindClick(ui, '[data-action="menu"]', () => this.ctx.goto('modeSelect'));
 
@@ -214,7 +219,7 @@ export class GameOverScene implements GameScene {
     this.statusEl.className = 'status';
     this.statusEl.textContent = 'Submitting…';
 
-    const result = await submitScore(parsed.name, this.score, this.mode);
+    const result = await submitScore(parsed.name, this.score, this.mode, this.timedPreset);
     if (!result.ok) {
       this.statusEl.className = 'status danger-text';
       this.statusEl.textContent = result.error ?? 'Submit failed';
@@ -227,6 +232,8 @@ export class GameOverScene implements GameScene {
     window.setTimeout(() => {
       this.ctx.goto('leaderboard', {
         mode: this.mode,
+        timedPreset: this.timedPreset,
+        rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
         score: this.score,
         highlightScore: this.score,
         playerName: parsed.name,

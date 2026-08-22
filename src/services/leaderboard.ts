@@ -1,12 +1,16 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { GameMode, RankedMode } from '../config/gameConfig';
+import type { GameMode, RankedMode, TimedPreset } from '../config/gameConfig';
+import { toRankedMode } from '../config/gameConfig';
 import { validatePlayerName } from '../config/playerName';
+
+/** Values stored in scores.mode, including pre-split timed rows. */
+export type StoredScoreMode = RankedMode | 'timed';
 
 export interface ScoreRow {
   id: string;
   player_name: string;
   score: number;
-  mode: RankedMode;
+  mode: StoredScoreMode;
   created_at: string;
 }
 
@@ -27,12 +31,12 @@ export function isLeaderboardConfigured(): boolean {
   return getClient() !== null;
 }
 
-function isRankedMode(mode: GameMode): mode is RankedMode {
-  return mode === 'endless' || mode === 'timed';
+function isStoredScoreMode(mode: string): mode is StoredScoreMode {
+  return mode === 'endless' || mode === 'timed' || mode === 'timed-short' || mode === 'timed-medium';
 }
 
-export async function fetchTopScores(mode: GameMode, limit = 10): Promise<ScoreRow[]> {
-  if (!isRankedMode(mode)) return [];
+export async function fetchTopScores(mode: StoredScoreMode, limit = 10): Promise<ScoreRow[]> {
+  if (!isStoredScoreMode(mode)) return [];
   const sb = getClient();
   if (!sb) return [];
 
@@ -61,14 +65,22 @@ function pickHigherScore(a: ScoreRow | undefined, b: ScoreRow | undefined): Scor
   return new Date(a.created_at) >= new Date(b.created_at) ? a : b;
 }
 
-/** Overall #1 across ranked modes. Cached until the next submitted score. */
+/** Overall #1 across ranked boards (plus legacy combined timed). */
 export async function fetchHighScore(): Promise<ScoreRow | null> {
   if (highScoreCache !== undefined) return highScoreCache;
   if (highScoreInflight) return highScoreInflight;
 
-  highScoreInflight = Promise.all([fetchTopScores('endless', 1), fetchTopScores('timed', 1)])
-    .then(([endless, timed]) => {
-      highScoreCache = pickHigherScore(endless[0], timed[0]);
+  highScoreInflight = Promise.all([
+    fetchTopScores('endless', 1),
+    fetchTopScores('timed-short', 1),
+    fetchTopScores('timed-medium', 1),
+    fetchTopScores('timed', 1),
+  ])
+    .then((boards) => {
+      highScoreCache = boards.reduce<ScoreRow | null>(
+        (best, rows) => pickHigherScore(best ?? undefined, rows[0]),
+        null,
+      );
       return highScoreCache;
     })
     .finally(() => {
@@ -82,9 +94,8 @@ export function invalidateHighScoreCache(): void {
   highScoreCache = undefined;
 }
 
-/** 1-based rank: 1 + number of strictly higher scores. */
-export async function fetchScoreRank(mode: GameMode, score: number): Promise<number | null> {
-  if (!isRankedMode(mode)) return null;
+/** 1-based rank: 1 + number of strictly higher scores on that board. */
+export async function fetchScoreRank(mode: RankedMode, score: number): Promise<number | null> {
   const sb = getClient();
   if (!sb) return null;
 
@@ -105,9 +116,14 @@ export async function submitScore(
   playerName: string,
   score: number,
   mode: GameMode,
+  timedPreset?: TimedPreset,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!isRankedMode(mode)) {
+  if (mode === 'tutorial') {
     return { ok: false, error: 'How to Play scores are not ranked' };
+  }
+  const ranked = toRankedMode(mode, timedPreset);
+  if (!ranked) {
+    return { ok: false, error: 'This mode is not ranked' };
   }
   const sb = getClient();
   if (!sb) {
@@ -121,7 +137,7 @@ export async function submitScore(
   const { error } = await sb.from('scores').insert({
     player_name: parsed.name,
     score: Math.floor(score),
-    mode,
+    mode: ranked,
   });
 
   if (error) {
