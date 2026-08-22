@@ -3,12 +3,13 @@ import { gameConfig } from '../config/gameConfig';
 import { isCoarsePointer } from '../core/display';
 import type { SpawnPattern } from '../config/spawnLayout';
 import type { TutorialCoach } from '../ui/TutorialCoach';
+import type { ArrowSpec } from '../ui/TutorialArrows';
 
 export interface TutorialHost {
   spawn(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean },
+    options?: { frenzySpawned?: boolean; pinned?: boolean },
   ): boolean;
   clearTargets(): void;
   reload(): void;
@@ -18,12 +19,13 @@ export interface TutorialHost {
   setLives(n: number): void;
   resetCombo(): void;
   setFrenzyLook(active: boolean): void;
+  setArrows(specs: ArrowSpec[]): void;
+  revealCombo(): void;
   finish(): void;
   quit(): void;
 }
 
 type WaitKind =
-  | 'continue'
   | 'destroy-durian'
   | 'skip-bubble'
   | 'reload'
@@ -31,15 +33,15 @@ type WaitKind =
   | 'destroy-gold'
   | 'collect-heart'
   | 'watch-escape'
-  | 'destroy-close'
-  | 'destroy-path'
   | 'destroy-frenzy';
 
-const TOTAL_STEPS = 12;
+const TOTAL_STEPS = 10;
 
 export class TutorialDirector {
   private step = 0;
   private waiting: WaitKind | null = null;
+  /** Player may tap CONTINUE to go to the next step. */
+  private stepReady = false;
   private comboHits = 0;
   private delay = 0;
   private pending: (() => void) | null = null;
@@ -47,16 +49,12 @@ export class TutorialDirector {
   private done = false;
   private readonly mobile = isCoarsePointer();
   private readonly shootVerb: string;
-  private readonly reloadHow: string;
 
   constructor(
     private readonly host: TutorialHost,
     private readonly coach: TutorialCoach,
   ) {
     this.shootVerb = this.mobile ? 'Tap' : 'Click';
-    this.reloadHow = this.mobile
-      ? 'tap RELOAD or shake the device'
-      : 'press R / Space, or tap the ammo bar';
   }
 
   start(): void {
@@ -85,20 +83,18 @@ export class TutorialDirector {
   onShot(info: { hit: boolean; kind?: TargetKind; destroyed?: boolean }): void {
     if (this.done || !this.waiting) return;
     const { waiting } = this;
+    if (this.stepReady && waiting !== 'skip-bubble') return;
 
     if (waiting === 'reload' && !info.hit) {
-      this.coach.setWait('Mag has space — now reload.');
+      this.coach.setWait(
+        this.mobile ? 'Tap the ammo bar or hit RELOAD.' : 'Now reload.',
+      );
       return;
     }
 
     if (waiting === 'skip-bubble') {
       if (info.kind === 'bubble' && info.destroyed) {
-        this.host.setLives(gameConfig.startLives);
-        this.coach.feedback(
-          'Bubbles cost −1000 and, in Endless, a life. Let this next one leave.',
-          'warn',
-        );
-        this.after(0.55, () => this.spawnNow('bubble', 'window'));
+        this.after(0.55, () => this.spawnNow('bubble', 'window', { pinned: true }));
       }
       return;
     }
@@ -106,10 +102,9 @@ export class TutorialDirector {
     if (waiting === 'watch-escape') {
       if (info.kind && (info.kind === 'durian' || info.kind === 'goldDurian') && info.destroyed) {
         this.coach.feedback(
-          'Nice shot. In Endless, an unshot durian that leaves still costs a life.',
+          'Nice shot — but this step is about letting one escape.',
           'ok',
         );
-        this.after(0.7, () => this.advance());
       }
       return;
     }
@@ -119,17 +114,17 @@ export class TutorialDirector {
         this.comboHits = 0;
         this.host.resetCombo();
         this.host.clearTargets();
-        this.coach.feedback('Misses break combo. Start a new streak of 4.', 'warn');
+        this.coach.feedback('Misses reset combo. Hit 4 in a row.', 'warn');
         this.after(0.45, () => this.spawnNow('durian', 'window'));
         return;
       }
       if (info.kind === 'durian' && info.destroyed) {
         this.comboHits += 1;
         if (this.comboHits >= gameConfig.shotsPerComboLevel) {
-          this.after(0.55, () => this.advance());
+          this.taskComplete();
           return;
         }
-        this.coach.setWait(`${this.comboHits} / ${gameConfig.shotsPerComboLevel} clean hits`);
+        this.coach.setWait(`${this.comboHits} / ${gameConfig.shotsPerComboLevel} in a row`);
         this.after(0.4, () => this.spawnNow('durian', 'window'));
       }
       return;
@@ -137,49 +132,38 @@ export class TutorialDirector {
 
     if (!info.destroyed) return;
 
-    if (waiting === 'destroy-durian' && info.kind === 'durian') this.advance();
-    else if (waiting === 'destroy-gold' && info.kind === 'goldDurian') this.advance();
-    else if (waiting === 'collect-heart' && info.kind === 'heart') this.advance();
-    else if (waiting === 'destroy-close' && this.hostIsDurian(info.kind)) this.advance();
-    else if (waiting === 'destroy-path' && this.hostIsDurian(info.kind)) this.advance();
-    else if (waiting === 'destroy-frenzy' && this.hostIsDurian(info.kind)) this.advance();
+    if (waiting === 'destroy-durian' && info.kind === 'durian') this.taskComplete();
+    else if (waiting === 'destroy-gold' && info.kind === 'goldDurian') this.taskComplete();
+    else if (waiting === 'collect-heart' && info.kind === 'heart') this.taskComplete();
+    else if (waiting === 'destroy-frenzy' && this.hostIsDurian(info.kind)) this.taskComplete();
   }
 
   onReload(): void {
-    if (this.waiting === 'reload') this.advance();
+    if (this.waiting === 'reload' && !this.stepReady) this.taskComplete();
   }
 
   onEscape(kind: TargetKind): void {
-    if (this.done || !this.waiting) return;
-
-    if (this.waiting === 'skip-bubble' && kind === 'bubble') {
-      this.coach.feedback('Good — bubbles that leave do not cost a life.', 'ok');
-      this.after(0.55, () => this.advance());
-      return;
-    }
+    if (this.done || !this.waiting || this.stepReady) return;
 
     if (this.waiting === 'watch-escape' && this.hostIsDurian(kind)) {
       this.after(0.7, () => {
         this.host.setLives(gameConfig.startLives);
-        this.advance();
+        this.taskComplete();
       });
       return;
     }
 
     if (
-      (this.waiting === 'destroy-durian' ||
-        this.waiting === 'combo' ||
+      (this.waiting === 'combo' ||
         this.waiting === 'destroy-gold' ||
         this.waiting === 'collect-heart' ||
-        this.waiting === 'destroy-close' ||
-        this.waiting === 'destroy-path' ||
         this.waiting === 'destroy-frenzy') &&
       this.matchesWait(kind)
     ) {
       if (this.waiting === 'combo') {
         this.comboHits = 0;
         this.host.resetCombo();
-        this.coach.feedback('It got away — combo drops. Try a new streak.', 'warn');
+        this.coach.feedback('It got away — combo drops. Hit 4 in a row.', 'warn');
       } else {
         this.coach.feedback('It left — here comes another.', 'warn');
       }
@@ -196,7 +180,14 @@ export class TutorialDirector {
   }
 
   continueStep(): void {
-    if (this.waiting === 'continue') this.advance();
+    if (this.stepReady) this.advance();
+  }
+
+  backStep(): void {
+    if (this.done || this.step <= 0) return;
+    this.clearWaits();
+    this.host.setFrenzyLook(false);
+    this.go(this.step - 1);
   }
 
   quit(): void {
@@ -209,138 +200,132 @@ export class TutorialDirector {
     this.done = true;
     this.clearWaits();
     this.host.setFrenzyLook(false);
+    this.host.setArrows([]);
   }
 
   private go(index: number): void {
     this.step = index;
     this.waiting = null;
+    this.stepReady = false;
     this.comboHits = 0;
     this.host.clearTargets();
     this.host.setFrenzyLook(false);
+    this.host.setArrows([]);
 
     switch (index) {
       case 0:
         this.prompt(
-          'The booth',
-          `${this.shootVerb} to shoot. We'll walk every rule — durians, bubbles, ammo, combo, gold, lives, and Frenzy.`,
-          'Let’s go',
+          'Welcome!',
+          'Durians are taking over bubble kingdom. Defeat those stinky fruits!',
+          'Tap CONTINUE to start.',
+          true,
         );
         break;
       case 1:
         this.waiting = 'destroy-durian';
         this.prompt(
-          'Green durians',
-          `${this.shootVerb} the durian. One hit, +${gameConfig.points.durian} points.`,
-          undefined,
-          'Shoot the green one',
+          'Shoot the Durian',
+          'Green durians are defeated in one hit and score points.',
+          `${this.shootVerb} the green durian.`,
         );
-        this.spawnNow('durian', 'window');
+        this.spawnNow('durian', 'window', { pinned: true });
+        this.host.setArrows([{ kind: 'target' }]);
         break;
       case 2:
         this.waiting = 'skip-bubble';
         this.prompt(
-          'Skip bubbles',
-          `Pink bubbles are traps: ${gameConfig.points.bubble} score, and −1 life in Endless. Do not shoot this one — let it leave.`,
+          "Don't shoot the Bubble",
+          'Bubbles cost you points.',
           undefined,
-          'Wait it out',
+          true,
         );
-        this.spawnNow('bubble', 'window');
+        this.spawnNow('bubble', 'window', { pinned: true });
+        this.host.setArrows([{ kind: 'target' }]);
         break;
       case 3:
         this.waiting = 'reload';
         this.prompt(
           'Reload',
-          `Magazine holds ${gameConfig.magazineSize}. You can reload whenever it is not full — ${this.reloadHow}. Empty mag clicks and shows RELOAD.`,
-          undefined,
+          'Your mag holds 7 ammo. Reload to replenish them.',
           this.host.ammo() >= this.host.magSize()
-            ? 'Fire a shot, then reload'
-            : 'Reload now',
+            ? 'Fire your last round, then reload.'
+            : this.mobile
+              ? 'Tap the ammo bar or hit RELOAD.'
+              : 'Reload now.',
+        );
+        this.host.setArrows(
+          this.mobile
+            ? [
+                { kind: 'hud', part: 'ammo' },
+                { kind: 'hud', part: 'reload' },
+              ]
+            : [{ kind: 'hud', part: 'ammo' }],
         );
         break;
       case 4:
         this.waiting = 'combo';
         this.comboHits = 0;
         this.host.resetCombo();
+        this.host.revealCombo();
         this.prompt(
-          'Combo',
-          `${gameConfig.shotsPerComboLevel} clean durian hits raise the multiplier (up to ${gameConfig.maxCombo}x). Misses, bubbles, and escaped durians break it.`,
-          undefined,
-          `0 / ${gameConfig.shotsPerComboLevel} clean hits`,
+          'Build a Combo',
+          'Four clean durian hits in a row raises your combo, multiplying your score. Misses and bubble hits reset it.',
+          'Hit 4 durians in a row.',
         );
         this.withAmmo(1, () => this.spawnNow('durian', 'window'));
+        this.host.setArrows([{ kind: 'hud', part: 'combo' }]);
         break;
       case 5:
         this.waiting = 'destroy-gold';
         this.prompt(
-          'Gold durians',
-          `Gold takes ${gameConfig.hitsRequired.goldDurian} hits and scores +${gameConfig.points.goldDurian}. Dump the mag — watch the pips.`,
-          undefined,
-          'Shoot it 4 times',
+          'Gold Durian',
+          'Gold durians take 4 hits but score way more.',
+          'Shoot the gold durian down.',
         );
         this.withAmmo(gameConfig.hitsRequired.goldDurian, () =>
           this.spawnNow('goldDurian', 'window'),
         );
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'score' }]);
         break;
       case 6:
         this.waiting = 'collect-heart';
         this.host.setLives(Math.max(1, gameConfig.startLives - 1));
         this.prompt(
-          'Hearts',
-          `Hearts grant +1 life (max ${gameConfig.maxLives}) and never break combo. Endless only — Timed has no lives.`,
-          undefined,
-          'Collect the heart',
+          'Grab the Heart',
+          'Hearts restore lives in Endless mode.',
+          'Shoot the heart.',
         );
         this.withAmmo(1, () => this.spawnNow('heart', 'window'));
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
         break;
       case 7:
         this.waiting = 'watch-escape';
         this.host.setLives(gameConfig.startLives);
         this.prompt(
-          'Escapes',
-          'In Endless, a durian that leaves costs a life. Windows blink before they go. Let this one walk.',
-          undefined,
-          'Do not shoot — watch it leave',
+          "Don't Let It Escape",
+          'Durians that get away cost you a life in Endless mode.',
+          'Watch a durian escape.',
         );
         this.spawnNow('durian', 'window');
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
         break;
       case 8:
-        this.waiting = 'destroy-close';
-        this.prompt(
-          'Close pops',
-          'Some targets jump up near the camera. Same rule: durians yes, bubbles no. Close bubbles are faster — still skip them.',
-          undefined,
-          'Pop the close durian',
-        );
-        this.withAmmo(1, () => this.spawnNow('durian', 'close'));
-        break;
-      case 9:
-        this.waiting = 'destroy-path';
-        this.prompt(
-          'Movers',
-          'Others walk the castle gates and walls. Shoot before they leave the route.',
-          undefined,
-          'Hit the walking durian',
-        );
-        this.withAmmo(1, () => this.spawnNow('durian', 'path'));
-        break;
-      case 10:
         this.waiting = 'destroy-frenzy';
         this.host.setFrenzyLook(true);
         this.prompt(
-          'Frenzy',
-          `Endless: the top bar fills from points. Every ${gameConfig.frenzyMeterPoints.toLocaleString('en-US')} starts a ${gameConfig.frenzyDurationMs / 1000}s rush — faster spawns, bigger scores, fewer bubbles. Blue-glow targets never cost a life on escape.`,
-          undefined,
-          'Shoot the glowing durian',
+          'Frenzy Time',
+          'Score enough and the Frenzy meter fills. Get as many points if you can! Enemies that escape during a frenzy does not cost lives.',
+          'Shoot the glowing durian.',
         );
         this.withAmmo(1, () => this.spawnNow('durian', 'window', { frenzySpawned: true }));
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'frenzy' }]);
         break;
-      case 11:
+      case 9:
         this.prompt(
-          'Pick a mode',
-          this.mobile
-            ? 'Timed is a clock (no lives, no hearts). Endless is 3 lives + Frenzy. Pause and mute sit up top.'
-            : 'Timed is a clock (no lives, no hearts; the last stretch speeds up). Endless is 3 lives + Frenzy. Esc pauses. Mute anytime.',
-          'I’m ready',
+          "You're All Set!",
+          "The booth's yours now. Good luck!",
+          'Tap CONTINUE to head to the menu.',
+          true,
         );
         break;
       default:
@@ -349,16 +334,25 @@ export class TutorialDirector {
     }
   }
 
-  private prompt(title: string, body: string, continueLabel?: string, wait?: string): void {
-    if (continueLabel) this.waiting = 'continue';
+  private prompt(title: string, body: string, wait?: string, continueEnabled = false): void {
+    this.stepReady = continueEnabled;
     this.coach.set({
       index: this.step + 1,
       total: TOTAL_STEPS,
       title,
       body,
       wait,
-      continueLabel,
+      continueEnabled,
+      backEnabled: this.step > 0,
     });
+  }
+
+  /** Task done — enable CONTINUE; player advances manually. */
+  private taskComplete(): void {
+    if (this.stepReady) return;
+    this.stepReady = true;
+    this.coach.setContinueEnabled(true);
+    this.coach.setWait(this.mobile ? 'Tap CONTINUE.' : 'Click CONTINUE.');
   }
 
   private advance(): void {
@@ -371,13 +365,14 @@ export class TutorialDirector {
     this.done = true;
     this.clearWaits();
     this.host.setFrenzyLook(false);
+    this.host.setArrows([]);
     this.host.finish();
   }
 
   private spawnNow(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean },
+    options?: { frenzySpawned?: boolean; pinned?: boolean },
   ): void {
     this.host.clearTargets();
     this.host.spawn(kind, pattern, options);
@@ -400,7 +395,7 @@ export class TutorialDirector {
   private respawnForWait(): void {
     switch (this.waiting) {
       case 'destroy-durian':
-        this.spawnNow('durian', 'window');
+        this.spawnNow('durian', 'window', { pinned: true });
         break;
       case 'combo':
         this.spawnNow('durian', 'window');
@@ -412,12 +407,6 @@ export class TutorialDirector {
         break;
       case 'collect-heart':
         this.spawnNow('heart', 'window');
-        break;
-      case 'destroy-close':
-        this.spawnNow('durian', 'close');
-        break;
-      case 'destroy-path':
-        this.spawnNow('durian', 'path');
         break;
       case 'destroy-frenzy':
         this.spawnNow('durian', 'window', { frenzySpawned: true });
@@ -431,8 +420,6 @@ export class TutorialDirector {
     switch (this.waiting) {
       case 'destroy-durian':
       case 'combo':
-      case 'destroy-close':
-      case 'destroy-path':
       case 'destroy-frenzy':
         return kind === 'durian';
       case 'destroy-gold':

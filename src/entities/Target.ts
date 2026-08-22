@@ -108,6 +108,8 @@ export class Target {
   /** Hit-flash timer (seconds) for gold durian feedback. */
   private hitFlash = 0;
   private flashMats: { mat: THREE.MeshBasicMaterial; r: number; g: number; b: number }[] = [];
+  /** Tutorial / scripted beats — never time out or blink away. */
+  private readonly pinned: boolean;
 
   constructor(
     scene: THREE.Scene,
@@ -116,11 +118,13 @@ export class Target {
     onEscape: (t: Target) => void,
     onFreeSlot: () => void,
     frenzySpawned = false,
+    pinned = false,
   ) {
     this.kind = kind;
     this.pattern = spec.pattern;
     this.windowId = spec.windowId ?? null;
     this.frenzySpawned = frenzySpawned;
+    this.pinned = pinned;
     this.onEscape = onEscape;
     this.onFreeSlot = onFreeSlot;
     this.root = new THREE.Group();
@@ -497,11 +501,11 @@ export class Target {
         this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
-      this.holdLeft -= dt;
+      if (!this.pinned) this.holdLeft -= dt;
       if (this.pattern === 'window' || this.pattern === 'close') {
         this.root.position.y = this.bobBaseY + Math.sin(this.age / 220) * this.bobAmp;
       }
-      if (this.holdLeft <= 0) {
+      if (!this.pinned && this.holdLeft <= 0) {
         this.finishEscape();
       }
     }
@@ -514,7 +518,7 @@ export class Target {
 
     // Path movers keep going until the route ends — don't cut them mid-path.
     // Close targets telegraph exit by sinking (no blink-out). Windows still blink.
-    if (this.pattern === 'window' && this.phase === 'hold') {
+    if (this.pattern === 'window' && this.phase === 'hold' && !this.pinned) {
       if (this.age >= this.lifetime * 0.8 && this.age < this.lifetime) {
         const on = Math.sin(this.age / 60) > 0;
         if (on !== this.warned) {
@@ -525,7 +529,7 @@ export class Target {
       if (this.age >= this.lifetime) {
         this.finishEscape();
       }
-    } else if (this.pattern === 'close' && this.phase === 'hold') {
+    } else if (this.pattern === 'close' && this.phase === 'hold' && !this.pinned) {
       if (this.age >= this.lifetime) {
         this.finishEscape();
       }

@@ -472,6 +472,38 @@ export class HUD {
     ch.style.setProperty('--y', `${y}px`);
   }
 
+  /** HUD chrome the tutorial arrows can lock onto. */
+  part(
+    name: 'ammo' | 'combo' | 'lives' | 'frenzy' | 'pause' | 'mute' | 'reload' | 'score',
+  ): HTMLElement | null {
+    switch (name) {
+      case 'ammo':
+        return this.ammoPanel;
+      case 'reload':
+        return this.reloadBtn;
+      case 'combo':
+        return this.comboEl;
+      case 'lives':
+        return this.livesPanel ?? this.livesEl;
+      case 'frenzy':
+        return this.frenzyMeterEl;
+      case 'pause':
+        return this.pauseBtn;
+      case 'mute':
+        return this.muteBtn;
+      case 'score':
+        return this.scoreEl;
+      default:
+        return null;
+    }
+  }
+
+  /** Keep the combo meter visible while the tutorial talks about it. */
+  revealCombo(): void {
+    this.comboEl.hidden = false;
+    this.comboEl.classList.add('active');
+  }
+
   spawnFloater(clientX: number, clientY: number, text: string, color: string): void {
     const el = document.createElement('div');
     el.className = 'floater';

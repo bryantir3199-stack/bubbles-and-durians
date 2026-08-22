@@ -4,7 +4,10 @@ export interface TutorialCoachContent {
   title: string;
   body: string;
   wait?: string;
-  continueLabel?: string;
+  /** When false, CONTINUE is visible but greyed out. */
+  continueEnabled: boolean;
+  /** When false, BACK is visible but greyed out (first step). */
+  backEnabled: boolean;
 }
 
 export class TutorialCoach {
@@ -14,12 +17,14 @@ export class TutorialCoach {
   private bodyEl: HTMLElement;
   private waitEl: HTMLElement;
   private nextBtn: HTMLButtonElement;
+  private backBtn: HTMLButtonElement;
 
   constructor(
     parent: HTMLElement,
     private readonly callbacks: {
       onSkip: () => void;
       onQuit: () => void;
+      onBack: () => void;
       onContinue: () => void;
     },
   ) {
@@ -36,7 +41,10 @@ export class TutorialCoach {
       <h2 class="tut-title"></h2>
       <p class="tut-body" aria-live="polite"></p>
       <p class="tut-wait" hidden></p>
-      <button type="button" class="tut-btn tut-next" hidden>CONTINUE</button>
+      <div class="tut-nav">
+        <button type="button" class="tut-btn tut-back is-disabled" disabled>BACK</button>
+        <button type="button" class="tut-btn tut-next is-disabled" disabled>CONTINUE</button>
+      </div>
     `;
     parent.appendChild(this.root);
 
@@ -44,11 +52,19 @@ export class TutorialCoach {
     this.titleEl = this.root.querySelector('.tut-title')!;
     this.bodyEl = this.root.querySelector('.tut-body')!;
     this.waitEl = this.root.querySelector('.tut-wait')!;
+    this.backBtn = this.root.querySelector('.tut-back')!;
     this.nextBtn = this.root.querySelector('.tut-next')!;
 
     this.bind(this.root.querySelector('.tut-skip')!, () => this.callbacks.onSkip());
     this.bind(this.root.querySelector('.tut-quit')!, () => this.callbacks.onQuit());
-    this.bind(this.nextBtn, () => this.callbacks.onContinue());
+    this.bind(this.backBtn, () => {
+      if (this.backBtn.disabled) return;
+      this.callbacks.onBack();
+    });
+    this.bind(this.nextBtn, () => {
+      if (this.nextBtn.disabled) return;
+      this.callbacks.onContinue();
+    });
     this.root.addEventListener('pointerdown', (e) => e.stopPropagation());
   }
 
@@ -64,12 +80,20 @@ export class TutorialCoach {
       this.waitEl.hidden = true;
       this.waitEl.textContent = '';
     }
-    if (content.continueLabel) {
-      this.nextBtn.hidden = false;
-      this.nextBtn.textContent = content.continueLabel;
-    } else {
-      this.nextBtn.hidden = true;
-    }
+    this.setContinueEnabled(content.continueEnabled);
+    this.setBackEnabled(content.backEnabled);
+  }
+
+  setBackEnabled(enabled: boolean): void {
+    this.backBtn.disabled = !enabled;
+    this.backBtn.classList.toggle('is-disabled', !enabled);
+    this.backBtn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  }
+
+  setContinueEnabled(enabled: boolean): void {
+    this.nextBtn.disabled = !enabled;
+    this.nextBtn.classList.toggle('is-disabled', !enabled);
+    this.nextBtn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
   }
 
   setWait(text: string): void {

@@ -9,6 +9,7 @@ import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
 import { HUD } from '../ui/HUD';
 import { TutorialCoach } from '../ui/TutorialCoach';
+import { TutorialArrows, type ArrowSpec } from '../ui/TutorialArrows';
 import { TutorialDirector } from '../systems/TutorialDirector';
 import { isCoarsePointer } from '../core/display';
 import { onDeviceShake, requestShakePermission } from '../core/shake';
@@ -62,6 +63,7 @@ export class PlayScene implements GameScene {
   private frenzyTimeLeftMs = 0;
   private tutorial: TutorialDirector | null = null;
   private tutorialCoach: TutorialCoach | null = null;
+  private tutorialArrows: TutorialArrows | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -247,6 +249,8 @@ export class PlayScene implements GameScene {
     this.tutorial = null;
     this.tutorialCoach?.destroy();
     this.tutorialCoach = null;
+    this.tutorialArrows?.destroy();
+    this.tutorialArrows = null;
     this.spawner?.setFrenzyActive(false);
     getCastleStage()?.resetFrenzyLook();
     this.spawner?.stop();
@@ -481,11 +485,20 @@ export class PlayScene implements GameScene {
   }
 
   private beginTutorial(): void {
+    this.tutorialArrows = new TutorialArrows({
+      camera: this.ctx.three.camera,
+      canvas: this.ctx.canvas,
+      getTarget: () => this.spawner?.targets.find((t) => t.onScreen) ?? null,
+      getHudPart: (part) => this.hud?.part(part) ?? null,
+    });
     this.tutorialCoach = new TutorialCoach(this.ctx.uiRoot, {
       onSkip: () => {
         if (!this.paused) this.tutorial?.skipStep();
       },
       onQuit: () => this.tutorial?.quit(),
+      onBack: () => {
+        if (!this.paused) this.tutorial?.backStep();
+      },
       onContinue: () => {
         if (!this.paused) this.tutorial?.continueStep();
       },
@@ -515,6 +528,8 @@ export class PlayScene implements GameScene {
           this.hud?.setFrenzyMeter(active ? 1 : 0, active);
           if (active) this.hud?.showFrenzyAnnounce();
         },
+        setArrows: (specs: ArrowSpec[]) => this.tutorialArrows?.set(specs),
+        revealCombo: () => this.hud?.revealCombo(),
         finish: () => {
           this.ended = true;
           this.ctx.goto('modeSelect');

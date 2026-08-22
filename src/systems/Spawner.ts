@@ -101,7 +101,7 @@ export class Spawner {
   forceSpawn(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; windowId?: string; pathIndex?: number },
+    options?: { frenzySpawned?: boolean; windowId?: string; pathIndex?: number; pinned?: boolean },
   ): Target | null {
     const spec = this.lockSpec(pattern, options);
     if (!spec) return null;
@@ -112,6 +112,7 @@ export class Spawner {
       this.onEscape,
       () => this.releaseSpec(spec),
       options?.frenzySpawned === true,
+      options?.pinned === true,
     );
     this.targets.push(target);
     return target;
