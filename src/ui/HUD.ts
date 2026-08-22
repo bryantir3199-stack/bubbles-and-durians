@@ -29,7 +29,8 @@ export class HUD {
   private ammoPanel: HTMLElement | null;
   private reloadBtn: HTMLButtonElement | null = null;
   private comboEl: HTMLElement;
-  private comboMultEl: HTMLElement;
+  private comboTextEl: HTMLElement | null = null;
+  private comboMultEl: HTMLElement | null = null;
   private comboTrackEl: HTMLElement | null = null;
   private comboPips: HTMLElement[] = [];
   private timerEl: HTMLElement | null = null;
@@ -85,7 +86,8 @@ export class HUD {
     this.ammoPanel = this.root.querySelector('.hud-ammo, .hud-m-ammo');
     this.reloadBtn = this.root.querySelector('.hud-reload-btn');
     this.comboEl = this.root.querySelector('.hud-combo')!;
-    this.comboMultEl = this.root.querySelector('.hud-combo-mult')!;
+    this.comboTextEl = this.root.querySelector('.hud-combo-text');
+    this.comboMultEl = this.root.querySelector('.hud-combo-mult');
     this.comboTrackEl = this.root.querySelector('.hud-combo-track');
     this.comboPips = [...this.root.querySelectorAll<HTMLElement>('.hud-combo-pip')];
     this.timerEl = this.root.querySelector('.hud-time');
@@ -161,7 +163,7 @@ export class HUD {
         <div class="hud-left">
           <div class="hud-combo" aria-label="Combo" hidden>
             <div class="hud-combo-badge">
-              <span class="hud-combo-text">COMBO <span class="hud-combo-mult">2X</span></span>
+              <span class="hud-combo-text">COMBO 1X</span>
             </div>
             <div class="hud-combo-track" role="meter" aria-label="Combo progress" aria-valuemin="0" aria-valuemax="${gameConfig.shotsPerComboLevel}" aria-valuenow="0">
               ${Array.from({ length: gameConfig.shotsPerComboLevel }, () => '<span class="hud-combo-pip"></span>').join('')}
@@ -262,7 +264,8 @@ export class HUD {
     const progress = Math.max(0, Math.min(perLevel, Math.floor(progressShots)));
     const filled = level >= max ? perLevel : progress;
     const active = level > 1 || progress > 0;
-    this.comboMultEl.textContent = `${level}X`;
+    if (this.comboTextEl) this.comboTextEl.textContent = `COMBO ${level}X`;
+    else if (this.comboMultEl) this.comboMultEl.textContent = `${level}X`;
     this.comboEl.hidden = !active;
     this.comboEl.classList.toggle('active', active);
     this.comboEl.classList.toggle('max', level >= max);
