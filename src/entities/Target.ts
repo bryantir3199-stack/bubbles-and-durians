@@ -24,6 +24,14 @@ function randBetween(min: number, max: number): number {
 const hpGeo = new THREE.SphereGeometry(1.4, 6, 6);
 /** Constant speed along the gate path (world units / second). */
 const PATH_SPEED = 95;
+/** Play camera XZ — flat targets billboard toward this on ±Z legs. */
+const CAM_X = 0;
+const CAM_Z = 635;
+/** Distance before a corner to show a left/right turn profile instead of camera-facing. */
+const PATH_TURN_LOOKAHEAD = 55;
+
+const _pathInDir = new THREE.Vector3();
+const _pathOutDir = new THREE.Vector3();
 
 
 export interface TargetSpawnSpec {
@@ -186,7 +194,7 @@ export class Target {
     }
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
-    if (kind === 'heart') this.visual.lookAt(0, this.root.position.y, 635);
+    if (kind === 'heart') this.visual.lookAt(CAM_X, this.root.position.y, CAM_Z);
   }
 
   /**
@@ -315,6 +323,7 @@ export class Target {
     this.phase = 'move';
     this.placeOnPath(this.pathTraveled);
     this.syncPathMoveDir();
+    this.syncPathFacing();
     // Gate L-lanes open doors while approaching — wall routes skip this.
     if (pathUsesDoors(this.pathIndex)) this.retainDoor();
   }
@@ -512,6 +521,7 @@ export class Target {
       } else {
         this.placeOnPath(this.pathTraveled);
         this.syncPathMoveDir();
+        this.syncPathFacing();
         this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
@@ -527,7 +537,9 @@ export class Target {
     this.root.scale.setScalar(pop);
 
     if (this.kind === 'heart' && !this.knockDown) {
-      this.visual.lookAt(0, this.root.position.y, 635);
+      this.visual.lookAt(CAM_X, this.root.position.y, CAM_Z);
+    } else if (this.pattern !== 'path' || this.phase !== 'move') {
+      this.visual.rotation.y = 0;
     }
 
     // Path movers keep going until the route ends — don't cut them mid-path.
@@ -565,6 +577,78 @@ export class Target {
     const n = this.waypoints.length;
     this.pathMoveDir.subVectors(this.waypoints[n - 1]!, this.waypoints[n - 2]!);
     if (this.pathMoveDir.lengthSq() > 1e-6) this.pathMoveDir.normalize();
+  }
+
+  /** Index of the segment we are currently traveling (waypoints[i] → waypoints[i+1]). */
+  private pathSegmentIndex(): number {
+    for (let i = 1; i < this.cumLen.length; i++) {
+      if (this.pathTraveled <= this.cumLen[i]!) return i - 1;
+    }
+    return Math.max(0, this.waypoints.length - 2);
+  }
+
+  /** Signed turn at end of segment: +1 = left, −1 = right, 0 = straight. */
+  private turnSignAtSegmentEnd(segIdx: number): number {
+    const a = this.waypoints[segIdx];
+    const b = this.waypoints[segIdx + 1];
+    const c = this.waypoints[segIdx + 2];
+    if (!a || !b || !c) return 0;
+    _pathInDir.subVectors(b, a);
+    _pathOutDir.subVectors(c, b);
+    if (_pathInDir.lengthSq() < 1e-6 || _pathOutDir.lengthSq() < 1e-6) return 0;
+    _pathInDir.normalize();
+    _pathOutDir.normalize();
+    return _pathInDir.x * _pathOutDir.z - _pathInDir.z * _pathOutDir.x;
+  }
+
+  /** Y rotation so authored art (+X bubble, −X durian) points along flat world dir. */
+  private artYawForDir(dx: number, dz: number): number {
+    if (this.kind === 'bubble') return Math.atan2(-dz, dx);
+    if (this.kind === 'durian' || this.kind === 'goldDurian') return Math.atan2(dz, -dx);
+    return 0;
+  }
+
+  /** Y rotation so authored art (+X bubble, −X durian) points along ±X (side profile). */
+  private artYawForProfile(side: -1 | 1): number {
+    return this.artYawForDir(side, 0);
+  }
+
+  /**
+   * Pick left (−X) or right (+X) profile — flat art never points down ±Z (edge-on)
+   * or straight at the camera.
+   */
+  private pathProfileSide(): -1 | 1 {
+    const mdx = this.pathMoveDir.x;
+    const mdz = this.pathMoveDir.z;
+    const ax = Math.abs(mdx);
+    const az = Math.abs(mdz);
+
+    if (az <= ax) {
+      return mdx >= 0 ? 1 : -1;
+    }
+
+    const segIdx = this.pathSegmentIndex();
+    const distToCorner = this.cumLen[segIdx + 1]! - this.pathTraveled;
+    const turn = distToCorner <= PATH_TURN_LOOKAHEAD ? this.turnSignAtSegmentEnd(segIdx) : 0;
+    if (turn > 0.15) return -1;
+    if (turn < -0.15) return 1;
+
+    const x = this.root.position.x;
+    if (Math.abs(x) > 12) return x < 0 ? -1 : 1;
+
+    return mdz > 0 ? 1 : -1;
+  }
+
+  /** Path movers always show a left or right profile — never edge-on or camera-facing. */
+  private syncPathFacing(): void {
+    if (this.pattern !== 'path' || this.phase !== 'move') return;
+    if (this.kind !== 'bubble' && this.kind !== 'durian' && this.kind !== 'goldDurian') return;
+
+    const mdx = this.pathMoveDir.x;
+    const mdz = this.pathMoveDir.z;
+    if (mdx * mdx + mdz * mdz < 1e-8) return;
+
+    this.visual.rotation.y = this.artYawForProfile(this.pathProfileSide());
   }
 
   private finishEscape(): void {

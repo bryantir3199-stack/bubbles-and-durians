@@ -12,7 +12,6 @@ interface Droplet {
 interface PendingDrop {
   timer: number;
   fanIndex: number;
-  mirror: THREE.Vector3;
 }
 
 /** Classic anime sweat comma — bubble-blue fill, dark blue outline. */
@@ -51,11 +50,12 @@ const SWEAT_MAT = new THREE.SpriteMaterial({
   toneMapped: false,
 });
 
-const _flatDir = new THREE.Vector3();
-const _spawnSide = new THREE.Vector3();
-const _sprayDir = new THREE.Vector3();
 const _vel = new THREE.Vector3();
 const _tangent = new THREE.Vector3();
+const _worldBack = new THREE.Vector3();
+const _localBack = new THREE.Vector3();
+const _parentQuat = new THREE.Quaternion();
+const _invParentQuat = new THREE.Quaternion();
 const DEFAULT_TRAVEL = new THREE.Vector3(0, 0, -1);
 
 const BUBBLE_R = gameConfig.targetSize * 0.42;
@@ -77,20 +77,47 @@ function cloneMat(): THREE.SpriteMaterial {
   return SWEAT_MAT.clone();
 }
 
+/** Left profile (rotation.y ≈ π) mirrors the comma art horizontally. */
+function isProfileFlipped(parent: THREE.Object3D): boolean {
+  return Math.cos(parent.rotation.y) < 0;
+}
+
+function applyDropSprite(
+  sprite: THREE.Sprite,
+  vel: THREE.Vector3,
+  scale: number,
+  flip: boolean,
+): void {
+  const mat = sprite.material as THREE.SpriteMaterial;
+  const rot = Math.atan2(-vel.x, vel.y + 4);
+  const sx = scale * 0.92;
+  const sy = scale * 1.18;
+  if (flip) {
+    mat.rotation = -rot;
+    sprite.scale.set(-sx, sy, 1);
+  } else {
+    mat.rotation = rot;
+    sprite.scale.set(sx, sy, 1);
+  }
+}
+
 /**
  * Anime sweat burst for a panicked path-pair bubble — three white comma drops
  * fan outward from the temple, pop fast, fade at end of a short arc.
  */
 export class SweatParticles {
+  private readonly parent: THREE.Object3D;
   private readonly group = new THREE.Group();
   private readonly droplets: Droplet[] = [];
   private readonly pending: PendingDrop[] = [];
   private burstAcc = 0;
   private travelDir = DEFAULT_TRAVEL.clone();
   private readonly spawnPoint = new THREE.Vector3(-BUBBLE_R, SPAWN_Y, 0);
-  private readonly targetSpawnPoint = new THREE.Vector3(-BUBBLE_R, SPAWN_Y, 0);
+  private readonly sprayDir = new THREE.Vector3(-1, 0, 0);
+  private lastProfileFlipped = false;
 
   constructor(parent: THREE.Object3D) {
+    this.parent = parent;
     parent.add(this.group);
   }
 
@@ -99,9 +126,18 @@ export class SweatParticles {
       this.travelDir.copy(travelDir).normalize();
     }
 
-    this.computeSpawnSide(_spawnSide);
-    this.targetSpawnPoint.set(_spawnSide.x * BUBBLE_R, SPAWN_Y, _spawnSide.z * BUBBLE_R);
-    this.spawnPoint.lerp(this.targetSpawnPoint, 1 - Math.exp(-14 * dt));
+    this.syncLocalBack();
+    this.computeSprayLocal(this.sprayDir);
+    // Authored face is +X local; sweat always erupts from the card back (−X).
+    this.spawnPoint.set(-BUBBLE_R, SPAWN_Y, 0);
+
+    const flipped = isProfileFlipped(this.parent);
+    if (flipped !== this.lastProfileFlipped) {
+      this.lastProfileFlipped = flipped;
+      // Don't carry queued bursts across a profile flip with stale timing.
+      this.pending.length = 0;
+      this.burstAcc = 0;
+    }
 
     this.burstAcc += dt;
     while (this.burstAcc >= BURST_INTERVAL) {
@@ -113,7 +149,7 @@ export class SweatParticles {
       const p = this.pending[i]!;
       p.timer -= dt;
       if (p.timer > 0) continue;
-      this.spawnDrop(p.mirror, p.fanIndex);
+      this.spawnDrop(p.fanIndex);
       this.pending.splice(i, 1);
     }
 
@@ -131,36 +167,46 @@ export class SweatParticles {
       d.sprite.position.addScaledVector(d.vel, dt);
 
       const t = d.life / d.maxLife;
+      applyDropSprite(d.sprite, d.vel, d.scale, isProfileFlipped(this.parent));
       const mat = d.sprite.material as THREE.SpriteMaterial;
-      mat.rotation = Math.atan2(-d.vel.x, d.vel.y + 4);
-      d.sprite.scale.set(d.scale * 0.92, d.scale * 1.18, 1);
       mat.opacity = t > 0.25 ? 1 : t / 0.25;
     }
   }
 
-  /** Emitter on the cheek opposite travel; Z paths use a lateral temple. */
-  private computeSpawnSide(out: THREE.Vector3): THREE.Vector3 {
-    _flatDir.set(this.travelDir.x, 0, this.travelDir.z);
-    if (_flatDir.lengthSq() < 1e-4) return out.set(-1, 0, 0);
-    _flatDir.normalize();
-    if (Math.abs(_flatDir.z) > Math.abs(_flatDir.x)) {
-      return out.set(_flatDir.z > 0 ? -1 : 1, 0, 0);
+  /** World travel → parent-local "back" (opposite motion, accounts for profile yaw). */
+  private syncLocalBack(): void {
+    _worldBack.set(-this.travelDir.x, 0, -this.travelDir.z);
+    if (_worldBack.lengthSq() < 1e-4) {
+      _localBack.set(-1, 0, 0);
+      return;
     }
-    return out.set(-_flatDir.x, 0, -_flatDir.z);
+    _worldBack.normalize();
+    this.parent.getWorldQuaternion(_parentQuat);
+    _invParentQuat.copy(_parentQuat).invert();
+    _localBack.copy(_worldBack).applyQuaternion(_invParentQuat);
+  }
+
+  /** Fan axis in parent-local XZ — outward from the card back (−X cheek). */
+  private computeSprayLocal(out: THREE.Vector3): void {
+    out.set(_localBack.x, 0, _localBack.z);
+    if (out.lengthSq() < 1e-4) {
+      out.set(0, 0, -1);
+      return;
+    }
+    out.normalize();
   }
 
   private queueBurst(): void {
-    this.computeSpawnSide(_sprayDir);
     for (let i = 0; i < 3; i++) {
       this.pending.push({
         timer: i * DROP_STAGGER,
         fanIndex: i,
-        mirror: _sprayDir.clone(),
       });
     }
   }
 
-  private spawnDrop(mirror: THREE.Vector3, fanIndex: number): void {
+  private spawnDrop(fanIndex: number): void {
+    const mirror = this.sprayDir;
     const yaw = FAN_YAWS[fanIndex] ?? 0;
     const cosY = Math.cos(yaw);
     const sinY = Math.sin(yaw);
@@ -175,7 +221,8 @@ export class SweatParticles {
     _tangent.set(-mirror.z, 0, mirror.x);
     sprite.position.addScaledVector(_tangent, (fanIndex - 1) * 5.5);
     sprite.userData.skipSao = true;
-    (sprite.material as THREE.SpriteMaterial).rotation = Math.atan2(-_vel.x, _vel.y + 4);
+    const scale = 7.5 + Math.random() * 1.5;
+    applyDropSprite(sprite, _vel, scale, isProfileFlipped(this.parent));
 
     const maxLife = 0.42 + Math.random() * 0.12;
     this.group.add(sprite);
@@ -184,7 +231,7 @@ export class SweatParticles {
       vel: _vel.clone(),
       life: maxLife,
       maxLife,
-      scale: 7.5 + Math.random() * 1.5,
+      scale,
     });
   }
 
