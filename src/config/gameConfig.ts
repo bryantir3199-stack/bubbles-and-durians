@@ -14,7 +14,7 @@ export const timedPresets: Record<TimedPreset, TimedPresetConfig> = {
   long: { seconds: 360, finalBoostSeconds: 30, label: 'Long' },
 };
 
-export const defaultTimedPreset: TimedPreset = 'medium';
+export const defaultTimedPreset: TimedPreset = 'short';
 
 export function getTimedPreset(preset: TimedPreset = defaultTimedPreset): TimedPresetConfig {
   return timedPresets[preset];
