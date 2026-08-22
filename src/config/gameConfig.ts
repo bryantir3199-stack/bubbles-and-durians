@@ -27,7 +27,7 @@ export const gameConfig = {
   /** Delay between each ammo pip filling during reload. */
   reloadShellMs: 85,
   /** Hard cap — never more than this many live targets */
-  maxTargets: 6,
+  maxTargets: 7,
   /** Prior cadence was 2920/1690; ~12% faster spawn rate → intervals / 1.12. */
   spawnIntervalMs: 2610,
   minSpawnIntervalMs: 1510,
@@ -97,28 +97,28 @@ export const gameConfig = {
   /** Close-camera bubble hold after rise (other close kinds still use 50% of lifetimeMs). */
   closeBubbleLifetimeMs: { min: 1000, max: 2000 },
   /**
-   * Spawn mix (timed): durian : bubble : gold = 20 : 10 : 2
-   * (~62% / ~31% / ~6%). Gold is still below a flat 6:3:1 (~10%)
+   * Spawn mix (timed): durian : bubble : gold = 20 : 6 : 3
+   * (~69% / ~21% / ~10%). Gold is still below a flat 6:3:1 (~10%)
    * because multi-hit golds linger and feel more common than their rate.
-   * Endless keeps a small heart weight on top of the same 20:10:2 core.
+   * Endless keeps a small heart weight on top of the same 20:6:3 core.
    */
   spawnWeights: {
     endless: {
       durian: 20,
-      goldDurian: 2,
-      bubble: 10,
+      goldDurian: 3,
+      bubble: 6,
       heart: 2,
     },
     timed: {
       durian: 20,
-      goldDurian: 2,
-      bubble: 10,
+      goldDurian: 3,
+      bubble: 6,
       heart: 0,
     },
     tutorial: {
       durian: 20,
-      goldDurian: 2,
-      bubble: 10,
+      goldDurian: 3,
+      bubble: 6,
       heart: 2,
     },
   },
