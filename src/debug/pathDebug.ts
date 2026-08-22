@@ -33,6 +33,14 @@ export function wantsCloseOnly(): boolean {
   return v === null || v === '' || v === '1' || v === 'true';
 }
 
+/** Force path durian+bubble pairs when ?pathPairs=1 (for testing chase/sweat). */
+export function wantsPathPairsOnly(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('pathPairs')) return false;
+  const v = params.get('pathPairs');
+  return v === null || v === '' || v === '1' || v === 'true';
+}
+
 /**
  * Draw GATE_PATHS as thick segment beams + waypoint spheres.
  * Uses depth test so behind-dome segments do not fake mid-dome rings.

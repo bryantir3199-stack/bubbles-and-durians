@@ -10,6 +10,7 @@ import {
 } from '../config/spawnLayout';
 import { Target, type TargetSpawnSpec } from '../entities/Target';
 import type * as THREE from 'three';
+import { wantsPathPairsOnly } from '../debug/pathDebug';
 
 type SpawnWeights = Record<TargetKind, number>;
 
@@ -291,6 +292,13 @@ export class Spawner {
     // Hard stop: do not remove anyone; only spawn when a slot is free.
     if (this.liveCount() >= gameConfig.maxTargets) return;
 
+    if (wantsPathPairsOnly()) {
+      this.trySpawnPathPair();
+      return;
+    }
+
+    if (this.trySpawnPathPair()) return;
+
     const kind = this.pickKind();
     if (!kind) return;
 
@@ -309,6 +317,55 @@ export class Spawner {
       this.frenzyActive,
     );
     this.targets.push(target);
+  }
+
+  /**
+   * Spawn a bubble and durian on the same path lane — bubble leads, durian
+   * follows at a fixed gap. Shares one path slot until both leave play.
+   */
+  private trySpawnPathPair(): boolean {
+    if (this.closeOnly) return false;
+    if (!wantsPathPairsOnly() && Math.random() >= gameConfig.pathPairChance) return false;
+    if (this.liveCount() + 2 > gameConfig.maxTargets) return false;
+
+    const freePaths = this.freePathIndices();
+    if (freePaths.length === 0) return false;
+
+    const pathIndex = freePaths[Math.floor(Math.random() * freePaths.length)]!;
+    const pathForward = Math.random() < 0.55;
+    const spec: TargetSpawnSpec = { pattern: 'path', pathIndex, pathForward };
+    const gap = gameConfig.pathPairGap as number;
+
+    this.busyPaths.add(pathIndex);
+    this.pathCooldownUntil.delete(pathIndex);
+
+    let refs = 2;
+    const releasePath = () => {
+      refs -= 1;
+      if (refs <= 0) {
+        this.busyPaths.delete(pathIndex);
+        this.pathCooldownUntil.set(pathIndex, this.elapsed + gameConfig.spawnSlotCooldownMs);
+      }
+    };
+
+    const bubble = new Target(
+      this.scene,
+      'bubble',
+      { ...spec, pathStartOffset: gap, pathPairLead: true },
+      this.onEscape,
+      releasePath,
+      this.frenzyActive,
+    );
+    const durian = new Target(
+      this.scene,
+      'durian',
+      { ...spec, pathStartOffset: 0 },
+      this.onEscape,
+      releasePath,
+      this.frenzyActive,
+    );
+    this.targets.push(bubble, durian);
+    return true;
   }
 
   private windowReady(id: string): boolean {

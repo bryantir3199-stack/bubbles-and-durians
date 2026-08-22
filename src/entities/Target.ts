@@ -15,6 +15,7 @@ import {
 } from '../config/spawnLayout';
 import { ModelCache } from '../world/ModelCache';
 import { getDoorController } from '../world/DoorController';
+import { SweatParticles } from '../effects/SweatParticles';
 
 function randBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -40,6 +41,10 @@ export interface TargetSpawnSpec {
    * 2 = dome wall U (CCW; reverse via pathForward).
    */
   pathIndex?: number;
+  /** Initial distance along a path route (world units). Used for paired path spawns. */
+  pathStartOffset?: number;
+  /** Lead bubble in a path pair — gets chased by a durian on the same lane. */
+  pathPairLead?: boolean;
 }
 
 /**
@@ -103,6 +108,7 @@ export class Target {
   private doorRetained = false;
   /** Lane index for GATE_PATHS; only gate L lanes (0–1) drive doors. */
   private pathIndex = 0;
+  private pathMoveDir = new THREE.Vector3(0, 0, -1);
   private bobAmp = 0;
   private bobBaseY = 0;
   /** Hit-flash timer (seconds) for gold durian feedback. */
@@ -110,6 +116,7 @@ export class Target {
   private flashMats: { mat: THREE.MeshBasicMaterial; r: number; g: number; b: number }[] = [];
   /** Tutorial / scripted beats — never time out or blink away. */
   private readonly pinned: boolean;
+  private sweat: SweatParticles | null = null;
 
   constructor(
     scene: THREE.Scene,
@@ -174,6 +181,9 @@ export class Target {
     if (frenzySpawned) this.attachFrenzyGlow();
 
     this.setupPath(spec);
+    if (kind === 'bubble' && spec.pathPairLead) {
+      this.sweat = new SweatParticles(this.visual);
+    }
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
     if (kind === 'heart') this.visual.lookAt(0, this.root.position.y, 635);
@@ -300,10 +310,11 @@ export class Target {
       this.pathLen += this.waypoints[i - 1]!.distanceTo(this.waypoints[i]!);
       this.cumLen.push(this.pathLen);
     }
-    this.pathTraveled = 0;
+    this.pathTraveled = Math.min(spec.pathStartOffset ?? 0, this.pathLen);
     this.bobAmp = 0;
     this.phase = 'move';
-    this.placeOnPath(0);
+    this.placeOnPath(this.pathTraveled);
+    this.syncPathMoveDir();
     // Gate L-lanes open doors while approaching — wall routes skip this.
     if (pathUsesDoors(this.pathIndex)) this.retainDoor();
   }
@@ -439,6 +450,7 @@ export class Target {
     }
 
     if (this.fading) {
+      this.sweat?.update(dt, this.pathMoveDir);
       this.fadeT += dt / this.fadeDur;
       const t = Math.min(1, this.fadeT);
       if (this.knockDown) {
@@ -461,6 +473,7 @@ export class Target {
 
     // Close targets sink below the frame, then despawn once off-camera.
     if (this.phase === 'sink') {
+      this.sweat?.update(dt, this.pathMoveDir);
       this.sinkT += dt / this.sinkDur;
       const t = Math.min(1, this.sinkT);
       // Ease-in quad — starts moving right away, accelerates out of frame.
@@ -498,6 +511,7 @@ export class Target {
         this.finishEscape();
       } else {
         this.placeOnPath(this.pathTraveled);
+        this.syncPathMoveDir();
         this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
@@ -534,6 +548,23 @@ export class Target {
         this.finishEscape();
       }
     }
+
+    this.sweat?.update(dt, this.pathMoveDir);
+  }
+
+  /** Unit direction along the current path segment (XZ-heavy travel). */
+  private syncPathMoveDir(): void {
+    if (this.waypoints.length < 2) return;
+    for (let i = 1; i < this.cumLen.length; i++) {
+      if (this.pathTraveled <= this.cumLen[i]!) {
+        this.pathMoveDir.subVectors(this.waypoints[i]!, this.waypoints[i - 1]!);
+        if (this.pathMoveDir.lengthSq() > 1e-6) this.pathMoveDir.normalize();
+        return;
+      }
+    }
+    const n = this.waypoints.length;
+    this.pathMoveDir.subVectors(this.waypoints[n - 1]!, this.waypoints[n - 2]!);
+    if (this.pathMoveDir.lengthSq() > 1e-6) this.pathMoveDir.normalize();
   }
 
   private finishEscape(): void {
@@ -598,6 +629,8 @@ export class Target {
       ModelCache.disposeHeart(this.visual);
       this.heartMat = null;
     }
+    this.sweat?.dispose();
+    this.sweat = null;
     this.root.parent?.remove(this.root);
   }
 }

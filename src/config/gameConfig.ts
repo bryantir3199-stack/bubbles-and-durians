@@ -70,6 +70,13 @@ export const gameConfig = {
    * next spawn cannot pop in the same place immediately.
    */
   spawnSlotCooldownMs: 1400,
+  /**
+   * Chance each spawn tick creates a durian+bubble pair on one path lane (0–1).
+   * Bubble leads; durian follows at a fixed gap on the same route.
+   */
+  pathPairChance: 0.12,
+  /** Gap between the lead bubble and chasing durian (world units). */
+  pathPairGap: 42,
   targetSize: 34.375,
   heartSize: 16,
   goldSize: 24,
