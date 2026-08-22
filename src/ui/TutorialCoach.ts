@@ -32,7 +32,7 @@ export class TutorialCoach {
     this.root.className = 'tut-coach';
     this.root.innerHTML = `
       <div class="tut-top">
-        <span class="tut-kicker">TUTORIAL</span>
+        <span class="tut-kicker">HOW TO PLAY</span>
         <div class="tut-actions">
           <button type="button" class="tut-btn tut-skip">SKIP</button>
           <button type="button" class="tut-btn tut-quit">MENU</button>
@@ -69,7 +69,7 @@ export class TutorialCoach {
   }
 
   set(content: TutorialCoachContent): void {
-    this.kickerEl.textContent = `TUTORIAL · ${content.index} / ${content.total}`;
+    this.kickerEl.textContent = `HOW TO PLAY · ${content.index} / ${content.total}`;
     this.titleEl.textContent = content.title;
     this.bodyEl.textContent = content.body;
     this.waitEl.classList.remove('tut-ok', 'tut-warn');

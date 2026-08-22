@@ -50,7 +50,7 @@ export class ModeSelectScene implements GameScene {
         <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
         <nav class="main-menu-nav" aria-label="Main menu">
           <p class="menu-section-label">Learn</p>
-          <button type="button" class="menu-option tutorial" data-mode="tutorial">TUTORIAL</button>
+          <button type="button" class="menu-option tutorial" data-mode="tutorial">HOW TO PLAY</button>
           <p class="menu-section-label">Timed</p>
           <button type="button" class="menu-option timed" data-mode="timed" data-timed="short">SHORT · 90s</button>
           <button type="button" class="menu-option timed" data-mode="timed" data-timed="medium">MEDIUM · 3 min</button>

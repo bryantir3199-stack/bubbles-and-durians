@@ -86,7 +86,7 @@ export async function submitScore(
   mode: GameMode,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isRankedMode(mode)) {
-    return { ok: false, error: 'Tutorial scores are not ranked' };
+    return { ok: false, error: 'How to Play scores are not ranked' };
   }
   const sb = getClient();
   if (!sb) {

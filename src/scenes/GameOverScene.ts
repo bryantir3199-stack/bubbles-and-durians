@@ -80,7 +80,7 @@ export class GameOverScene implements GameScene {
   }
 
   private modeLabel(): string {
-    if (this.mode === 'tutorial') return 'Tutorial';
+    if (this.mode === 'tutorial') return 'How to Play';
     if (this.mode === 'endless') return 'Endless Mode';
     const preset = getTimedPreset(this.timedPreset ?? defaultTimedPreset);
     return `Timed Mode · ${preset.label} (${preset.seconds}s)`;

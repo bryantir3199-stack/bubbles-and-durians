@@ -2,6 +2,7 @@ import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import { isCoarsePointer } from '../core/display';
 import type { SpawnPattern } from '../config/spawnLayout';
+import { CLOSE_SPOTS, WINDOWS } from '../config/spawnLayout';
 import type { TutorialCoach } from '../ui/TutorialCoach';
 import type { ArrowSpec } from '../ui/TutorialArrows';
 
@@ -9,7 +10,7 @@ export interface TutorialHost {
   spawn(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; pinned?: boolean },
+    options?: { frenzySpawned?: boolean; pinned?: boolean; windowId?: string },
   ): boolean;
   clearTargets(): void;
   reload(): void;
@@ -37,12 +38,24 @@ type WaitKind =
 
 const TOTAL_STEPS = 10;
 
+/** Resolve combo slot at runtime — castle load replaces default window ids (sp1…). */
+function comboSpawnSlot(index: number): { pattern: 'window' | 'close'; id: string } {
+  const windowCount = WINDOWS.length;
+  const total = windowCount + CLOSE_SPOTS.length;
+  const idx = ((index % total) + total) % total;
+  if (idx < windowCount) {
+    return { pattern: 'window', id: WINDOWS[idx]!.id };
+  }
+  return { pattern: 'close', id: CLOSE_SPOTS[idx - windowCount]!.id };
+}
+
 export class TutorialDirector {
   private step = 0;
   private waiting: WaitKind | null = null;
   /** Player may tap CONTINUE to go to the next step. */
   private stepReady = false;
   private comboHits = 0;
+  private comboSpotIndex = 0;
   private delay = 0;
   private pending: (() => void) | null = null;
   private ammoGate: { min: number; then: () => void } | null = null;
@@ -87,7 +100,9 @@ export class TutorialDirector {
 
     if (waiting === 'reload' && !info.hit) {
       this.coach.setWait(
-        this.mobile ? 'Tap the ammo bar or hit RELOAD.' : 'Now reload.',
+        this.mobile
+          ? 'Tap the ammo bar or hit RELOAD.'
+          : 'Click the ammo bar or press SPACE or R.',
       );
       return;
     }
@@ -112,10 +127,11 @@ export class TutorialDirector {
     if (waiting === 'combo') {
       if (!info.hit) {
         this.comboHits = 0;
+        this.comboSpotIndex = 0;
         this.host.resetCombo();
         this.host.clearTargets();
         this.coach.feedback('Misses reset combo. Hit 4 in a row.', 'warn');
-        this.after(0.45, () => this.spawnNow('durian', 'window'));
+        this.after(0.45, () => this.spawnComboDurian());
         return;
       }
       if (info.kind === 'durian' && info.destroyed) {
@@ -125,7 +141,7 @@ export class TutorialDirector {
           return;
         }
         this.coach.setWait(`${this.comboHits} / ${gameConfig.shotsPerComboLevel} in a row`);
-        this.after(0.4, () => this.spawnNow('durian', 'window'));
+        this.after(0.4, () => this.spawnComboDurian(true));
       }
       return;
     }
@@ -146,27 +162,17 @@ export class TutorialDirector {
     if (this.done || !this.waiting || this.stepReady) return;
 
     if (this.waiting === 'watch-escape' && this.hostIsDurian(kind)) {
-      this.after(0.7, () => {
-        this.host.setLives(gameConfig.startLives);
-        this.taskComplete();
-      });
+      this.after(0.7, () => this.taskComplete());
       return;
     }
 
     if (
-      (this.waiting === 'combo' ||
-        this.waiting === 'destroy-gold' ||
+      (this.waiting === 'destroy-gold' ||
         this.waiting === 'collect-heart' ||
         this.waiting === 'destroy-frenzy') &&
       this.matchesWait(kind)
     ) {
-      if (this.waiting === 'combo') {
-        this.comboHits = 0;
-        this.host.resetCombo();
-        this.coach.feedback('It got away — combo drops. Hit 4 in a row.', 'warn');
-      } else {
-        this.coach.feedback('It left — here comes another.', 'warn');
-      }
+      this.coach.feedback('It left — here comes another.', 'warn');
       this.after(0.5, () => this.respawnForWait());
     }
   }
@@ -217,7 +223,7 @@ export class TutorialDirector {
         this.prompt(
           'Welcome!',
           'Durians are taking over bubble kingdom. Defeat those stinky fruits!',
-          'Tap CONTINUE to start.',
+          this.mobile ? 'Tap CONTINUE to start.' : 'Click CONTINUE to start.',
           true,
         );
         break;
@@ -234,7 +240,7 @@ export class TutorialDirector {
       case 2:
         this.waiting = 'skip-bubble';
         this.prompt(
-          "Don't shoot the Bubble",
+          "Don't Shoot the Bubble",
           'Bubbles cost you points.',
           undefined,
           true,
@@ -243,15 +249,29 @@ export class TutorialDirector {
         this.host.setArrows([{ kind: 'target' }]);
         break;
       case 3:
+        this.waiting = 'combo';
+        this.comboHits = 0;
+        this.comboSpotIndex = 0;
+        this.host.resetCombo();
+        this.host.revealCombo();
+        this.prompt(
+          'Build a Combo',
+          'Four clean durian hits in a row raises your combo, multiplying your score. Misses and bubble hits reset it.',
+          'Hit 4 durians in a row.',
+        );
+        this.withAmmo(1, () => this.spawnComboDurian());
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'combo' }]);
+        break;
+      case 4:
         this.waiting = 'reload';
         this.prompt(
           'Reload',
-          'Your mag holds 7 ammo. Reload to replenish them.',
+          this.mobile
+            ? 'Replenish your ammo by tapping the ammo bar or the RELOAD button.'
+            : 'Replenish your ammo by clicking on the ammo bar or pressing the SPACE or R key.',
           this.host.ammo() >= this.host.magSize()
             ? 'Fire your last round, then reload.'
-            : this.mobile
-              ? 'Tap the ammo bar or hit RELOAD.'
-              : 'Reload now.',
+            : 'Reload now.',
         );
         this.host.setArrows(
           this.mobile
@@ -262,19 +282,6 @@ export class TutorialDirector {
             : [{ kind: 'hud', part: 'ammo' }],
         );
         break;
-      case 4:
-        this.waiting = 'combo';
-        this.comboHits = 0;
-        this.host.resetCombo();
-        this.host.revealCombo();
-        this.prompt(
-          'Build a Combo',
-          'Four clean durian hits in a row raises your combo, multiplying your score. Misses and bubble hits reset it.',
-          'Hit 4 durians in a row.',
-        );
-        this.withAmmo(1, () => this.spawnNow('durian', 'window'));
-        this.host.setArrows([{ kind: 'hud', part: 'combo' }]);
-        break;
       case 5:
         this.waiting = 'destroy-gold';
         this.prompt(
@@ -283,7 +290,7 @@ export class TutorialDirector {
           'Shoot the gold durian down.',
         );
         this.withAmmo(gameConfig.hitsRequired.goldDurian, () =>
-          this.spawnNow('goldDurian', 'window'),
+          this.spawnNow('goldDurian', 'window', { pinned: true }),
         );
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'score' }]);
         break;
@@ -295,7 +302,7 @@ export class TutorialDirector {
           'Hearts restore lives in Endless mode.',
           'Shoot the heart.',
         );
-        this.withAmmo(1, () => this.spawnNow('heart', 'window'));
+        this.withAmmo(1, () => this.spawnNow('heart', 'window', { pinned: true }));
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
         break;
       case 7:
@@ -372,10 +379,18 @@ export class TutorialDirector {
   private spawnNow(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; pinned?: boolean },
+    options?: { frenzySpawned?: boolean; pinned?: boolean; windowId?: string },
   ): void {
     this.host.clearTargets();
     this.host.spawn(kind, pattern, options);
+  }
+
+  /** Pinned durian at the next window/close slot (never a path). */
+  private spawnComboDurian(advanceSpot = false): void {
+    if (advanceSpot) this.comboSpotIndex += 1;
+    const slot = comboSpawnSlot(this.comboSpotIndex);
+    this.host.clearTargets();
+    this.host.spawn('durian', slot.pattern, { pinned: true, windowId: slot.id });
   }
 
   private withAmmo(min: number, then: () => void): void {
@@ -398,15 +413,16 @@ export class TutorialDirector {
         this.spawnNow('durian', 'window', { pinned: true });
         break;
       case 'combo':
-        this.spawnNow('durian', 'window');
+        this.comboSpotIndex = 0;
+        this.spawnComboDurian();
         break;
       case 'destroy-gold':
         this.withAmmo(gameConfig.hitsRequired.goldDurian, () =>
-          this.spawnNow('goldDurian', 'window'),
+          this.spawnNow('goldDurian', 'window', { pinned: true }),
         );
         break;
       case 'collect-heart':
-        this.spawnNow('heart', 'window');
+        this.spawnNow('heart', 'window', { pinned: true });
         break;
       case 'destroy-frenzy':
         this.spawnNow('durian', 'window', { frenzySpawned: true });
