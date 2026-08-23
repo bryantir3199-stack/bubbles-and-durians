@@ -104,8 +104,8 @@ export const gameConfig = {
     goldDurian: 700,
     bubble: -1000,
   },
-  /** Combo multiplier caps at this value (2x / 3x / 4x). */
-  maxCombo: 4,
+  /** Combo multiplier caps at this value (2x / 3x / 4x / 5x). */
+  maxCombo: 5,
   /** Durian kills needed to raise combo by one level (gold only counts on defeat). */
   shotsPerComboLevel: 4,
   hitsRequired: {
