@@ -42,6 +42,17 @@ export const gameConfig = {
   /** Timed mode: multiply spawn rate by this during the final boost window (2.25 = +125%). */
   timedFinalSpawnRateMult: 2.25,
   /**
+   * Timed mode: extra score on durian/gold during `finalBoostSeconds`.
+   * Combo still multiplies after this. Bubbles stay −1000 with no clock bonus.
+   */
+  timedFinaleScoreMult: 2,
+  /** Timed results: awarded if combo reached max at least once. */
+  timedBonusMaxCombo: 2000,
+  /** Timed results: points per whole second spent at max combo. */
+  timedBonusPerSecAtMaxCombo: 100,
+  /** Timed results: awarded if no bubbles were shot. */
+  timedBonusCleanRound: 5000,
+  /**
    * Opening grace period (ms): no close-camera pops and no gold durians
    * so the first half-minute stays readable.
    */
@@ -95,7 +106,7 @@ export const gameConfig = {
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x). */
   maxCombo: 4,
-  /** Successful durian hits needed to raise combo by one level. */
+  /** Durian kills needed to raise combo by one level (gold only counts on defeat). */
   shotsPerComboLevel: 4,
   hitsRequired: {
     durian: 1,
@@ -140,3 +151,48 @@ export const gameConfig = {
 } as const;
 
 export type TargetKind = 'durian' | 'goldDurian' | 'bubble' | 'heart';
+
+/** Timed results breakdown. `finaleScore` is already inside `runScore`. */
+export interface TimedRunTally {
+  runScore: number;
+  finaleScore: number;
+  maxComboBonus: number;
+  comboHoldBonus: number;
+  cleanRoundBonus: number;
+  shotsFired: number;
+  accurateHits: number;
+  /** Whole percent 0–100 used as the final multiplier. */
+  accuracyPct: number;
+  total: number;
+}
+
+export function computeTimedRunTally(input: {
+  runScore: number;
+  peakCombo: number;
+  timeAtMaxCombo: number;
+  bubblesHit: number;
+  finaleScore: number;
+  shotsFired: number;
+  accurateHits: number;
+}): TimedRunTally {
+  const maxComboBonus =
+    input.peakCombo >= gameConfig.maxCombo ? gameConfig.timedBonusMaxCombo : 0;
+  const holdSecs = Math.floor(Math.max(0, input.timeAtMaxCombo));
+  const comboHoldBonus = holdSecs * gameConfig.timedBonusPerSecAtMaxCombo;
+  const cleanRoundBonus = input.bubblesHit <= 0 ? gameConfig.timedBonusCleanRound : 0;
+  const shots = Math.max(0, Math.floor(input.shotsFired));
+  const hits = Math.max(0, Math.min(shots, Math.floor(input.accurateHits)));
+  const accuracyPct = shots <= 0 ? 0 : Math.round((hits / shots) * 100);
+  const subtotal = input.runScore + maxComboBonus + comboHoldBonus + cleanRoundBonus;
+  return {
+    runScore: input.runScore,
+    finaleScore: Math.max(0, Math.round(input.finaleScore)),
+    maxComboBonus,
+    comboHoldBonus,
+    cleanRoundBonus,
+    shotsFired: shots,
+    accurateHits: hits,
+    accuracyPct,
+    total: Math.round(subtotal * (accuracyPct / 100)),
+  };
+}

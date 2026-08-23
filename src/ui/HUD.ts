@@ -354,6 +354,8 @@ export class HUD {
     }
     this.timerEl.classList.toggle('critical', t <= 10);
     const finalBoostSeconds = this.timedConfig?.finalBoostSeconds ?? 30;
+    const inFinale = t > 0 && t <= finalBoostSeconds;
+    this.timerEl.classList.toggle('finale', inFinale);
     if (!this.thirtyBannerShown && secondsLeft <= finalBoostSeconds) {
       this.thirtyBannerShown = true;
       this.showThirtySecondsBanner(finalBoostSeconds);
@@ -370,7 +372,7 @@ export class HUD {
     const el = document.createElement('div');
     el.className = 'hud-announce hud-thirty-banner';
     el.setAttribute('aria-hidden', 'true');
-    el.textContent = `${finalBoostSeconds}s Remains`;
+    el.textContent = `FINAL ${finalBoostSeconds}s · ${gameConfig.timedFinaleScoreMult}× SCORE`;
     this.root.appendChild(el);
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }

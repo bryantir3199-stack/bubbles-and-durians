@@ -254,6 +254,119 @@
         color: var(--gold);
         margin: 10px 0 18px;
       }
+      .menu.game-over .menu-card { width: min(460px, 92vw); }
+      .run-tally {
+        position: relative;
+        width: min(320px, 100%);
+        margin: 8px auto 16px;
+        padding-right: 28px;
+        text-align: left;
+      }
+      .tally-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        font: 700 16px/1.45 'Fredoka', sans-serif;
+        color: #d0e4f7;
+      }
+      .tally-row.is-earned { color: var(--gold); }
+      .tally-row.is-missed { color: var(--muted); }
+      .tally-row.tally-included {
+        color: var(--muted);
+        font-size: 14px;
+        padding-left: 8px;
+      }
+      .tally-row.tally-total {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 2px solid rgba(255, 255, 255, 0.35);
+        font-size: 28px;
+        color: var(--gold);
+      }
+      .tally-info {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        z-index: 3;
+      }
+      .tally-info-btn {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border-radius: 50%;
+        border: 2px solid #f4e6c8;
+        background: #1a3a5c;
+        color: #f4e6c8;
+        font: italic 800 15px/1 'Cinzel', 'Times New Roman', serif;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+      }
+      .tally-info-btn:hover,
+      .tally-info.is-open .tally-info-btn {
+        background: #2a5a8c;
+        color: #fff;
+      }
+      .tally-info-bubble {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: min(292px, 78vw);
+        padding: 10px 12px 12px;
+        background: rgba(8, 16, 28, 0.96);
+        border: 2px solid rgba(244, 230, 200, 0.78);
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+        text-align: left;
+        color: #e8f0fa;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-6px);
+        transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s ease;
+      }
+      .tally-info-bubble::before {
+        content: '';
+        position: absolute;
+        top: -7px;
+        right: 8px;
+        width: 10px;
+        height: 10px;
+        background: rgba(8, 16, 28, 0.96);
+        border-left: 2px solid rgba(244, 230, 200, 0.78);
+        border-top: 2px solid rgba(244, 230, 200, 0.78);
+        transform: rotate(45deg);
+      }
+      .tally-info.is-open .tally-info-bubble,
+      .tally-info-btn:focus-visible + .tally-info-bubble {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: none;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .tally-info:hover .tally-info-bubble {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+          transform: none;
+        }
+      }
+      .tally-info-title {
+        font: 800 13px/1.2 'Fredoka', sans-serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin: 0 0 8px;
+      }
+      .tally-info-list {
+        margin: 0;
+        padding-left: 1.1em;
+        font: 500 13px/1.45 'Fredoka', sans-serif;
+        color: #d0e4f7;
+      }
+      .tally-info-list li + li { margin-top: 6px; }
+      .tally-info-list strong { color: #fff; font-weight: 700; }
       .btn {
         display: block;
         width: 100%;
@@ -966,6 +1079,16 @@
       .hud-time-ms {
         font: 800 clamp(15px, 2.4vw, 25px)/1 'Baloo 2', 'Fredoka', sans-serif;
       }
+      .hud-time.finale .hud-time-value {
+        color: #ffe566;
+      }
+      .hud-time.finale:not(.critical) {
+        animation: finalePulse 0.72s ease-in-out infinite;
+      }
+      @keyframes finalePulse {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.28) saturate(1.2); }
+      }
       .hud-time.critical {
         animation: criticalPulse 0.6s ease-in-out infinite;
       }
@@ -1327,10 +1450,11 @@
         top: 38%;
         left: 0;
         white-space: nowrap;
-        opacity: 0.5;
+        font-size: clamp(36px, 7.5vw, 88px);
+        opacity: 0.55;
         z-index: 22;
         will-change: transform;
-        animation: thirtyScroll 3.2s linear forwards;
+        animation: thirtyScroll 3.8s linear forwards;
       }
       @keyframes thirtyScroll {
         from { transform: translateX(100vw); }
@@ -1465,6 +1589,12 @@
         max-height: 94vh;
         overflow: auto;
       }
+      html.touch-ui .run-tally { margin: 6px auto 12px; padding-right: 34px; }
+      html.touch-ui .tally-row { font-size: 15px; }
+      html.touch-ui .tally-row.tally-total { font-size: 24px; }
+      html.touch-ui .tally-info-btn { width: 32px; height: 32px; font-size: 17px; }
+      html.touch-ui .tally-info-bubble { width: min(280px, 82vw); }
+      html.touch-ui .menu.game-over .menu-card { overflow: visible; }
       html.touch-ui .lb-run {
         padding: 8px 12px 10px;
         margin-bottom: 4px;
@@ -1602,6 +1732,7 @@
       }
       html.touch-ui .hud-combo.max { color: #ffe566; }
       html.touch-ui .hud-combo.pop { animation: none; }
+      html.touch-ui .hud-time.finale { color: #ffe566; }
       html.touch-ui .hud-time.critical,
       html.touch-ui .hud-lives.critical { color: #ff6b8a; }
       html.touch-ui .hud-reload-btn {

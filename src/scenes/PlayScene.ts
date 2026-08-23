@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gameConfig, defaultTimedPreset, getTimedPreset, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
+import { gameConfig, defaultTimedPreset, getTimedPreset, computeTimedRunTally, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 import { GATE_PATHS } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
@@ -37,6 +37,12 @@ export class PlayScene implements GameScene {
   private score = 0;
   private combo = 1;
   private comboShots = 0;
+  private peakCombo = 1;
+  private timeAtMaxCombo = 0;
+  private bubblesHit = 0;
+  private finaleScore = 0;
+  private shotsFired = 0;
+  private accurateHits = 0;
   private lives: number = gameConfig.startLives;
   private timeLeft = getTimedPreset(defaultTimedPreset).seconds;
   private ended = false;
@@ -75,6 +81,12 @@ export class PlayScene implements GameScene {
     this.score = 0;
     this.combo = 1;
     this.comboShots = 0;
+    this.peakCombo = 1;
+    this.timeAtMaxCombo = 0;
+    this.bubblesHit = 0;
+    this.finaleScore = 0;
+    this.shotsFired = 0;
+    this.accurateHits = 0;
     this.lives = gameConfig.startLives;
     this.timeLeft = this.timedConfig.seconds;
     this.ended = false;
@@ -185,6 +197,9 @@ export class PlayScene implements GameScene {
     if (this.ended || this.paused) return;
 
     if (this.mode === 'timed') {
+      if (this.combo >= gameConfig.maxCombo) {
+        this.timeAtMaxCombo += Math.min(dt, Math.max(0, this.timeLeft));
+      }
       this.timeLeft -= dt;
       this.hud?.setTimer(this.timeLeft);
     }
@@ -304,6 +319,7 @@ export class PlayScene implements GameScene {
       return;
     }
     if (!this.ammo.tryShoot()) return;
+    this.shotsFired += 1;
 
     playShootSound();
     this.hud.playShootAnim();
@@ -342,8 +358,11 @@ export class PlayScene implements GameScene {
 
     const destroyed = target.applyHit();
     if (this.isDurianKind(target.kind)) {
-      // Every successful durian hit fills the combo meter
-      this.registerComboShot(clientX, clientY);
+      this.accurateHits += 1;
+      // Regular durians fill combo on each hit. Gold durians only fill combo on defeat.
+      if (target.kind !== 'goldDurian' || destroyed) {
+        this.registerComboShot(clientX, clientY);
+      }
       this.hud.spawnCrumbs(clientX, clientY);
     }
     if (destroyed) this.resolveDestroyedTarget(target, clientX, clientY);
@@ -365,13 +384,19 @@ export class PlayScene implements GameScene {
       const frenzyScale = this.frenzyActive
         ? gameConfig.frenzyPointBase / gameConfig.points.durian
         : 1;
-      const points = Math.round(base * frenzyScale) * this.combo;
+      const timedFinale = this.timedFinaleScoreMult();
+      const points = Math.round(base * frenzyScale * timedFinale) * this.combo;
       const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
-      this.addScore(points, clientX, clientY, color);
+      const finaleTag = timedFinale > 1 ? `${gameConfig.timedFinaleScoreMult}×` : undefined;
+      this.addScore(points, clientX, clientY, color, finaleTag);
+      if (this.mode === 'timed' && timedFinale > 1 && points > 0) {
+        this.finaleScore += points;
+      }
     } else if (kind === 'bubble') {
       playPopSound();
       this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
+      this.bubblesHit += 1;
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
       if (this.usesLives()) this.changeLives(-1);
     } else if (kind === 'heart') {
@@ -404,6 +429,7 @@ export class PlayScene implements GameScene {
   private registerComboShot(x: number, y: number): void {
     if (this.combo >= gameConfig.maxCombo) {
       this.comboShots = gameConfig.shotsPerComboLevel;
+      this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       return;
     }
@@ -412,6 +438,7 @@ export class PlayScene implements GameScene {
     if (this.comboShots >= gameConfig.shotsPerComboLevel) {
       this.comboShots = 0;
       this.combo += 1;
+      this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
       return;
@@ -427,10 +454,19 @@ export class PlayScene implements GameScene {
     this.hud?.setCombo(this.combo, this.comboShots);
   }
 
-  private addScore(delta: number, x: number, y: number, color: string): void {
+  /** Clock 2× during Timed’s last `finalBoostSeconds`. Endless always 1. */
+  private timedFinaleScoreMult(): number {
+    if (this.mode !== 'timed') return 1;
+    return this.timeLeft <= this.timedConfig.finalBoostSeconds
+      ? gameConfig.timedFinaleScoreMult
+      : 1;
+  }
+
+  private addScore(delta: number, x: number, y: number, color: string, suffix?: string): void {
     this.score = Math.max(0, this.score + delta);
     this.hud?.setScore(this.score);
-    const label = delta > 0 ? `+${delta}` : `${delta}`;
+    const core = delta > 0 ? `+${delta}` : `${delta}`;
+    const label = suffix ? `${core} (${suffix})` : core;
     this.hud?.spawnFloater(x, y, label, color);
     if (this.mode === 'endless' && delta > 0) this.addFrenzyProgress(delta);
   }
@@ -553,10 +589,23 @@ export class PlayScene implements GameScene {
       return;
     }
     window.setTimeout(() => {
+      const timedTally =
+        this.mode === 'timed'
+          ? computeTimedRunTally({
+              runScore: this.score,
+              peakCombo: this.peakCombo,
+              timeAtMaxCombo: this.timeAtMaxCombo,
+              bubblesHit: this.bubblesHit,
+              finaleScore: this.finaleScore,
+              shotsFired: this.shotsFired,
+              accurateHits: this.accurateHits,
+            })
+          : undefined;
       this.ctx.goto('gameOver', {
         mode: this.mode,
         timedPreset: this.mode === 'timed' ? this.timedPreset : undefined,
-        score: this.score,
+        score: timedTally?.total ?? this.score,
+        timedTally,
       });
     }, 400);
   }
