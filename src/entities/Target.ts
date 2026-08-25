@@ -20,6 +20,7 @@ import { ModelCache } from '../world/ModelCache';
 import { getDoorController } from '../world/DoorController';
 import { SweatParticles } from '../effects/SweatParticles';
 import { DustParticles } from '../effects/DustParticles';
+import { playChompSoundAt, playTeethFlybyEnterSound, playTeethFlybyExitSound } from '../audio/sfx';
 
 function randBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -99,12 +100,12 @@ export class Target {
   private teethChompAge = 0;
   /** World X where the teeth entered (offscreen). */
   private teethEntryX = 0;
-  /** Opposite offscreen X if they continue through. */
+  /** Opposite offscreen exit X. */
   private teethExitX = 0;
-  /** True after the behind-castle continue-vs-U-turn choice. */
-  private teethMidResolved = false;
-  /** Horizontal mirror after a U-turn. */
+  /** Horizontal mirror when entering from the right. */
   private teethMirrored = false;
+  private teethEnterSfxPlayed = false;
+  private teethExitSfxPlayed = false;
   private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
@@ -343,9 +344,9 @@ export class Target {
 
     this.pathIndex = spec.pathIndex ?? 0;
 
-    // Timed teeth: approach center only; continue vs U-turn is decided mid-pass.
+    // Timed teeth: full offscreen→offscreen dash (random entry side).
     if (this.kind === 'teeth' || this.pathIndex === TEETH_FLYBY_PATH_INDEX) {
-      this.setupTeethApproach(spec);
+      this.setupTeethPath(spec);
       return;
     }
 
@@ -374,20 +375,21 @@ export class Target {
   }
 
   /**
-   * Teeth enter from a random offscreen side and stop at x=0 (behind keep).
+   * Teeth enter from a random offscreen side and exit the opposite side.
    * `pathForward !== false` → start left; `false` → start right.
    */
-  private setupTeethApproach(spec: TargetSpawnSpec): void {
+  private setupTeethPath(spec: TargetSpawnSpec): void {
     const y = -0.5 + gameConfig.targetSize * 0.5;
     const fromLeft = spec.pathForward !== false;
     this.teethEntryX = fromLeft ? -TEETH_FLYBY_START_X : TEETH_FLYBY_START_X;
     this.teethExitX = -this.teethEntryX;
-    this.teethMidResolved = false;
     // Right-side entrants start mirrored so travel direction matches art.
     this.teethMirrored = !fromLeft;
+    this.teethEnterSfxPlayed = false;
+    this.teethExitSfxPlayed = false;
     this.waypoints = [
       new THREE.Vector3(this.teethEntryX, y, TEETH_FLYBY_Z),
-      new THREE.Vector3(0, y, TEETH_FLYBY_Z),
+      new THREE.Vector3(this.teethExitX, y, TEETH_FLYBY_Z),
     ];
     this.rebuildPathLengths(0);
     this.bobAmp = 0;
@@ -406,28 +408,6 @@ export class Target {
       this.cumLen.push(this.pathLen);
     }
     this.pathTraveled = Math.min(startOffset, this.pathLen);
-  }
-
-  /**
-   * Behind the castle: 50/50 keep going to the far side, or U-turn home
-   * (mirroring the mesh so the retreat reads as a direction flip).
-   */
-  private resolveTeethMidChoice(): void {
-    this.teethMidResolved = true;
-    const y = this.waypoints[0]?.y ?? -0.5 + gameConfig.targetSize * 0.5;
-    const mid = new THREE.Vector3(0, y, TEETH_FLYBY_Z);
-    const goBack = Math.random() < 0.5;
-    if (goBack) {
-      // Toggle mirror so the retreat faces the new travel direction.
-      this.teethMirrored = !this.teethMirrored;
-      this.waypoints = [mid, new THREE.Vector3(this.teethEntryX, y, TEETH_FLYBY_Z)];
-    } else {
-      this.waypoints = [mid, new THREE.Vector3(this.teethExitX, y, TEETH_FLYBY_Z)];
-    }
-    this.rebuildPathLengths(0);
-    this.placeOnPath(0);
-    this.syncPathMoveDir();
-    this.syncPathFacing();
   }
 
   /** Constant-speed placement along the polyline. */
@@ -621,12 +601,8 @@ export class Target {
       this.pathTraveled += speed * dt;
       if (this.pathTraveled >= this.pathLen) {
         this.placeOnPath(this.pathLen);
-        if (this.kind === 'teeth' && !this.teethMidResolved) {
-          this.resolveTeethMidChoice();
-        } else {
-          this.releaseDoor();
-          this.finishEscape();
-        }
+        this.releaseDoor();
+        this.finishEscape();
       } else {
         this.placeOnPath(this.pathTraveled);
         // Flat lawn dash — never inherit bob/pitch from other movers.
@@ -635,6 +611,7 @@ export class Target {
         }
         this.syncPathMoveDir();
         this.syncPathFacing();
+        this.syncTeethFlybySfx();
         this.syncDoorForPosition();
       }
     } else if (this.phase === 'hold') {
@@ -710,6 +687,52 @@ export class Target {
     this.teethOpenState = !this.teethOpenState;
     this.teethOpen.visible = this.teethOpenState;
     this.teethClose.visible = !this.teethOpenState;
+    // Bite cue on the closed pose, only while the teeth are on-screen and not
+    // fully hidden behind the keep; spatialized at the target.
+    if (!this.teethOpenState && this.isTeethVisuallyExposed()) {
+      const p = this.root.position;
+      playChompSoundAt(p.x, p.y, p.z);
+    }
+  }
+
+  /**
+   * True while the teeth peek on either side of the keep (not off-screen and
+   * not mid-pass behind the castle mesh).
+   */
+  private isTeethVisuallyExposed(): boolean {
+    const ax = Math.abs(this.root.position.x);
+    const castleHalf = 145;
+    const appearX = 520;
+    return ax > castleHalf && ax < appearX;
+  }
+
+  /**
+   * Flyby whooshes: first when the teeth come on-screen, then again when they
+   * clear the keep and appear on the far side.
+   */
+  private syncTeethFlybySfx(): void {
+    if (this.kind !== 'teeth' || this.knockDown || this.fading) return;
+    const x = this.root.position.x;
+    const fromLeft = this.teethEntryX < 0;
+    // Rough on-screen edge at flyby depth; keep half-width ≈ tower line.
+    const appearX = 520;
+    const castleHalf = 145;
+
+    if (!this.teethEnterSfxPlayed) {
+      const appeared = fromLeft ? x >= -appearX : x <= appearX;
+      if (appeared) {
+        this.teethEnterSfxPlayed = true;
+        playTeethFlybyEnterSound();
+      }
+    }
+
+    if (this.teethEnterSfxPlayed && !this.teethExitSfxPlayed) {
+      const otherSide = fromLeft ? x >= castleHalf : x <= -castleHalf;
+      if (otherSide) {
+        this.teethExitSfxPlayed = true;
+        playTeethFlybyExitSound();
+      }
+    }
   }
 
   /** Unit direction along the current path segment (XZ-heavy travel). */
@@ -791,7 +814,7 @@ export class Target {
   private syncPathFacing(): void {
     if (this.pattern !== 'path' || this.phase !== 'move') return;
     if (this.kind === 'teeth') {
-      // Yaw toward camera; mirror on U-turn so retreat reads as a direction flip.
+      // Yaw toward camera; mirror when entering from the right.
       const dx = CAM_X - this.root.position.x;
       const dz = CAM_Z - this.root.position.z;
       this.visual.rotation.set(0, Math.atan2(dx, dz), 0);

@@ -58,12 +58,20 @@ export const gameConfig = {
    */
   earlyGameGraceMs: 30_000,
   /**
-   * Timed only: teeth flyby may appear any time after early-game grace.
-   * Leave this much clock so the cross can finish before time runs out.
+   * Timed only: teeth appear in a random moment inside this window
+   * centered on the midpoint of the timed run.
    */
-  teethFlybyEndMarginMs: 12_000,
-  /** Timed only: constant speed on the behind-castle L→R lane (world units / s). */
-  teethPathSpeed: 240,
+  teethFlybyMidWindowMs: 5_000,
+  /** Timed only: center warn flash begins this long before the teeth spawn. */
+  teethWarnLeadMs: 2_000,
+  /** Timed only: duration of one exclaim on/off blink cycle (ms). */
+  teethWarnFlashCycleMs: 100,
+  /** Timed only: number of exclaim blink cycles in the warn flash. */
+  teethWarnFlashCount: 10,
+  /** Timed only: total warn flash length (= cycle × count). */
+  teethWarnFlashMs: 1_000,
+  /** Timed only: constant speed on the behind-castle lane (world units / s). */
+  teethPathSpeed: 250,
   /** Timed only: open ↔ closed model swap interval (ms). */
   teethChompIntervalMs: 160,
   /**

@@ -1,6 +1,6 @@
 import { gameConfig } from '../config/gameConfig';
 import type { GameMode, TimedPresetConfig } from '../config/gameConfig';
-import { playCountdownTickSound } from '../audio/sfx';
+import { playCountdownTickSound, playTeethWarnBeepSound } from '../audio/sfx';
 import { isCoarsePointer } from '../core/display';
 
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
@@ -255,6 +255,27 @@ export class HUD {
     el.textContent = 'FRENZY';
     this.root.appendChild(el);
     el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
+  /** Rapid center exclaim flash warning before the timed teeth flyby. */
+  showTeethWarn(): void {
+    const el = document.createElement('img');
+    el.className = 'hud-teeth-warn';
+    el.src = '/assets/hud/exclaim.png';
+    el.alt = '';
+    el.draggable = false;
+    el.setAttribute('aria-hidden', 'true');
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    // Fallback if animationend is skipped (tab background / reduced motion).
+    window.setTimeout(() => el.remove(), gameConfig.teethWarnFlashMs + 80);
+
+    // Beep on every exclaim "on" frame; each play overlaps (does not wait).
+    const cycle = gameConfig.teethWarnFlashCycleMs;
+    const count = gameConfig.teethWarnFlashCount;
+    for (let i = 0; i < count; i++) {
+      window.setTimeout(() => playTeethWarnBeepSound(), i * cycle);
+    }
   }
 
   setCombo(multiplier: number, progressShots = 0): void {

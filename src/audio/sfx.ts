@@ -22,6 +22,12 @@ let clockTickBuffer: AudioBuffer | null = null;
 let clockTickLoad: Promise<AudioBuffer | null> | null = null;
 let shootBuffers: AudioBuffer[] = [];
 let shootLoad: Promise<AudioBuffer[]> | null = null;
+let teethFlybyABuffer: AudioBuffer | null = null;
+let teethFlybyALoad: Promise<AudioBuffer | null> | null = null;
+let teethFlybyBBuffer: AudioBuffer | null = null;
+let teethFlybyBLoad: Promise<AudioBuffer | null> | null = null;
+let teethWarnBeepBuffer: AudioBuffer | null = null;
+let teethWarnBeepLoad: Promise<AudioBuffer | null> | null = null;
 let bgmBuffer: AudioBuffer | null = null;
 let bgmLoad: Promise<AudioBuffer | null> | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
@@ -70,6 +76,9 @@ export async function preloadSfx(): Promise<void> {
     ensureDryFireBuffer(),
     ensureClockTickBuffer(),
     ensureShootBuffers(),
+    ensureTeethFlybyABuffer(),
+    ensureTeethFlybyBBuffer(),
+    ensureTeethWarnBeepBuffer(),
     ensureBgmBuffer(),
   ]);
 }
@@ -160,6 +169,42 @@ async function ensureShootBuffers(): Promise<AudioBuffer[]> {
   })();
 
   return shootLoad;
+}
+
+async function ensureTeethFlybyABuffer(): Promise<AudioBuffer | null> {
+  if (teethFlybyABuffer) return teethFlybyABuffer;
+  if (teethFlybyALoad) return teethFlybyALoad;
+
+  teethFlybyALoad = (async () => {
+    teethFlybyABuffer = await loadBuffer('assets/teeth-flyby-a.wav');
+    return teethFlybyABuffer;
+  })();
+
+  return teethFlybyALoad;
+}
+
+async function ensureTeethFlybyBBuffer(): Promise<AudioBuffer | null> {
+  if (teethFlybyBBuffer) return teethFlybyBBuffer;
+  if (teethFlybyBLoad) return teethFlybyBLoad;
+
+  teethFlybyBLoad = (async () => {
+    teethFlybyBBuffer = await loadBuffer('assets/teeth-flyby-b.wav');
+    return teethFlybyBBuffer;
+  })();
+
+  return teethFlybyBLoad;
+}
+
+async function ensureTeethWarnBeepBuffer(): Promise<AudioBuffer | null> {
+  if (teethWarnBeepBuffer) return teethWarnBeepBuffer;
+  if (teethWarnBeepLoad) return teethWarnBeepLoad;
+
+  teethWarnBeepLoad = (async () => {
+    teethWarnBeepBuffer = await loadBuffer('assets/teeth-warn-beep.mp3');
+    return teethWarnBeepBuffer;
+  })();
+
+  return teethWarnBeepLoad;
 }
 
 async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
@@ -318,10 +363,152 @@ export function stopStageBgm(): void {
 
 /** Munch sample for shooting — randomly picks between the two clips. */
 export function playShootSound(): void {
+  playMunchSample(0.9, 0.12);
+}
+
+/** Teeth-target chomp — same munch clips as the shot SFX (non-spatial). */
+export function playChompSound(): void {
+  playMunchSample(1.7, 0.1);
+}
+
+/**
+ * Spatial teeth chomp at a world position (camera listener faces −Z).
+ * Overlaps freely; callers should skip when the teeth are not visible.
+ */
+export function playChompSoundAt(x: number, y: number, z: number): void {
+  if (muted) return;
+  const play = (buffers: AudioBuffer[]) => {
+    if (buffers.length === 0) return;
+    const buffer = buffers[Math.floor(Math.random() * buffers.length)]!;
+    playBufferAt(buffer, x, y, z, 1.7, 0.1);
+  };
+  if (shootBuffers.length > 0) {
+    play(shootBuffers);
+    return;
+  }
+  void ensureShootBuffers().then(play);
+}
+
+/**
+ * Play a one-shot through a PannerNode at world XYZ.
+ * Listener is the play camera (0, 110, 635) looking toward −Z.
+ */
+function playBufferAt(
+  buffer: AudioBuffer,
+  x: number,
+  y: number,
+  z: number,
+  gainValue = 0.85,
+  rateJitter = 0.16,
+  playbackRate?: number,
+): void {
+  if (muted) return;
+  const ac = getCtx();
+  if (!ac) return;
+
+  const listener = ac.listener;
+  if (listener.positionX) {
+    listener.positionX.value = 0;
+    listener.positionY.value = 110;
+    listener.positionZ.value = 635;
+    listener.forwardX.value = 0;
+    listener.forwardY.value = 0;
+    listener.forwardZ.value = -1;
+    listener.upX.value = 0;
+    listener.upY.value = 1;
+    listener.upZ.value = 0;
+  } else {
+    // Safari legacy AudioListener
+    const legacy = listener as AudioListener & {
+      setPosition?: (x: number, y: number, z: number) => void;
+      setOrientation?: (
+        fx: number,
+        fy: number,
+        fz: number,
+        ux: number,
+        uy: number,
+        uz: number,
+      ) => void;
+    };
+    legacy.setPosition?.(0, 110, 635);
+    legacy.setOrientation?.(0, 0, -1, 0, 1, 0);
+  }
+
+  const src = ac.createBufferSource();
+  const panner = ac.createPanner();
+  const gain = ac.createGain();
+  src.buffer = buffer;
+  src.playbackRate.value =
+    playbackRate ?? 1 - rateJitter / 2 + Math.random() * rateJitter;
+
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 280;
+  panner.maxDistance = 1400;
+  panner.rolloffFactor = 1.15;
+  if (panner.positionX) {
+    panner.positionX.value = x;
+    panner.positionY.value = y;
+    panner.positionZ.value = z;
+  } else {
+    (
+      panner as PannerNode & {
+        setPosition?: (x: number, y: number, z: number) => void;
+      }
+    ).setPosition?.(x, y, z);
+  }
+
+  gain.gain.value = gainValue * SFX_VOLUME_SCALE;
+  src.connect(panner);
+  panner.connect(gain);
+  gain.connect(ac.destination);
+  src.start(0);
+}
+
+/**
+ * Whoosh when the teeth first come on-screen.
+ * Gain is 4× a typical one-shot (two +100% boosts).
+ */
+export function playTeethFlybyEnterSound(): void {
+  if (teethFlybyABuffer) {
+    playBuffer(teethFlybyABuffer, 3.6, 0, 1);
+    return;
+  }
+  void ensureTeethFlybyABuffer().then((buf) => {
+    if (buf) playBuffer(buf, 3.6, 0, 1);
+  });
+}
+
+/**
+ * Whoosh when the teeth reappear past the keep on the far side.
+ * Gain is 4× a typical one-shot (two +100% boosts).
+ */
+export function playTeethFlybyExitSound(): void {
+  if (teethFlybyBBuffer) {
+    playBuffer(teethFlybyBBuffer, 3.6, 0, 1);
+    return;
+  }
+  void ensureTeethFlybyBBuffer().then((buf) => {
+    if (buf) playBuffer(buf, 3.6, 0, 1);
+  });
+}
+
+/** Short beep for each teeth-warn exclaim blink (overlaps freely). */
+export function playTeethWarnBeepSound(): void {
+  if (teethWarnBeepBuffer) {
+    playBuffer(teethWarnBeepBuffer, 0.95, 0, 1);
+    return;
+  }
+  void ensureTeethWarnBeepBuffer().then((buf) => {
+    if (buf) playBuffer(buf, 0.95, 0, 1);
+  });
+}
+
+function playMunchSample(gainValue: number, rateJitter: number): void {
   const playRandom = (buffers: AudioBuffer[]) => {
     if (buffers.length === 0) return;
     const buffer = buffers[Math.floor(Math.random() * buffers.length)]!;
-    playBuffer(buffer, 0.9, 0.12);
+    playBuffer(buffer, gainValue, rateJitter);
   };
 
   if (shootBuffers.length > 0) {

@@ -72,6 +72,8 @@ export class PlayScene implements GameScene {
   private tutorialArrows: TutorialArrows | null = null;
   /** Timed: one-shot teeth flyby already fired this run. */
   private teethFlybySpawned = false;
+  /** Timed: warning flash already shown this run. */
+  private teethWarnShown = false;
   /** Timed: spawner elapsed ms when the teeth flyby should appear. */
   private teethFlybyAtMs = 0;
 
@@ -99,6 +101,7 @@ export class PlayScene implements GameScene {
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
     this.teethFlybySpawned = false;
+    this.teethWarnShown = false;
     this.teethFlybyAtMs = 0;
     if (this.mode === 'timed') {
       if (wantsTeethFlybyNow()) {
@@ -106,12 +109,9 @@ export class PlayScene implements GameScene {
         this.teethFlybyAtMs = 1000;
       } else {
         const totalMs = this.timedConfig.seconds * 1000;
-        const earliest = gameConfig.earlyGameGraceMs;
-        const latest = Math.max(
-          earliest,
-          totalMs - gameConfig.teethFlybyEndMarginMs,
-        );
-        this.teethFlybyAtMs = earliest + Math.random() * (latest - earliest);
+        const midMs = totalMs / 2;
+        const halfWindow = gameConfig.teethFlybyMidWindowMs / 2;
+        this.teethFlybyAtMs = midMs - halfWindow + Math.random() * gameConfig.teethFlybyMidWindowMs;
       }
     }
     getCastleStage()?.resetFrenzyLook();
@@ -232,6 +232,7 @@ export class PlayScene implements GameScene {
     }
 
     this.spawner?.update(dt, this.mode === 'timed' ? this.timeLeft : undefined);
+    this.tryWarnTeethFlyby();
     this.trySpawnTeethFlyby();
     this.tutorial?.update(dt);
     this.announceVisibleGoldDurians();
@@ -248,6 +249,15 @@ export class PlayScene implements GameScene {
     }
 
     if (this.mode === 'timed' && this.timeLeft <= 0) this.endGame();
+  }
+
+  /** Timed only: flash the exclaim warn 2s before the teeth appear. */
+  private tryWarnTeethFlyby(): void {
+    if (this.mode !== 'timed' || this.teethWarnShown || !this.spawner || !this.hud) return;
+    const warnAt = this.teethFlybyAtMs - gameConfig.teethWarnLeadMs;
+    if (this.spawner.getElapsedMs() < warnAt) return;
+    this.teethWarnShown = true;
+    this.hud.showTeethWarn();
   }
 
   /** Timed only: scripted one-shot teeth dash after early-game grace. */

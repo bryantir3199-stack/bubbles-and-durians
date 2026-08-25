@@ -199,7 +199,7 @@ function buildDomeWallPaths(): Vec3[][] {
 
 /**
  * Reference lane for the timed teeth flyby (debug draw / index slot).
- * Runtime travel is rebuilt in Target: start side → mid → continue or U-turn.
+ * Runtime travel is entry→exit offscreen in Target (random side).
  */
 function buildTeethFlybyPath(): Vec3[][] {
   const targetHalfHeight = 34.375 * 0.5;
@@ -207,7 +207,6 @@ function buildTeethFlybyPath(): Vec3[][] {
   return [
     [
       { x: -TEETH_FLYBY_START_X, y, z: TEETH_FLYBY_Z },
-      { x: 0, y, z: TEETH_FLYBY_Z },
       { x: TEETH_FLYBY_START_X, y, z: TEETH_FLYBY_Z },
     ],
   ];

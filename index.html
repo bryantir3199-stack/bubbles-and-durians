@@ -1495,6 +1495,24 @@
         will-change: transform, opacity;
         animation: frenzyAnnounce 1.35s ease-out forwards;
       }
+      .hud-teeth-warn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 25;
+        width: min(200px, 38vw);
+        height: auto;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+        /* Hard on/off only — steps so there is no opacity fade.
+           0.1s/cycle (50% slower than 0.05s) × 10 = 1s. */
+        animation: teethWarnFlash 0.1s steps(2, jump-none) 10;
+      }
+      @keyframes teethWarnFlash {
+        from { opacity: 1; }
+        to { opacity: 0; }
+      }
       @keyframes frenzyAnnounce {
         0% {
           opacity: 0;
@@ -1808,7 +1826,8 @@
       html.touch-ui .hud-announce,
       html.touch-ui .hud-countdown,
       html.touch-ui .hud-thirty-banner,
-      html.touch-ui .hud-frenzy-announce {
+      html.touch-ui .hud-frenzy-announce,
+      html.touch-ui .hud-teeth-warn {
         position: fixed;
       }
       html.touch-ui .tut-coach {
