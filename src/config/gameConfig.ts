@@ -120,8 +120,10 @@ export const gameConfig = {
     durian: 100,
     goldDurian: 700,
     bubble: -1000,
-    /** Timed one-shot flyby — flat award (no combo / finale mult). */
-    teeth: 10_000,
+    /** Timed short one-shot flyby — flat award (no combo / finale mult). */
+    teethShort: 5_000,
+    /** Timed medium one-shot flyby — flat award (no combo / finale mult). */
+    teethMedium: 10_000,
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x / 5x). */
   maxCombo: 5,
@@ -177,6 +179,11 @@ export const gameConfig = {
 } as const;
 
 export type TargetKind = 'durian' | 'goldDurian' | 'bubble' | 'heart' | 'teeth';
+
+/** Flat teeth award by timed preset (short 5k / medium+ 10k). */
+export function teethPointsForPreset(preset: TimedPreset = defaultTimedPreset): number {
+  return preset === 'short' ? gameConfig.points.teethShort : gameConfig.points.teethMedium;
+}
 
 /** Timed results breakdown. `finaleScore` is already inside `runScore`. */
 export interface TimedRunTally {

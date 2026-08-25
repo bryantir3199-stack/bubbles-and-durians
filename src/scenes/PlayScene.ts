@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gameConfig, defaultTimedPreset, getTimedPreset, computeTimedRunTally, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
+import { gameConfig, defaultTimedPreset, getTimedPreset, computeTimedRunTally, teethPointsForPreset, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
 import { GATE_PATHS, TEETH_FLYBY_PATH_INDEX } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
@@ -451,8 +451,8 @@ export class PlayScene implements GameScene {
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
     } else if (kind === 'teeth') {
       playSquishSound();
-      // Flat 10k — no combo / finale mult so the award matches the promise.
-      this.addScore(gameConfig.points.teeth, clientX, clientY, '#ffe8a0');
+      // Flat award by preset — no combo / finale mult.
+      this.addScore(teethPointsForPreset(this.timedPreset), clientX, clientY, '#ffe8a0');
     }
 
     // Knock down (fall back 90°) instead of shrinking on kill.
