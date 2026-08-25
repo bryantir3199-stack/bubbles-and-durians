@@ -597,7 +597,8 @@ export class Target {
         this.age = 0;
       }
     } else if (this.phase === 'move') {
-      const speed = this.kind === 'teeth' ? gameConfig.teethPathSpeed : PATH_SPEED;
+      let speed = this.kind === 'teeth' ? gameConfig.teethPathSpeed : PATH_SPEED;
+      if (this.pathPair && this.kind !== 'teeth') speed *= 1.3;
       this.pathTraveled += speed * dt;
       if (this.pathTraveled >= this.pathLen) {
         this.placeOnPath(this.pathLen);
