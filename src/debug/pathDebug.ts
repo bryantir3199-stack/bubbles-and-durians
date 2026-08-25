@@ -42,6 +42,17 @@ export function wantsPathPairsOnly(): boolean {
 }
 
 /**
+ * Timed teeth flyby debug: spawn ~1s into the run instead of after early-game grace.
+ * Use with a Timed mode start: `?teeth=1`
+ */
+export function wantsTeethFlybyNow(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('teeth')) return false;
+  const v = params.get('teeth');
+  return v === null || v === '' || v === '1' || v === 'true';
+}
+
+/**
  * Draw GATE_PATHS as thick segment beams + waypoint spheres.
  * Uses depth test so behind-dome segments do not fake mid-dome rings.
  * Gate L = orange/blue, dome U = yellow/green.

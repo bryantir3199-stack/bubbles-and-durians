@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { gameConfig, defaultTimedPreset, getTimedPreset, computeTimedRunTally, type TimedPreset, type TimedPresetConfig } from '../config/gameConfig';
 import type { GameMode } from '../config/gameConfig';
-import { GATE_PATHS } from '../config/spawnLayout';
+import { GATE_PATHS, TEETH_FLYBY_PATH_INDEX } from '../config/spawnLayout';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { createPathDebugGroup, wantsCloseOnly, wantsDomeOnly, wantsPathDebug } from '../debug/pathDebug';
+import { createPathDebugGroup, wantsCloseOnly, wantsDomeOnly, wantsPathDebug, wantsTeethFlybyNow } from '../debug/pathDebug';
 import { Target } from '../entities/Target';
 import { AmmoSystem } from '../systems/Ammo';
 import { Spawner } from '../systems/Spawner';
@@ -70,6 +70,10 @@ export class PlayScene implements GameScene {
   private tutorial: TutorialDirector | null = null;
   private tutorialCoach: TutorialCoach | null = null;
   private tutorialArrows: TutorialArrows | null = null;
+  /** Timed: one-shot teeth flyby already fired this run. */
+  private teethFlybySpawned = false;
+  /** Timed: spawner elapsed ms when the teeth flyby should appear. */
+  private teethFlybyAtMs = 0;
 
   constructor(private ctx: SceneContext) {}
 
@@ -94,6 +98,22 @@ export class PlayScene implements GameScene {
     this.frenzyMeter = 0;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
+    this.teethFlybySpawned = false;
+    this.teethFlybyAtMs = 0;
+    if (this.mode === 'timed') {
+      if (wantsTeethFlybyNow()) {
+        // Debug: appear almost immediately so the flyby is easy to catch.
+        this.teethFlybyAtMs = 1000;
+      } else {
+        const totalMs = this.timedConfig.seconds * 1000;
+        const earliest = gameConfig.earlyGameGraceMs;
+        const latest = Math.max(
+          earliest,
+          totalMs - gameConfig.teethFlybyEndMarginMs,
+        );
+        this.teethFlybyAtMs = earliest + Math.random() * (latest - earliest);
+      }
+    }
     getCastleStage()?.resetFrenzyLook();
     this.escapesArmed = this.mode === 'tutorial';
     if (!this.escapesArmed) {
@@ -212,6 +232,7 @@ export class PlayScene implements GameScene {
     }
 
     this.spawner?.update(dt, this.mode === 'timed' ? this.timeLeft : undefined);
+    this.trySpawnTeethFlyby();
     this.tutorial?.update(dt);
     this.announceVisibleGoldDurians();
 
@@ -227,6 +248,18 @@ export class PlayScene implements GameScene {
     }
 
     if (this.mode === 'timed' && this.timeLeft <= 0) this.endGame();
+  }
+
+  /** Timed only: scripted one-shot teeth dash after early-game grace. */
+  private trySpawnTeethFlyby(): void {
+    if (this.mode !== 'timed' || this.teethFlybySpawned || !this.spawner) return;
+    if (this.spawner.getElapsedMs() < this.teethFlybyAtMs) return;
+    const spawned = this.spawner.forceSpawn('teeth', 'path', {
+      pathIndex: TEETH_FLYBY_PATH_INDEX,
+      // Random entry side: true = left→right approach, false = right→left.
+      pathForward: Math.random() < 0.5,
+    });
+    if (spawned) this.teethFlybySpawned = true;
   }
 
   /** Play glitter once the first frame a gold durian enters the camera frustum. */
@@ -357,13 +390,16 @@ export class PlayScene implements GameScene {
     }
 
     const destroyed = target.applyHit();
-    if (this.isDurianKind(target.kind)) {
+    if (this.isDurianKind(target.kind) || target.kind === 'teeth') {
       this.accurateHits += 1;
       // Regular durians fill combo on each hit. Gold durians only fill combo on defeat.
-      if (target.kind !== 'goldDurian' || destroyed) {
+      // Teeth are a flat bonus — no combo fill.
+      if (this.isDurianKind(target.kind) && (target.kind !== 'goldDurian' || destroyed)) {
         this.registerComboShot(clientX, clientY);
       }
-      this.hud.spawnCrumbs(clientX, clientY);
+      if (this.isDurianKind(target.kind)) {
+        this.hud.spawnCrumbs(clientX, clientY);
+      }
     }
     if (destroyed) this.resolveDestroyedTarget(target, clientX, clientY);
     this.tutorial?.onShot({ hit: true, kind: target.kind, destroyed });
@@ -403,6 +439,10 @@ export class PlayScene implements GameScene {
       // Hearts grant a life without breaking the combo streak.
       this.changeLives(1);
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
+    } else if (kind === 'teeth') {
+      playSquishSound();
+      // Flat 10k — no combo / finale mult so the award matches the promise.
+      this.addScore(gameConfig.points.teeth, clientX, clientY, '#ffe8a0');
     }
 
     // Knock down (fall back 90°) instead of shrinking on kill.

@@ -5,6 +5,7 @@ import {
   PATTERN_WEIGHTS,
   GATE_LANE_COUNT,
   GATE_PATHS,
+  TEETH_FLYBY_PATH_INDEX,
   WINDOWS,
   type SpawnPattern,
 } from '../config/spawnLayout';
@@ -102,7 +103,13 @@ export class Spawner {
   forceSpawn(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; windowId?: string; pathIndex?: number; pinned?: boolean },
+    options?: {
+      frenzySpawned?: boolean;
+      windowId?: string;
+      pathIndex?: number;
+      pathForward?: boolean;
+      pinned?: boolean;
+    },
   ): Target | null {
     const spec = this.lockSpec(pattern, options);
     if (!spec) return null;
@@ -121,6 +128,11 @@ export class Spawner {
 
   stop(): void {
     this.running = false;
+  }
+
+  /** Spawner clock (ms) since start — used for scripted timed beats. */
+  getElapsedMs(): number {
+    return this.elapsed;
   }
 
   /**
@@ -397,6 +409,8 @@ export class Spawner {
     const free: number[] = [];
     const start = this.domeOnly ? GATE_LANE_COUNT : 0;
     for (let i = start; i < GATE_PATHS.length; i++) {
+      // Scripted teeth flyby lane — never part of RNG mix.
+      if (i === TEETH_FLYBY_PATH_INDEX) continue;
       if (
         !this.busyPaths.has(i) &&
         this.pathReady(i) &&
@@ -410,7 +424,7 @@ export class Spawner {
 
   private lockSpec(
     pattern: SpawnPattern,
-    options?: { windowId?: string; pathIndex?: number },
+    options?: { windowId?: string; pathIndex?: number; pathForward?: boolean },
   ): TargetSpawnSpec | null {
     if (pattern === 'window') {
       const spots = WINDOWS.filter((w) => !this.occupiedWindows.has(w.id));
@@ -436,14 +450,36 @@ export class Spawner {
       return { pattern: 'close', windowId: spot.id, windowSpot: spot };
     }
 
+    // Preferred path (e.g. teeth flyby) may be excluded from RNG free lists.
+    const preferred = options?.pathIndex;
+    if (preferred !== undefined) {
+      if (
+        preferred < 0 ||
+        preferred >= GATE_PATHS.length ||
+        (GATE_PATHS[preferred]?.length ?? 0) < 2
+      ) {
+        return null;
+      }
+      if (this.busyPaths.has(preferred)) return null;
+      this.busyPaths.add(preferred);
+      this.pathCooldownUntil.delete(preferred);
+      return {
+        pattern: 'path',
+        pathIndex: preferred,
+        pathForward: options?.pathForward !== false,
+      };
+    }
+
     const free = this.freePathIndices();
     if (free.length === 0) return null;
-    const preferred = options?.pathIndex;
-    const pathIndex =
-      preferred !== undefined && free.includes(preferred) ? preferred : free[0]!;
+    const pathIndex = free[0]!;
     this.busyPaths.add(pathIndex);
     this.pathCooldownUntil.delete(pathIndex);
-    return { pattern: 'path', pathIndex, pathForward: true };
+    return {
+      pattern: 'path',
+      pathIndex,
+      pathForward: options?.pathForward !== false,
+    };
   }
 
   private pickSpec(): TargetSpawnSpec | null {
@@ -541,7 +577,7 @@ export class Spawner {
     const bubbleAbsMult = gameConfig.frenzyBubbleSpawnMult;
     const bubble = weights.bubble;
     const others =
-      weights.durian + weights.goldDurian + weights.heart;
+      weights.durian + weights.goldDurian + weights.heart + weights.teeth;
     const normalTotal = others + bubble;
     if (normalTotal <= 0 || others <= 0) {
       weights.bubble = 0;
@@ -556,6 +592,7 @@ export class Spawner {
       weights.durian = 0;
       weights.goldDurian = 0;
       weights.heart = 0;
+      weights.teeth = 0;
       weights.bubble = 1;
       return;
     }

@@ -8,6 +8,9 @@ import {
   CLOSE_SINK_DURATION,
   DOOR_PLANE_Z,
   GATE_PATHS,
+  TEETH_FLYBY_PATH_INDEX,
+  TEETH_FLYBY_START_X,
+  TEETH_FLYBY_Z,
   nearDoorPlane,
   pathUsesDoors,
   type SpawnPattern,
@@ -46,11 +49,13 @@ export interface TargetSpawnSpec {
   /**
    * Path direction: true = lane forward (enter / CCW-as-authored),
    * false = reversed (exit / opposite travel).
+   * For teeth: true = enter from left, false = enter from right.
    */
   pathForward?: boolean;
   /**
    * Travel lane: 0 = left gate L, 1 = right gate L,
-   * 2 = dome wall U (CCW; reverse via pathForward).
+   * 2 = dome wall U (CCW; reverse via pathForward),
+   * 3 = teeth L→R flyby (scripted).
    */
   pathIndex?: number;
   /** Initial distance along a path route (world units). Used for paired path spawns. */
@@ -88,6 +93,18 @@ export class Target {
   private onFreeSlot: (() => void) | null = null;
   private visual: THREE.Object3D;
   private heartMat: THREE.MeshBasicMaterial | null = null;
+  private teethOpen: THREE.Object3D | null = null;
+  private teethClose: THREE.Object3D | null = null;
+  private teethOpenState = true;
+  private teethChompAge = 0;
+  /** World X where the teeth entered (offscreen). */
+  private teethEntryX = 0;
+  /** Opposite offscreen X if they continue through. */
+  private teethExitX = 0;
+  /** True after the behind-castle continue-vs-U-turn choice. */
+  private teethMidResolved = false;
+  /** Horizontal mirror after a U-turn. */
+  private teethMirrored = false;
   private ownsGoldMaterials = false;
   private fading = false;
   private fadeT = 0;
@@ -164,7 +181,9 @@ export class Target {
           ? gameConfig.hitsRequired.heart
           : kind === 'bubble'
             ? gameConfig.hitsRequired.bubble
-            : gameConfig.hitsRequired.durian;
+            : kind === 'teeth'
+              ? gameConfig.hitsRequired.teeth
+              : gameConfig.hitsRequired.durian;
     this.hitsLeft = this.maxHits;
 
     const lifeRange =
@@ -185,6 +204,15 @@ export class Target {
       this.visual = ModelCache.cloneGoldDurian();
       this.ownsGoldMaterials = true;
       this.root.add(this.visual);
+    } else if (kind === 'teeth') {
+      const holder = new THREE.Group();
+      this.teethOpen = ModelCache.cloneModel('teethOpen');
+      this.teethClose = ModelCache.cloneModel('teethClose');
+      this.teethClose.visible = false;
+      holder.add(this.teethOpen);
+      holder.add(this.teethClose);
+      this.visual = holder;
+      this.root.add(holder);
     } else {
       const mesh = ModelCache.createHeart();
       this.heartMat = mesh.material as THREE.MeshBasicMaterial;
@@ -314,6 +342,13 @@ export class Target {
     }
 
     this.pathIndex = spec.pathIndex ?? 0;
+
+    // Timed teeth: approach center only; continue vs U-turn is decided mid-pass.
+    if (this.kind === 'teeth' || this.pathIndex === TEETH_FLYBY_PATH_INDEX) {
+      this.setupTeethApproach(spec);
+      return;
+    }
+
     const lane = GATE_PATHS[this.pathIndex] ?? GATE_PATHS[0]!;
     const pts = lane.map((p) => new THREE.Vector3(p.x, p.y, p.z));
     if (pts.length < 2) {
@@ -328,13 +363,7 @@ export class Target {
     // Forward = authored direction (enter / CCW); reverse = opposite travel.
     const forward = spec.pathForward !== false;
     this.waypoints = forward ? pts : [...pts].reverse();
-    this.cumLen = [0];
-    this.pathLen = 0;
-    for (let i = 1; i < this.waypoints.length; i++) {
-      this.pathLen += this.waypoints[i - 1]!.distanceTo(this.waypoints[i]!);
-      this.cumLen.push(this.pathLen);
-    }
-    this.pathTraveled = Math.min(spec.pathStartOffset ?? 0, this.pathLen);
+    this.rebuildPathLengths(spec.pathStartOffset ?? 0);
     this.bobAmp = 0;
     this.phase = 'move';
     this.placeOnPath(this.pathTraveled);
@@ -342,6 +371,63 @@ export class Target {
     this.syncPathFacing();
     // Gate L-lanes open doors while approaching — wall routes skip this.
     if (pathUsesDoors(this.pathIndex)) this.retainDoor();
+  }
+
+  /**
+   * Teeth enter from a random offscreen side and stop at x=0 (behind keep).
+   * `pathForward !== false` → start left; `false` → start right.
+   */
+  private setupTeethApproach(spec: TargetSpawnSpec): void {
+    const y = -0.5 + gameConfig.targetSize * 0.5;
+    const fromLeft = spec.pathForward !== false;
+    this.teethEntryX = fromLeft ? -TEETH_FLYBY_START_X : TEETH_FLYBY_START_X;
+    this.teethExitX = -this.teethEntryX;
+    this.teethMidResolved = false;
+    // Right-side entrants start mirrored so travel direction matches art.
+    this.teethMirrored = !fromLeft;
+    this.waypoints = [
+      new THREE.Vector3(this.teethEntryX, y, TEETH_FLYBY_Z),
+      new THREE.Vector3(0, y, TEETH_FLYBY_Z),
+    ];
+    this.rebuildPathLengths(0);
+    this.bobAmp = 0;
+    this.phase = 'move';
+    this.placeOnPath(0);
+    this.syncPathMoveDir();
+    this.syncPathFacing();
+  }
+
+  /** Rebuild cumLen / pathLen from current waypoints; optionally set start offset. */
+  private rebuildPathLengths(startOffset = 0): void {
+    this.cumLen = [0];
+    this.pathLen = 0;
+    for (let i = 1; i < this.waypoints.length; i++) {
+      this.pathLen += this.waypoints[i - 1]!.distanceTo(this.waypoints[i]!);
+      this.cumLen.push(this.pathLen);
+    }
+    this.pathTraveled = Math.min(startOffset, this.pathLen);
+  }
+
+  /**
+   * Behind the castle: 50/50 keep going to the far side, or U-turn home
+   * (mirroring the mesh so the retreat reads as a direction flip).
+   */
+  private resolveTeethMidChoice(): void {
+    this.teethMidResolved = true;
+    const y = this.waypoints[0]?.y ?? -0.5 + gameConfig.targetSize * 0.5;
+    const mid = new THREE.Vector3(0, y, TEETH_FLYBY_Z);
+    const goBack = Math.random() < 0.5;
+    if (goBack) {
+      // Toggle mirror so the retreat faces the new travel direction.
+      this.teethMirrored = !this.teethMirrored;
+      this.waypoints = [mid, new THREE.Vector3(this.teethEntryX, y, TEETH_FLYBY_Z)];
+    } else {
+      this.waypoints = [mid, new THREE.Vector3(this.teethExitX, y, TEETH_FLYBY_Z)];
+    }
+    this.rebuildPathLengths(0);
+    this.placeOnPath(0);
+    this.syncPathMoveDir();
+    this.syncPathFacing();
   }
 
   /** Constant-speed placement along the polyline. */
@@ -531,13 +617,22 @@ export class Target {
         this.age = 0;
       }
     } else if (this.phase === 'move') {
-      this.pathTraveled += PATH_SPEED * dt;
+      const speed = this.kind === 'teeth' ? gameConfig.teethPathSpeed : PATH_SPEED;
+      this.pathTraveled += speed * dt;
       if (this.pathTraveled >= this.pathLen) {
         this.placeOnPath(this.pathLen);
-        this.releaseDoor();
-        this.finishEscape();
+        if (this.kind === 'teeth' && !this.teethMidResolved) {
+          this.resolveTeethMidChoice();
+        } else {
+          this.releaseDoor();
+          this.finishEscape();
+        }
       } else {
         this.placeOnPath(this.pathTraveled);
+        // Flat lawn dash — never inherit bob/pitch from other movers.
+        if (this.kind === 'teeth' && this.waypoints[0]) {
+          this.root.position.y = this.waypoints[0]!.y;
+        }
         this.syncPathMoveDir();
         this.syncPathFacing();
         this.syncDoorForPosition();
@@ -554,6 +649,7 @@ export class Target {
 
     this.root.scale.setScalar(pop);
     this.syncRunSquash(dt);
+    this.syncTeethChomp(dt);
 
     if (this.kind === 'heart' && !this.knockDown) {
       this.visual.lookAt(CAM_X, this.root.position.y, CAM_Z);
@@ -584,9 +680,9 @@ export class Target {
     this.dust?.update(dt, this.pathMoveDir, this.phase === 'move' && this.pattern === 'path');
   }
 
-  /** Subtle rapid squash/stretch while path-running (not hearts), feet planted. */
+  /** Subtle rapid squash/stretch while path-running (not hearts/teeth), feet planted. */
   private syncRunSquash(dt: number): void {
-    if (this.kind === 'heart' || this.knockDown) return;
+    if (this.kind === 'heart' || this.kind === 'teeth' || this.knockDown) return;
     if (this.pattern === 'path' && this.phase === 'move') {
       // Solo path runners: 75% slower squash than chase-pair members.
       const hz = this.pathPair ? RUN_SQUASH_HZ : RUN_SQUASH_HZ * 0.25;
@@ -602,6 +698,18 @@ export class Target {
     }
     this.visual.scale.set(1, 1, 1);
     this.visual.position.y = 0;
+  }
+
+  /** Swap open/closed teeth meshes on a fixed chomp cadence. */
+  private syncTeethChomp(dt: number): void {
+    if (this.kind !== 'teeth' || !this.teethOpen || !this.teethClose) return;
+    if (this.knockDown || this.fading) return;
+    this.teethChompAge += dt * 1000;
+    if (this.teethChompAge < gameConfig.teethChompIntervalMs) return;
+    this.teethChompAge = 0;
+    this.teethOpenState = !this.teethOpenState;
+    this.teethOpen.visible = this.teethOpenState;
+    this.teethClose.visible = !this.teethOpenState;
   }
 
   /** Unit direction along the current path segment (XZ-heavy travel). */
@@ -682,6 +790,15 @@ export class Target {
   /** Path movers always show a left or right profile — never edge-on or camera-facing. */
   private syncPathFacing(): void {
     if (this.pattern !== 'path' || this.phase !== 'move') return;
+    if (this.kind === 'teeth') {
+      // Yaw toward camera; mirror on U-turn so retreat reads as a direction flip.
+      const dx = CAM_X - this.root.position.x;
+      const dz = CAM_Z - this.root.position.z;
+      this.visual.rotation.set(0, Math.atan2(dx, dz), 0);
+      this.visual.position.y = 0;
+      this.visual.scale.set(this.teethMirrored ? -1 : 1, 1, 1);
+      return;
+    }
     if (this.kind !== 'bubble' && this.kind !== 'durian' && this.kind !== 'goldDurian') return;
 
     const mdx = this.pathMoveDir.x;

@@ -63,11 +63,29 @@ export const CLOSE_SINK_DURATION = 0.55;
 /** First N lanes in GATE_PATHS are ground gate L-routes that open doors. */
 export const GATE_LANE_COUNT = 2;
 
+/** Dome wall U lane index (after gate L lanes). */
+export const DOME_PATH_INDEX = GATE_LANE_COUNT;
+
 /**
- * Travel lanes. Indices 0–1 = gate L (enter direction); 2 = dome wall U (CCW).
+ * Timed-only teeth flyby: lawn dash behind the keep.
+ * Excluded from RNG path spawns; only forceSpawn uses it.
+ */
+export const TEETH_FLYBY_PATH_INDEX = GATE_LANE_COUNT + 1;
+/** Half-span so the teeth clear the frustum before appearing. */
+export const TEETH_FLYBY_START_X = 820;
+/** Lawn depth just behind the keep. */
+export const TEETH_FLYBY_Z = -100;
+
+/**
+ * Travel lanes. Indices 0–1 = gate L (enter direction); 2 = dome wall U (CCW);
+ * 3 = teeth L→R flyby (scripted only).
  * Reverse a lane via pathForward for the opposite travel sense.
  */
-export let GATE_PATHS: Vec3[][] = [...buildGatePaths(undefined), ...buildDomeWallPaths()];
+export let GATE_PATHS: Vec3[][] = [
+  ...buildGatePaths(undefined),
+  ...buildDomeWallPaths(),
+  ...buildTeethFlybyPath(),
+];
 
 /** @deprecated Prefer GATE_PATHS — left lane kept for older call sites. */
 export let PATHS: Vec3[] = GATE_PATHS[0]!;
@@ -93,7 +111,11 @@ export function applyCastleMarkers(markers: CastleMarkers): void {
     WINDOWS = markers.spawns.map((s) => ({ ...s }));
   }
 
-  GATE_PATHS = [...buildGatePaths(markers.door), ...buildDomeWallPaths()];
+  GATE_PATHS = [
+    ...buildGatePaths(markers.door),
+    ...buildDomeWallPaths(),
+    ...buildTeethFlybyPath(),
+  ];
   PATHS = GATE_PATHS[0]!;
   DOOR_PLANE_Z = markers.door
     ? (markers.door.minZ + markers.door.maxZ) * 0.5
@@ -172,6 +194,22 @@ function buildDomeWallPaths(): Vec3[][] {
       gap,
       ccw: true,
     }),
+  ];
+}
+
+/**
+ * Reference lane for the timed teeth flyby (debug draw / index slot).
+ * Runtime travel is rebuilt in Target: start side → mid → continue or U-turn.
+ */
+function buildTeethFlybyPath(): Vec3[][] {
+  const targetHalfHeight = 34.375 * 0.5;
+  const y = -0.5 + targetHalfHeight;
+  return [
+    [
+      { x: -TEETH_FLYBY_START_X, y, z: TEETH_FLYBY_Z },
+      { x: 0, y, z: TEETH_FLYBY_Z },
+      { x: TEETH_FLYBY_START_X, y, z: TEETH_FLYBY_Z },
+    ],
   ];
 }
 

@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { gameConfig } from '../config/gameConfig';
 
-type ModelKey = 'bubble' | 'durian';
+type ModelKey = 'bubble' | 'durian' | 'teethOpen' | 'teethClose';
 
 const GLB_URL: Record<ModelKey, string> = {
   bubble: 'assets/bubble.glb',
   durian: 'assets/durian.glb',
+  teethOpen: 'assets/teeth_open.glb',
+  teethClose: 'assets/teeth_close.glb',
 };
 
 /** Shared hit-proxy geometry (one for all targets). */
@@ -35,12 +37,15 @@ export class ModelCache {
     const loader = new GLTFLoader();
     const texLoader = new THREE.TextureLoader();
 
-    const [bubbleGltf, durianGltf, goldMap, heartMap] = await Promise.all([
-      loader.loadAsync(GLB_URL.bubble),
-      loader.loadAsync(GLB_URL.durian),
-      texLoader.loadAsync('assets/gold-durian.png'),
-      texLoader.loadAsync('assets/hud/heart.png'),
-    ]);
+    const [bubbleGltf, durianGltf, teethOpenGltf, teethCloseGltf, goldMap, heartMap] =
+      await Promise.all([
+        loader.loadAsync(GLB_URL.bubble),
+        loader.loadAsync(GLB_URL.durian),
+        loader.loadAsync(GLB_URL.teethOpen),
+        loader.loadAsync(GLB_URL.teethClose),
+        texLoader.loadAsync('assets/gold-durian.png'),
+        texLoader.loadAsync('assets/hud/heart.png'),
+      ]);
 
     goldMap.colorSpace = THREE.SRGBColorSpace;
     goldMap.anisotropy = 1;
@@ -56,6 +61,14 @@ export class ModelCache {
 
     this.templates.set('bubble', this.normalizeTemplate(bubbleGltf.scene, gameConfig.targetSize));
     this.templates.set('durian', this.normalizeTemplate(durianGltf.scene, gameConfig.targetSize));
+    this.templates.set(
+      'teethOpen',
+      this.normalizeTemplate(teethOpenGltf.scene, gameConfig.targetSize),
+    );
+    this.templates.set(
+      'teethClose',
+      this.normalizeTemplate(teethCloseGltf.scene, gameConfig.targetSize),
+    );
 
     this.ready = true;
   }

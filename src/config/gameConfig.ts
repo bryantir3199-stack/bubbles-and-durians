@@ -58,6 +58,15 @@ export const gameConfig = {
    */
   earlyGameGraceMs: 30_000,
   /**
+   * Timed only: teeth flyby may appear any time after early-game grace.
+   * Leave this much clock so the cross can finish before time runs out.
+   */
+  teethFlybyEndMarginMs: 12_000,
+  /** Timed only: constant speed on the behind-castle L→R lane (world units / s). */
+  teethPathSpeed: 240,
+  /** Timed only: open ↔ closed model swap interval (ms). */
+  teethChompIntervalMs: 160,
+  /**
    * Endless mode: linear spawn-rate growth over non-Frenzy play time.
    * +0.25 per minute → +25%/min (2.5× soft cap at 6 min).
    * Ramp pauses during Frenzy; Frenzy multiplies on top of the frozen ramp.
@@ -103,6 +112,8 @@ export const gameConfig = {
     durian: 100,
     goldDurian: 700,
     bubble: -1000,
+    /** Timed one-shot flyby — flat award (no combo / finale mult). */
+    teeth: 10_000,
   },
   /** Combo multiplier caps at this value (2x / 3x / 4x / 5x). */
   maxCombo: 5,
@@ -113,12 +124,15 @@ export const gameConfig = {
     goldDurian: 4,
     bubble: 1,
     heart: 1,
+    teeth: 1,
   },
   lifetimeMs: {
     durian: { min: 4500, max: 7000 },
     goldDurian: { min: 5500, max: 8500 },
     bubble: { min: 2000, max: 3000 },
     heart: { min: 4000, max: 6000 },
+    /** Path movers ignore hold lifetime; kept for typed spawn config. */
+    teeth: { min: 8000, max: 8000 },
   },
   /** Close-camera bubble hold after rise (other close kinds still use 50% of lifetimeMs). */
   closeBubbleLifetimeMs: { min: 1000, max: 2000 },
@@ -134,23 +148,27 @@ export const gameConfig = {
       goldDurian: 3,
       bubble: 6,
       heart: 2,
+      teeth: 0,
     },
     timed: {
       durian: 20,
       goldDurian: 3,
       bubble: 6,
       heart: 0,
+      /** Scripted one-shot via forceSpawn — never RNG. */
+      teeth: 0,
     },
     tutorial: {
       durian: 20,
       goldDurian: 3,
       bubble: 6,
       heart: 2,
+      teeth: 0,
     },
   },
 } as const;
 
-export type TargetKind = 'durian' | 'goldDurian' | 'bubble' | 'heart';
+export type TargetKind = 'durian' | 'goldDurian' | 'bubble' | 'heart' | 'teeth';
 
 /** Timed results breakdown. `finaleScore` is already inside `runScore`. */
 export interface TimedRunTally {
