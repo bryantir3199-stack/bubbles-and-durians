@@ -1976,36 +1976,10 @@
         gap: 16px;
       }
       .boot-bubble {
-        position: relative;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: radial-gradient(
-          circle at 50% 50%,
-          rgba(180, 230, 255, 0.9) 0%,
-          rgba(46, 199, 255, 0.85) 50%,
-          rgba(30, 160, 220, 0.9) 100%
-        );
-        box-shadow:
-          inset -4px -6px 12px rgba(0, 80, 140, 0.35),
-          0 0 16px rgba(46, 199, 255, 0.5),
-          0 0 32px rgba(46, 199, 255, 0.25);
+        width: 48px;
+        height: 48px;
+        background: url('/assets/bubble-loading.png') center / contain no-repeat;
         animation: bootBubbleSpin 1.2s linear infinite;
-      }
-      .boot-bubble::before {
-        content: '';
-        position: absolute;
-        width: 12px;
-        height: 8px;
-        top: 6px;
-        left: 6px;
-        background: radial-gradient(
-          ellipse at center,
-          rgba(255, 255, 255, 0.95) 0%,
-          rgba(255, 255, 255, 0.6) 40%,
-          transparent 70%
-        );
-        border-radius: 50%;
       }
       @keyframes bootBubbleSpin {
         from { transform: rotate(0deg); }
