@@ -661,12 +661,18 @@ export class PlayScene implements GameScene {
               accurateHits: this.accurateHits,
             })
           : undefined;
-      this.ctx.goto('gameOver', {
-        mode: this.mode,
-        timedPreset: this.mode === 'timed' ? this.timedPreset : undefined,
-        score: timedTally?.total ?? this.score,
-        timedTally,
-      });
+      if (timedTally) {
+        this.ctx.goto('bonusTally', {
+          mode: this.mode,
+          timedPreset: this.timedPreset,
+          timedTally,
+        });
+      } else {
+        this.ctx.goto('gameOver', {
+          mode: this.mode,
+          score: this.score,
+        });
+      }
     }, 400);
   }
 }
