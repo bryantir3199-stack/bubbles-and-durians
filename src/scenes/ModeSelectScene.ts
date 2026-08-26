@@ -16,7 +16,10 @@ import {
   setControlBindings,
   resetControlBindings,
   getKeyDisplayName,
+  getResolutionLabel,
+  RESOLUTION_SCALES,
   type ControlBindings,
+  type ResolutionScale,
 } from '../config/settings';
 import {
   getMusicVolume,
@@ -152,6 +155,12 @@ export class ModeSelectScene implements GameScene {
     const fsOn = isFullscreen();
     const aoOn = settings.graphics.aoEnabled;
     const shadowQuality = settings.graphics.shadowQuality;
+    const resScale = settings.graphics.resolutionScale;
+
+    const resolutionButtons = RESOLUTION_SCALES.map(
+      (scale) =>
+        `<button type="button" class="options-toggle${resScale === scale ? ' is-active' : ''}" data-value="${scale}">${getResolutionLabel(scale)}</button>`,
+    ).join('');
 
     const ui = panel(
       'menu main-menu',
@@ -164,6 +173,12 @@ export class ModeSelectScene implements GameScene {
             FULLSCREEN · ${fsOn ? 'ON' : 'OFF'}
           </button>
           ` : ''}
+          <div class="options-row">
+            <span class="options-label">RESOLUTION</span>
+            <div class="options-toggle-group" data-setting="resolution">
+              ${resolutionButtons}
+            </div>
+          </div>
           <button type="button" class="menu-option${aoOn ? ' is-on' : ''}" data-action="ao" aria-pressed="${aoOn}">
             AMBIENT OCCLUSION · ${aoOn ? 'ON' : 'OFF'}
           </button>
@@ -210,6 +225,18 @@ export class ModeSelectScene implements GameScene {
         const current = getSettings().graphics.aoEnabled;
         setGraphicsSettings({ aoEnabled: !current });
         this.render();
+      });
+    }
+
+    const resolutionGroup = ui.querySelector('[data-setting="resolution"]');
+    if (resolutionGroup) {
+      resolutionGroup.querySelectorAll<HTMLButtonElement>('.options-toggle').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const val = parseFloat(btn.dataset.value ?? '1') as ResolutionScale;
+          setGraphicsSettings({ resolutionScale: val });
+          this.render();
+        });
       });
     }
 

@@ -17,6 +17,7 @@ import {
   getViewSize,
   onViewChange,
 } from './display';
+import { getSettings, onSettingsChange } from '../config/settings';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -37,7 +38,9 @@ export class Game {
   private readonly composer: EffectComposer;
   private readonly saoPass: SAOPass;
   private unsubView: (() => void) | null = null;
+  private unsubSettings: (() => void) | null = null;
   private lastView = { w: 0, h: 0, left: 0, top: 0 };
+  private lastResScale = 1;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -134,6 +137,21 @@ export class Game {
     };
 
     this.unsubView = onViewChange(() => this.resize());
+    this.unsubSettings = onSettingsChange(() => this.onSettingsChange());
+    this.lastResScale = getSettings().graphics.resolutionScale;
+    this.resize();
+  }
+
+  private onSettingsChange(): void {
+    const newResScale = getSettings().graphics.resolutionScale;
+    if (newResScale !== this.lastResScale) {
+      this.lastResScale = newResScale;
+      this.forceResize();
+    }
+  }
+
+  private forceResize(): void {
+    this.lastView = { w: 0, h: 0, left: 0, top: 0 };
     this.resize();
   }
 
@@ -158,7 +176,9 @@ export class Game {
   }
 
   private pixelRatio(): number {
-    return Math.min(window.devicePixelRatio || 1, 1.25);
+    const baseRatio = Math.min(window.devicePixelRatio || 1, 1.25);
+    const resScale = getSettings().graphics.resolutionScale;
+    return baseRatio * resScale;
   }
 
   private resize(): void {
@@ -193,6 +213,8 @@ export class Game {
   dispose(): void {
     this.unsubView?.();
     this.unsubView = null;
+    this.unsubSettings?.();
+    this.unsubSettings = null;
     cancelAnimationFrame(this.raf);
     this.current?.exit();
     this.saoPass.dispose();

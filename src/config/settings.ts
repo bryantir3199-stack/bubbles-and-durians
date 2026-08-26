@@ -5,11 +5,15 @@
 
 const STORAGE_KEY = 'bubbles-durians-settings';
 
+export type ResolutionScale = 0.5 | 0.75 | 1 | 1.25;
+
 export interface GraphicsSettings {
   /** Ambient occlusion enabled */
   aoEnabled: boolean;
   /** Shadow quality: 'low' | 'medium' | 'high' */
   shadowQuality: 'low' | 'medium' | 'high';
+  /** Render resolution scale (0.5 = low, 0.75 = medium, 1 = high, 1.25 = ultra) */
+  resolutionScale: ResolutionScale;
 }
 
 export interface AudioSettings {
@@ -40,6 +44,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   graphics: {
     aoEnabled: true,
     shadowQuality: 'high',
+    resolutionScale: 1,
   },
   audio: {
     muted: false,
@@ -136,6 +141,20 @@ export function onSettingsChange(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
+
+/** Get display label for resolution scale. */
+export function getResolutionLabel(scale: ResolutionScale): string {
+  const labels: Record<ResolutionScale, string> = {
+    0.5: 'LOW',
+    0.75: 'MED',
+    1: 'HIGH',
+    1.25: 'ULTRA',
+  };
+  return labels[scale] ?? 'HIGH';
+}
+
+/** All available resolution scale options. */
+export const RESOLUTION_SCALES: ResolutionScale[] = [0.5, 0.75, 1, 1.25];
 
 /** Get display name for a key code. */
 export function getKeyDisplayName(key: string): string {
