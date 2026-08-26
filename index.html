@@ -1957,6 +1957,106 @@
           width: min(160px, 34vw);
         }
       }
+
+      /* Boot/Loading screen */
+      .boot-screen {
+        position: absolute;
+        inset: 0;
+        background: #000;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: max(48px, env(safe-area-inset-bottom, 0px));
+        pointer-events: auto;
+        z-index: 100;
+      }
+      .boot-loader {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .boot-bubble {
+        position: relative;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 50%,
+          rgba(180, 230, 255, 0.9) 0%,
+          rgba(46, 199, 255, 0.85) 50%,
+          rgba(30, 160, 220, 0.9) 100%
+        );
+        box-shadow:
+          inset -4px -6px 12px rgba(0, 80, 140, 0.35),
+          0 0 16px rgba(46, 199, 255, 0.5),
+          0 0 32px rgba(46, 199, 255, 0.25);
+        animation: bootBubbleSpin 1.2s linear infinite;
+      }
+      .boot-bubble::before {
+        content: '';
+        position: absolute;
+        width: 12px;
+        height: 8px;
+        top: 6px;
+        left: 6px;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(255, 255, 255, 0.95) 0%,
+          rgba(255, 255, 255, 0.6) 40%,
+          transparent 70%
+        );
+        border-radius: 50%;
+      }
+      @keyframes bootBubbleSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .boot-text {
+        display: flex;
+        align-items: baseline;
+        font: 700 clamp(18px, 4vw, 28px) / 1 'Fredoka', system-ui, sans-serif;
+        letter-spacing: 0.18em;
+        color: #fff;
+      }
+      .boot-loading {
+        color: #fff;
+      }
+      .boot-dots {
+        display: inline-flex;
+      }
+      .boot-dot {
+        opacity: 0;
+      }
+      .boot-dot:nth-child(1) {
+        animation: bootDot1 1.8s linear infinite;
+      }
+      .boot-dot:nth-child(2) {
+        animation: bootDot2 1.8s linear infinite;
+      }
+      .boot-dot:nth-child(3) {
+        animation: bootDot3 1.8s linear infinite;
+      }
+      @keyframes bootDot1 {
+        0%, 16.66% { opacity: 0; }
+        16.67% { opacity: 1; }
+        74.99% { opacity: 1; }
+        75% { opacity: 0; }
+        100% { opacity: 0; }
+      }
+      @keyframes bootDot2 {
+        0%, 33.32% { opacity: 0; }
+        33.33% { opacity: 1; }
+        74.99% { opacity: 1; }
+        75% { opacity: 0; }
+        100% { opacity: 0; }
+      }
+      @keyframes bootDot3 {
+        0%, 49.99% { opacity: 0; }
+        50% { opacity: 1; }
+        74.99% { opacity: 1; }
+        75% { opacity: 0; }
+        100% { opacity: 0; }
+      }
     </style>
   </head>
   <body>
