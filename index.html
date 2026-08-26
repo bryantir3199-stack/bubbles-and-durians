@@ -255,6 +255,13 @@
         margin: 10px 0 18px;
       }
       .menu.game-over .menu-card { width: min(460px, 92vw); }
+      .go-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+      }
       .run-tally {
         position: relative;
         width: min(320px, 100%);
@@ -1301,15 +1308,19 @@
         opacity: 0;
       }
 
-      /* Tutorial coach */
+      /* Tutorial coach — center with left/right + auto margins so titleRise
+         (which animates `transform`) cannot un-center the panel. */
       .tut-coach {
         position: absolute;
-        left: 50%;
+        left: 0;
+        right: 0;
         top: max(72px, calc(env(safe-area-inset-top, 0px) + 62px));
         bottom: auto;
-        transform: translateX(-50%);
         z-index: 26;
-        width: min(540px, 92vw);
+        width: min(540px, calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+        max-width: 100%;
+        margin-inline: auto;
+        box-sizing: border-box;
         padding: 12px 16px 14px;
         pointer-events: auto;
         text-align: left;
@@ -1326,6 +1337,7 @@
         justify-content: space-between;
         gap: 10px;
         margin-bottom: 6px;
+        min-width: 0;
       }
       .tut-kicker {
         font: 700 12px/1 var(--title-serif);
@@ -1371,10 +1383,12 @@
         display: flex;
         gap: 10px;
         margin-top: 12px;
+        min-width: 0;
       }
       .tut-btn.tut-back,
       .tut-btn.tut-next {
         flex: 1 1 0;
+        min-width: 0;
         margin-top: 0;
         padding: 10px 14px;
         font-size: 18px;
@@ -1495,24 +1509,6 @@
         will-change: transform, opacity;
         animation: frenzyAnnounce 1.35s ease-out forwards;
       }
-      .hud-teeth-warn {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        z-index: 25;
-        width: min(200px, 38vw);
-        height: auto;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-        opacity: 0;
-        /* Hard on/off only — steps so there is no opacity fade.
-           0.1s/cycle (50% slower than 0.05s) × 10 = 1s. */
-        animation: teethWarnFlash 0.1s steps(2, jump-none) 10;
-      }
-      @keyframes teethWarnFlash {
-        from { opacity: 1; }
-        to { opacity: 0; }
-      }
       @keyframes frenzyAnnounce {
         0% {
           opacity: 0;
@@ -1530,6 +1526,24 @@
           opacity: 0;
           transform: translate(-50%, -50%) scale(1.08);
         }
+      }
+      .hud-teeth-warn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 25;
+        width: min(200px, 38vw);
+        height: auto;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+        /* Hard on/off only — steps so there is no opacity fade.
+           0.1s/cycle (50% slower than 0.05s) × 10 = 1s. */
+        animation: teethWarnFlash 0.1s steps(2, jump-none) 10;
+      }
+      @keyframes teethWarnFlash {
+        from { opacity: 1; }
+        to { opacity: 0; }
       }
 
       @media (max-width: 700px) {
@@ -1557,12 +1571,24 @@
       }
 
       /* Phone / tablet only — compact top HUD, scaled menus */
+      html.touch-ui .menu {
+        flex-direction: column;
+        justify-content: flex-start;
+        overflow-x: hidden;
+        overflow-y: auto;
+        touch-action: pan-y;
+        padding: max(8px, env(safe-area-inset-top, 0px))
+                 max(8px, env(safe-area-inset-right, 0px))
+                 max(8px, env(safe-area-inset-bottom, 0px))
+                 max(8px, env(safe-area-inset-left, 0px));
+      }
       html.touch-ui .title-splash-content,
       html.touch-ui .main-menu-content {
         width: min(720px, 94vw);
-        max-height: 100%;
+        max-height: none;
         padding: 6px 12px;
-        overflow: hidden;
+        overflow: visible;
+        margin-block: auto;
       }
       html.touch-ui .title-logo {
         width: auto;
@@ -1604,15 +1630,17 @@
       html.touch-ui .menu-card,
       html.touch-ui .menu-wide {
         padding: 16px 18px;
-        max-height: 94vh;
-        overflow: auto;
+        max-height: none;
+        overflow: visible;
+        margin-block: auto;
+        flex: 0 0 auto;
+        max-width: 100%;
       }
       html.touch-ui .run-tally { margin: 6px auto 12px; padding-right: 34px; }
       html.touch-ui .tally-row { font-size: 15px; }
       html.touch-ui .tally-row.tally-total { font-size: 24px; }
       html.touch-ui .tally-info-btn { width: 32px; height: 32px; font-size: 17px; }
       html.touch-ui .tally-info-bubble { width: min(280px, 82vw); }
-      html.touch-ui .menu.game-over .menu-card { overflow: visible; }
       html.touch-ui .lb-run {
         padding: 8px 12px 10px;
         margin-bottom: 4px;
@@ -1833,7 +1861,11 @@
       html.touch-ui .tut-coach {
         top: max(78px, calc(env(safe-area-inset-top, 0px) + 70px));
         bottom: auto;
-        width: min(560px, 96vw);
+        width: min(560px, calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+        max-height: calc(100dvh - 88px - env(safe-area-inset-bottom, 0px));
+        overflow-x: hidden;
+        overflow-y: auto;
+        touch-action: pan-y;
         padding: 10px 12px 12px;
       }
       html.touch-ui .tut-title { font-size: clamp(16px, 4.2vh, 22px); }
@@ -1841,6 +1873,90 @@
       html.touch-ui .tut-btn.tut-back,
       html.touch-ui .tut-btn.tut-next { font-size: 16px; padding: 8px 12px; }
       html.touch-ui .tut-arrow { width: 40px; height: 50px; }
+
+      /* Short landscape phones — keep game-over + tutorial fully on screen. */
+      @media (orientation: landscape) and (max-height: 520px) {
+        html.touch-ui .menu.game-over .menu-card {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr);
+          grid-template-areas:
+            "title title"
+            "sub sub"
+            "tally form";
+          align-items: center;
+          column-gap: 18px;
+          row-gap: 2px;
+          width: min(720px, 100%);
+          padding: 10px 14px 12px;
+          text-align: left;
+        }
+        html.touch-ui .menu.game-over h1 {
+          grid-area: title;
+          font-size: clamp(20px, 6vh, 26px);
+          margin-bottom: 0;
+          text-align: center;
+        }
+        html.touch-ui .menu.game-over > .muted {
+          grid-area: sub;
+          margin-bottom: 4px;
+          font-size: 13px;
+          text-align: center;
+        }
+        html.touch-ui .menu.game-over .run-tally,
+        html.touch-ui .menu.game-over .score-big {
+          grid-area: tally;
+          margin: 0;
+          width: 100%;
+        }
+        html.touch-ui .menu.game-over .go-form { grid-area: form; }
+        html.touch-ui .run-tally { padding-right: 28px; }
+        html.touch-ui .tally-row { font-size: 13px; line-height: 1.3; }
+        html.touch-ui .tally-row.tally-included { font-size: 12px; }
+        html.touch-ui .tally-row.tally-total {
+          font-size: 20px;
+          margin-top: 4px;
+          padding-top: 4px;
+        }
+        html.touch-ui .name-step { display: none; }
+        html.touch-ui .name-initials { margin: 6px auto 4px; gap: 10px; }
+        html.touch-ui .name-letter { width: 44px; height: 48px; font-size: 26px; }
+        html.touch-ui .status { min-height: 16px; font-size: 13px; margin-bottom: 4px; }
+        html.touch-ui .btn-row {
+          width: 100%;
+          margin-top: 4px;
+          gap: 8px;
+        }
+        html.touch-ui .btn-row .btn {
+          width: auto;
+          flex: 1 1 0;
+          min-width: 0;
+          padding: 8px 10px;
+          font-size: 16px;
+        }
+        html.touch-ui .btn.muted-btn {
+          margin-top: 8px;
+          max-width: 140px;
+          padding: 8px 10px;
+          font-size: 16px;
+        }
+        html.touch-ui .tut-coach {
+          top: max(64px, calc(env(safe-area-inset-top, 0px) + 52px));
+          max-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
+          padding: 8px 10px 10px;
+        }
+        html.touch-ui .tut-title { font-size: 16px; }
+        html.touch-ui .tut-body { font-size: 13px; }
+        html.touch-ui .tut-nav { margin-top: 8px; gap: 8px; }
+        html.touch-ui .tut-btn.tut-back,
+        html.touch-ui .tut-btn.tut-next { font-size: 14px; padding: 6px 10px; }
+        html.touch-ui .hud-mobile-stats { gap: 0.2em 0.7em; }
+        html.touch-ui .hud-m-stat,
+        html.touch-ui .hud-combo { font-size: clamp(12px, 3.2vh, 16px); }
+        html.touch-ui .hud-frenzy-meter {
+          top: calc(env(safe-area-inset-top, 0px) + 38px);
+          width: min(160px, 34vw);
+        }
+      }
     </style>
   </head>
   <body>

@@ -47,14 +47,16 @@ export class GameOverScene implements GameScene {
         <h1 class="danger">GAME OVER</h1>
         <p class="muted">${this.modeLabel()}</p>
         ${this.scoreMarkup()}
-        <p>Enter 3 initials</p>
-        <div class="name-initials" id="name-initials">${slots}</div>
-        <p class="status" id="status">${isLeaderboardConfigured() ? '' : 'Offline — set .env for online scores'}</p>
-        <div class="btn-row">
-          <button type="button" class="btn primary" data-action="submit">SUBMIT</button>
-          <button type="button" class="btn" data-action="skip">SKIP</button>
+        <div class="go-form">
+          <p>Enter 3 initials</p>
+          <div class="name-initials" id="name-initials">${slots}</div>
+          <p class="status" id="status">${isLeaderboardConfigured() ? '' : 'Offline — set .env for online scores'}</p>
+          <div class="btn-row">
+            <button type="button" class="btn primary" data-action="submit">SUBMIT</button>
+            <button type="button" class="btn" data-action="skip">SKIP</button>
+          </div>
+          <button type="button" class="btn muted-btn" data-action="menu">MENU</button>
         </div>
-        <button type="button" class="btn muted-btn" data-action="menu">MENU</button>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
