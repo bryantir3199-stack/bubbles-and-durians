@@ -211,6 +211,143 @@
         color: rgba(255, 229, 102, 0.72);
         text-align: left;
       }
+
+      /* Options panel rows */
+      .options-panel {
+        gap: 12px;
+      }
+      .options-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        padding: 10px 14px;
+        background: rgba(10, 16, 28, 0.55);
+        border: 2px solid rgba(244, 230, 200, 0.55);
+        border-radius: 4px;
+      }
+      .options-label {
+        font: 700 clamp(14px, 2.6vw, 18px) / 1.2 var(--title-serif);
+        letter-spacing: 0.08em;
+        color: #f4e6c8;
+        flex: 0 0 auto;
+        min-width: 80px;
+      }
+      .options-value {
+        font: 700 clamp(14px, 2.4vw, 18px) / 1 'Fredoka', sans-serif;
+        color: var(--gold);
+        min-width: 48px;
+        text-align: right;
+      }
+
+      /* Slider styling */
+      .options-slider {
+        flex: 1 1 auto;
+        min-width: 80px;
+        max-width: 180px;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: rgba(18, 38, 58, 0.8);
+        border: 2px solid rgba(244, 230, 200, 0.6);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .options-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, #ffe566 0%, #ffb300 100%);
+        border: 2px solid #fff;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        transition: transform 0.12s ease;
+      }
+      .options-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+      .options-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, #ffe566 0%, #ffb300 100%);
+        border: 2px solid #fff;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Toggle button group */
+      .options-toggle-group {
+        display: flex;
+        gap: 6px;
+      }
+      .options-toggle {
+        padding: 6px 12px;
+        font: 700 clamp(12px, 2vw, 14px) / 1 var(--title-serif);
+        letter-spacing: 0.06em;
+        color: #9bb4cc;
+        background: rgba(18, 38, 58, 0.72);
+        border: 2px solid rgba(244, 230, 200, 0.45);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      }
+      .options-toggle:hover {
+        background: rgba(26, 58, 92, 0.85);
+        border-color: rgba(244, 230, 200, 0.7);
+      }
+      .options-toggle.is-active {
+        color: #1a1018;
+        background: linear-gradient(135deg, #ffe566 0%, #ffb300 100%);
+        border-color: #fff;
+      }
+
+      /* Keybind buttons */
+      .keybind-row {
+        justify-content: space-between;
+      }
+      .keybind-btn {
+        min-width: 70px;
+        padding: 8px 16px;
+        font: 700 clamp(16px, 2.8vw, 20px) / 1 'Fredoka', sans-serif;
+        color: #fff;
+        background: rgba(26, 58, 92, 0.85);
+        border: 2px solid rgba(244, 230, 200, 0.7);
+        border-radius: 6px;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+      }
+      .keybind-btn:hover {
+        background: rgba(42, 78, 118, 0.92);
+        border-color: #ffe7a8;
+        transform: translateY(-1px);
+      }
+      .keybind-btn.is-rebinding {
+        color: var(--gold);
+        border-color: var(--gold);
+        animation: rebindPulse 0.6s ease-in-out infinite;
+      }
+      @keyframes rebindPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 229, 102, 0.4); }
+        50% { box-shadow: 0 0 0 6px rgba(255, 229, 102, 0); }
+      }
+
+      /* Small muted button variant */
+      .menu-option.muted-small {
+        padding: 10px 16px;
+        font-size: clamp(14px, 2.4vw, 18px);
+        color: var(--muted);
+        background: rgba(10, 16, 28, 0.45);
+        border-color: rgba(244, 230, 200, 0.5);
+      }
+      .menu-option.muted-small:hover {
+        color: #f7e9cf;
+        background: rgba(28, 42, 68, 0.65);
+      }
       @keyframes titleRise {
         from { opacity: 0; transform: translateY(18px); }
         to { opacity: 1; transform: translateY(0); }
@@ -1620,6 +1757,37 @@
       html.touch-ui .menu-option {
         padding: 8px 14px;
         font-size: clamp(14px, 3.4vh, 18px);
+      }
+      html.touch-ui .options-panel {
+        gap: 10px;
+      }
+      html.touch-ui .options-row {
+        padding: 8px 12px;
+        gap: 10px;
+      }
+      html.touch-ui .options-label {
+        font-size: clamp(12px, 3vh, 16px);
+        min-width: 60px;
+      }
+      html.touch-ui .options-slider {
+        max-width: 140px;
+      }
+      html.touch-ui .options-value {
+        font-size: clamp(12px, 2.8vh, 16px);
+        min-width: 40px;
+      }
+      html.touch-ui .options-toggle {
+        padding: 5px 10px;
+        font-size: clamp(10px, 2.4vh, 12px);
+      }
+      html.touch-ui .keybind-btn {
+        min-width: 60px;
+        padding: 6px 12px;
+        font-size: clamp(14px, 3vh, 18px);
+      }
+      html.touch-ui .menu-option.muted-small {
+        padding: 8px 12px;
+        font-size: clamp(12px, 2.8vh, 16px);
       }
       html.touch-ui .name-letter {
         width: 50px;
