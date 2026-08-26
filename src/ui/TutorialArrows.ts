@@ -97,6 +97,12 @@ export class TutorialArrows {
       el.hidden = true;
       return;
     }
+    // Teeth: only while peeking beside the keep — never edge-clamp or draw over
+    // the castle when the flyby is off-screen / mid-pass behind it.
+    if (target.kind === 'teeth' && !target.isTeethVisuallyExposed()) {
+      el.hidden = true;
+      return;
+    }
     const size = target.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
     this.ndc.set(target.position.x, target.position.y + size * 0.55, target.position.z);
     this.ndc.project(this.opts.camera);
@@ -107,6 +113,11 @@ export class TutorialArrows {
     const rect = this.opts.canvas.getBoundingClientRect();
     const x = rect.left + (this.ndc.x * 0.5 + 0.5) * rect.width;
     const y = rect.top + (-this.ndc.y * 0.5 + 0.5) * rect.height;
+    // Strict world overlay for teeth — hide if the projection leaves the viewport.
+    if (target.kind === 'teeth') {
+      this.placeWorld(el, x, y);
+      return;
+    }
     this.place(el, x, y);
   }
 
@@ -125,6 +136,22 @@ export class TutorialArrows {
     const y = r.top + r.height / 2;
     const fromBelow = y < window.innerHeight * 0.34;
     this.place(el, x, fromBelow ? r.bottom : r.top, fromBelow);
+  }
+
+  /** Place above a world point; hide instead of clamping to the screen edge. */
+  private placeWorld(el: HTMLElement, x: number, y: number): void {
+    const pad = 28;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    if (x < pad || x > vw - pad || y < pad || y > vh - pad) {
+      el.hidden = true;
+      return;
+    }
+    el.classList.remove('is-edge');
+    el.style.left = `${x}px`;
+    el.style.top = `${y - 8}px`;
+    el.style.transform = 'translate(-50%, -100%)';
+    el.hidden = false;
   }
 
   private place(el: HTMLElement, x: number, y: number, forceFromBelow?: boolean): void {

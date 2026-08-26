@@ -616,6 +616,7 @@ export class PlayScene implements GameScene {
         },
         setArrows: (specs: ArrowSpec[]) => this.tutorialArrows?.set(specs),
         revealCombo: () => this.hud?.revealCombo(),
+        showTeethWarn: () => this.hud?.showTeethWarn(),
         finish: () => {
           this.ended = true;
           this.ctx.goto('modeSelect');

@@ -700,7 +700,7 @@ export class Target {
    * True while the teeth peek on either side of the keep (not off-screen and
    * not mid-pass behind the castle mesh).
    */
-  private isTeethVisuallyExposed(): boolean {
+  isTeethVisuallyExposed(): boolean {
     const ax = Math.abs(this.root.position.x);
     const castleHalf = 145;
     const appearX = 520;

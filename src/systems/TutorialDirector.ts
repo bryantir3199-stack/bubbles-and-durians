@@ -2,7 +2,7 @@ import type { TargetKind } from '../config/gameConfig';
 import { gameConfig } from '../config/gameConfig';
 import { isCoarsePointer } from '../core/display';
 import type { SpawnPattern } from '../config/spawnLayout';
-import { CLOSE_SPOTS, WINDOWS } from '../config/spawnLayout';
+import { CLOSE_SPOTS, TEETH_FLYBY_PATH_INDEX, WINDOWS } from '../config/spawnLayout';
 import type { TutorialCoach } from '../ui/TutorialCoach';
 import type { ArrowSpec } from '../ui/TutorialArrows';
 
@@ -10,7 +10,12 @@ export interface TutorialHost {
   spawn(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; pinned?: boolean; windowId?: string },
+    options?: {
+      frenzySpawned?: boolean;
+      pinned?: boolean;
+      windowId?: string;
+      pathIndex?: number;
+    },
   ): boolean;
   clearTargets(): void;
   reload(): void;
@@ -22,6 +27,7 @@ export interface TutorialHost {
   setFrenzyLook(active: boolean): void;
   setArrows(specs: ArrowSpec[]): void;
   revealCombo(): void;
+  showTeethWarn(): void;
   finish(): void;
   quit(): void;
 }
@@ -32,11 +38,12 @@ type WaitKind =
   | 'reload'
   | 'combo'
   | 'destroy-gold'
+  | 'watch-teeth'
   | 'collect-heart'
   | 'watch-escape'
   | 'destroy-frenzy';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 /** Resolve combo slot at runtime — castle load replaces default window ids (sp1…). */
 function comboSpawnSlot(index: number): { pattern: 'window' | 'close'; id: string } {
@@ -159,12 +166,25 @@ export class TutorialDirector {
   }
 
   onEscape(kind: TargetKind): void {
-    if (this.done || !this.waiting || this.stepReady) return;
+    if (this.done || !this.waiting) return;
 
-    if (this.waiting === 'watch-escape' && this.hostIsDurian(kind)) {
-      this.after(0.7, () => this.taskComplete());
+    // Demo flyby: keep looping while the player is on this step (CONTINUE is
+    // already enabled — they can leave anytime).
+    if (this.waiting === 'watch-teeth' && kind === 'teeth') {
+      this.after(0.55, () => this.spawnTeethFlyby());
       return;
     }
+
+    if (this.waiting === 'watch-escape' && this.hostIsDurian(kind)) {
+      if (!this.stepReady) this.taskComplete();
+      this.after(0.7, () => {
+        if (this.waiting !== 'watch-escape') return;
+        this.spawnNow('durian', 'window');
+      });
+      return;
+    }
+
+    if (this.stepReady) return;
 
     if (
       (this.waiting === 'destroy-gold' ||
@@ -295,15 +315,15 @@ export class TutorialDirector {
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'score' }]);
         break;
       case 6:
-        this.waiting = 'collect-heart';
-        this.host.setLives(Math.max(1, gameConfig.startLives - 1));
+        this.waiting = 'watch-teeth';
         this.prompt(
-          'Grab the Heart',
-          'Hearts restore lives in Endless mode.',
-          'Shoot the heart.',
+          'Chomping Teeth',
+          'In Timed mode, chomping teeth dash behind the castle. Hit them for a huge flat bonus — watch for the warning flash!',
+          undefined,
+          true,
         );
-        this.withAmmo(1, () => this.spawnNow('heart', 'window', { pinned: true }));
-        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
+        this.withAmmo(1, () => this.spawnTeethFlyby());
+        this.host.setArrows([{ kind: 'target' }]);
         break;
       case 7:
         this.waiting = 'watch-escape';
@@ -317,6 +337,17 @@ export class TutorialDirector {
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
         break;
       case 8:
+        this.waiting = 'collect-heart';
+        this.host.setLives(Math.max(1, gameConfig.startLives - 1));
+        this.prompt(
+          'Grab the Heart',
+          'Hearts restore lives in Endless mode.',
+          'Shoot the heart.',
+        );
+        this.withAmmo(1, () => this.spawnNow('heart', 'window', { pinned: true }));
+        this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
+        break;
+      case 9:
         this.waiting = 'destroy-frenzy';
         this.host.setFrenzyLook(true);
         this.prompt(
@@ -324,10 +355,12 @@ export class TutorialDirector {
           'Score enough and the Frenzy meter fills. Get as many points if you can! Enemies that escape during a frenzy does not cost lives.',
           'Shoot the glowing durian.',
         );
-        this.withAmmo(1, () => this.spawnNow('durian', 'window', { frenzySpawned: true }));
+        this.withAmmo(1, () =>
+          this.spawnNow('durian', 'window', { frenzySpawned: true, pinned: true }),
+        );
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'frenzy' }]);
         break;
-      case 9:
+      case 10:
         this.prompt(
           "You're All Set!",
           "The booth's yours now. Good luck!",
@@ -379,7 +412,12 @@ export class TutorialDirector {
   private spawnNow(
     kind: TargetKind,
     pattern: SpawnPattern,
-    options?: { frenzySpawned?: boolean; pinned?: boolean; windowId?: string },
+    options?: {
+      frenzySpawned?: boolean;
+      pinned?: boolean;
+      windowId?: string;
+      pathIndex?: number;
+    },
   ): void {
     this.host.clearTargets();
     this.host.spawn(kind, pattern, options);
@@ -391,6 +429,17 @@ export class TutorialDirector {
     const slot = comboSpawnSlot(this.comboSpotIndex);
     this.host.clearTargets();
     this.host.spawn('durian', slot.pattern, { pinned: true, windowId: slot.id });
+  }
+
+  /** Warn flash, then the timed teeth flyby lane. */
+  private spawnTeethFlyby(): void {
+    if (this.waiting !== 'watch-teeth') return;
+    this.host.clearTargets();
+    this.host.showTeethWarn();
+    this.after(gameConfig.teethWarnLeadMs / 1000, () => {
+      if (this.waiting !== 'watch-teeth') return;
+      this.host.spawn('teeth', 'path', { pathIndex: TEETH_FLYBY_PATH_INDEX });
+    });
   }
 
   private withAmmo(min: number, then: () => void): void {
@@ -421,11 +470,14 @@ export class TutorialDirector {
           this.spawnNow('goldDurian', 'window', { pinned: true }),
         );
         break;
+      case 'watch-teeth':
+        this.spawnTeethFlyby();
+        break;
       case 'collect-heart':
         this.spawnNow('heart', 'window', { pinned: true });
         break;
       case 'destroy-frenzy':
-        this.spawnNow('durian', 'window', { frenzySpawned: true });
+        this.spawnNow('durian', 'window', { frenzySpawned: true, pinned: true });
         break;
       default:
         break;
@@ -440,6 +492,8 @@ export class TutorialDirector {
         return kind === 'durian';
       case 'destroy-gold':
         return kind === 'goldDurian';
+      case 'watch-teeth':
+        return kind === 'teeth';
       case 'collect-heart':
         return kind === 'heart';
       default:
