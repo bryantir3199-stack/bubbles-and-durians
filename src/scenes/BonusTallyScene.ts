@@ -76,7 +76,7 @@ export class BonusTallyScene implements GameScene {
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
-    window.setTimeout(() => this.animateScores(), 300);
+    window.setTimeout(() => this.animateScores(), 500);
   }
 
   update(): void {}
@@ -155,8 +155,8 @@ export class BonusTallyScene implements GameScene {
     if (rows.length === 0) return;
 
     let currentRowIndex = 0;
-    const countDurationMs = 400;
-    const delayBetweenRows = 150;
+    const countDurationMs = 500;
+    const delayBetweenRows = 250;
 
     const animateRow = (rowIndex: number) => {
       if (rowIndex >= rows.length) {
@@ -169,7 +169,7 @@ export class BonusTallyScene implements GameScene {
       const row = rows[rowIndex];
       const valueEl = row.querySelector<HTMLElement>('.tally-value');
       if (!valueEl) {
-        animateRow(rowIndex + 1);
+        window.setTimeout(() => animateRow(rowIndex + 1), delayBetweenRows);
         return;
       }
 
@@ -178,8 +178,10 @@ export class BonusTallyScene implements GameScene {
       const suffix = valueEl.dataset.suffix ?? '';
       const isTotal = valueEl.classList.contains('tally-total-value');
 
+      row.classList.add('tally-row-active');
+
       const startTime = performance.now();
-      const duration = isTotal ? countDurationMs * 1.5 : countDurationMs;
+      const duration = isTotal ? countDurationMs * 2 : countDurationMs;
 
       const tick = (now: number) => {
         const elapsed = now - startTime;
@@ -193,6 +195,7 @@ export class BonusTallyScene implements GameScene {
           this.animationHandle = requestAnimationFrame(tick);
         } else {
           valueEl.textContent = `${prefix}${this.fmt(target)}${suffix}`;
+          row.classList.remove('tally-row-active');
 
           if (isTotal) {
             this.slamEffect(row, valueEl);
