@@ -8,6 +8,7 @@ import { BootScene } from '../scenes/BootScene';
 import { TitleScene } from '../scenes/TitleScene';
 import { ModeSelectScene } from '../scenes/ModeSelectScene';
 import { PlayScene } from '../scenes/PlayScene';
+import { BonusTallyScene } from '../scenes/BonusTallyScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
 import { getCastleStage } from '../world/CastleStage';
@@ -132,6 +133,7 @@ export class Game {
       title: new TitleScene(makeCtx()),
       modeSelect: new ModeSelectScene(makeCtx()),
       play: new PlayScene(makeCtx()),
+      bonusTally: new BonusTallyScene(makeCtx()),
       gameOver: new GameOverScene(makeCtx()),
       leaderboard: new LeaderboardScene(makeCtx()),
     };

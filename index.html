@@ -392,6 +392,7 @@
         margin: 10px 0 18px;
       }
       .menu.game-over .menu-card { width: min(460px, 92vw); }
+      .menu.bonus-tally .menu-card { width: min(400px, 92vw); }
       .go-form {
         display: flex;
         flex-direction: column;
@@ -426,6 +427,49 @@
         border-top: 2px solid rgba(255, 255, 255, 0.35);
         font-size: 28px;
         color: var(--gold);
+      }
+      .tally-value {
+        display: inline-block;
+        transition: transform 0.1s ease-out;
+      }
+      .tally-row-active .tally-value {
+        color: #fff;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      }
+      .slam-pop {
+        animation: slam-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      }
+      @keyframes slam-pop {
+        0% { transform: scale(1); }
+        25% { transform: scale(1.35); }
+        50% { transform: scale(1.15); }
+        75% { transform: scale(1.25); }
+        100% { transform: scale(1); }
+      }
+      .tally-row.tally-total.slam-pop {
+        animation: slam-pop-row 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      }
+      @keyframes slam-pop-row {
+        0% { transform: scale(1); text-shadow: none; }
+        25% { transform: scale(1.08); text-shadow: 0 0 20px rgba(248, 212, 87, 0.9), 0 0 40px rgba(248, 212, 87, 0.5); }
+        50% { transform: scale(1.02); text-shadow: 0 0 15px rgba(248, 212, 87, 0.6); }
+        75% { transform: scale(1.04); text-shadow: 0 0 10px rgba(248, 212, 87, 0.4); }
+        100% { transform: scale(1); text-shadow: none; }
+      }
+      .screen-shake {
+        animation: screen-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+      }
+      @keyframes screen-shake {
+        0%, 100% { transform: translateX(0) translateY(0); }
+        10% { transform: translateX(-8px) translateY(-2px); }
+        20% { transform: translateX(8px) translateY(2px); }
+        30% { transform: translateX(-6px) translateY(-1px); }
+        40% { transform: translateX(6px) translateY(1px); }
+        50% { transform: translateX(-4px) translateY(-1px); }
+        60% { transform: translateX(4px) translateY(1px); }
+        70% { transform: translateX(-2px) translateY(0); }
+        80% { transform: translateX(2px) translateY(0); }
+        90% { transform: translateX(-1px) translateY(0); }
       }
       .tally-info {
         position: absolute;

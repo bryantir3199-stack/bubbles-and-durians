@@ -1,7 +1,7 @@
 import type { GameMode, RankedMode, TimedPreset, TimedRunTally } from '../config/gameConfig';
 import type * as THREE from 'three';
 
-export type SceneId = 'boot' | 'title' | 'modeSelect' | 'play' | 'gameOver' | 'leaderboard';
+export type SceneId = 'boot' | 'title' | 'modeSelect' | 'play' | 'bonusTally' | 'gameOver' | 'leaderboard';
 
 export interface SceneData {
   mode?: GameMode;
