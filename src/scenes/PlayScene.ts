@@ -28,6 +28,7 @@ import {
   stopStageBgm,
   toggleMute,
 } from '../audio/sfx';
+import { matchesBinding } from '../config/settings';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -183,14 +184,14 @@ export class PlayScene implements GameScene {
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (matchesBinding(e, 'pause')) {
         e.preventDefault();
         this.togglePause();
         return;
       }
       if (this.paused) return;
-      if (e.key === 'r' || e.key === 'R' || e.code === 'Space') {
-        if (e.code === 'Space') e.preventDefault();
+      if (matchesBinding(e, 'reload')) {
+        e.preventDefault();
         this.onReload();
       }
     };

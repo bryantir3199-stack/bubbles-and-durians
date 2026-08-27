@@ -1,12 +1,35 @@
 /**
  * Lightweight cartoon SFX via Web Audio (samples + synth fallback).
  */
-/** Global multiplier applied to every one-shot SFX gain. */
-const SFX_VOLUME_SCALE = 1.5;
-/** Looping stage BGM level (before SFX scale — kept quieter than one-shots). */
-const STAGE_BGM_GAIN = 0.4;
+import { getSettings, onSettingsChange, setAudioSettings } from '../config/settings';
 
-let muted = false;
+/** Base multiplier applied to every one-shot SFX gain. */
+const SFX_BASE_SCALE = 1.5;
+/** Base looping stage BGM level (kept quieter than one-shots). */
+const STAGE_BGM_BASE_GAIN = 0.4;
+
+/** Get effective SFX volume scale (base × user setting). */
+function getSfxScale(): number {
+  const settings = getSettings();
+  return SFX_BASE_SCALE * settings.audio.sfxVolume;
+}
+
+/** Get effective BGM gain (base × user setting). */
+function getBgmGain(): number {
+  const settings = getSettings();
+  return STAGE_BGM_BASE_GAIN * settings.audio.musicVolume;
+}
+
+/** Sync muted state from settings. */
+function syncMutedFromSettings(): void {
+  muted = getSettings().audio.muted;
+  applyBgmGain();
+}
+
+let muted = getSettings().audio.muted;
+
+// Subscribe to settings changes
+onSettingsChange(syncMutedFromSettings);
 let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
@@ -225,14 +248,38 @@ export function isMuted(): boolean {
 
 function applyBgmGain(): void {
   if (!bgmGain) return;
-  bgmGain.gain.value = muted || bgmPaused ? 0 : STAGE_BGM_GAIN;
+  bgmGain.gain.value = muted || bgmPaused ? 0 : getBgmGain();
 }
 
 /** Mute or unmute all SFX and stage BGM. Returns the new muted state. */
 export function setMuted(value: boolean): boolean {
   muted = value;
+  setAudioSettings({ muted: value });
   applyBgmGain();
   return muted;
+}
+
+/** Set the music volume (0-1). */
+export function setMusicVolume(volume: number): void {
+  const clamped = Math.max(0, Math.min(1, volume));
+  setAudioSettings({ musicVolume: clamped });
+  applyBgmGain();
+}
+
+/** Set the SFX volume (0-1). */
+export function setSfxVolume(volume: number): void {
+  const clamped = Math.max(0, Math.min(1, volume));
+  setAudioSettings({ sfxVolume: clamped });
+}
+
+/** Get current music volume (0-1). */
+export function getMusicVolume(): number {
+  return getSettings().audio.musicVolume;
+}
+
+/** Get current SFX volume (0-1). */
+export function getSfxVolume(): number {
+  return getSettings().audio.sfxVolume;
 }
 
 /** Toggle mute. Returns the new muted state. */
@@ -255,7 +302,7 @@ function playBuffer(
   // Fixed rate when provided; otherwise slight pitch variety so rapid plays don’t sound identical
   src.playbackRate.value =
     playbackRate ?? 1 - rateJitter / 2 + Math.random() * rateJitter;
-  gain.gain.value = gainValue * SFX_VOLUME_SCALE;
+  gain.gain.value = gainValue * getSfxScale();
   src.connect(gain);
   gain.connect(ac.destination);
   src.start(0);
@@ -458,7 +505,7 @@ function playBufferAt(
     ).setPosition?.(x, y, z);
   }
 
-  gain.gain.value = gainValue * SFX_VOLUME_SCALE;
+  gain.gain.value = gainValue * getSfxScale();
   src.connect(panner);
   panner.connect(gain);
   gain.connect(ac.destination);
