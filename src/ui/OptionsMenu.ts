@@ -87,7 +87,6 @@ export class OptionsMenu {
     return panel(
       'menu main-menu',
       `<div class="main-menu-content">
-        <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
         <nav class="main-menu-nav options-panel" aria-label="${aria}">${innerNav}</nav>
       </div>`,
     );

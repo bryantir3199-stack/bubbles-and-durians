@@ -2,7 +2,7 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { CastleStage } from '../world/CastleStage';
 import { ModelCache } from '../world/ModelCache';
 import { preloadSfx } from '../audio/sfx';
-import { fetchHighScore } from '../services/leaderboard';
+import { fetchModeHighScores } from '../services/leaderboard';
 import { clearUI } from '../ui/dom';
 
 export class BootScene implements GameScene {
@@ -28,7 +28,7 @@ export class BootScene implements GameScene {
 
     this.stage = new CastleStage(this.ctx.three.scene);
 
-    void fetchHighScore();
+    void fetchModeHighScores();
     await Promise.all([this.stage.load(), ModelCache.preload(), preloadSfx()]);
     this.ctx.markStageReady();
 

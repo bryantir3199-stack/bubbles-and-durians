@@ -3,12 +3,13 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer, tryEnterFullscreen } from '../core/display';
 import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
-import { bindHighScoreBanner, highScoreBannerHtml } from '../ui/highScore';
+import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
 
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
   private options: OptionsMenu | null = null;
+  private unbindHighScore: (() => void) | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -21,35 +22,43 @@ export class ModeSelectScene implements GameScene {
   update(): void {}
 
   exit(): void {
+    this.unbindHighScore?.();
+    this.unbindHighScore = null;
     this.options?.destroy();
     this.options = null;
     clearUI(this.ctx.uiRoot);
   }
 
   private renderMain(): void {
+    this.unbindHighScore?.();
+    this.unbindHighScore = null;
     this.options?.destroy();
     this.options = null;
     clearUI(this.ctx.uiRoot);
-    const optionsBtn = `<button type="button" class="menu-option" data-action="options">OPTIONS</button>`;
     const ui = panel(
       'menu main-menu',
-      `${highScoreBannerHtml()}
-      <div class="main-menu-content">
-        <img class="main-menu-logo" src="assets/logo.png" alt="Bubbles & Durians" />
-        <nav class="main-menu-nav" aria-label="Main menu">
-          <p class="menu-section-label">Learn</p>
-          <button type="button" class="menu-option tutorial" data-mode="tutorial">HOW TO PLAY</button>
-          <p class="menu-section-label">Timed</p>
-          <button type="button" class="menu-option timed" data-mode="timed" data-timed="short">SHORT · 90s</button>
-          <button type="button" class="menu-option timed" data-mode="timed" data-timed="medium">MEDIUM · 3 min</button>
-          <button type="button" class="menu-option endless" data-mode="endless">ENDLESS MODE</button>
-          <button type="button" class="menu-option" data-action="lb">VIEW LEADERBOARD</button>
-          ${optionsBtn}
+      `<div class="main-menu-content main-menu-home">
+        <nav class="main-menu-layout" aria-label="Main menu">
+          <div class="main-menu-modes">
+            <button type="button" class="menu-tile endless" data-mode="endless">Endless Mode</button>
+            <div class="main-menu-timed">
+              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="short">Blitz</button>
+              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="medium">Standard</button>
+            </div>
+          </div>
+          <div class="main-menu-utils">
+            <button type="button" class="menu-tile util tutorial" data-mode="tutorial">How To Play</button>
+            <button type="button" class="menu-tile util" data-action="lb">
+              Leaderboard
+              ${highScoreSlotHtml()}
+            </button>
+            <button type="button" class="menu-tile util" data-action="options">Settings</button>
+          </div>
         </nav>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
-    bindHighScoreBanner(ui);
+    this.unbindHighScore = bindHighScoreBanner(ui);
 
     ui.querySelectorAll<HTMLElement>('[data-mode]').forEach((el) => {
       el.addEventListener('click', (e) => {
@@ -67,6 +76,8 @@ export class ModeSelectScene implements GameScene {
   }
 
   private openOptions(): void {
+    this.unbindHighScore?.();
+    this.unbindHighScore = null;
     clearUI(this.ctx.uiRoot);
     this.options?.destroy();
     this.options = new OptionsMenu(this.ctx.uiRoot, {

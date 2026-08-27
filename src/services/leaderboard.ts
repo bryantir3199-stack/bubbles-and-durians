@@ -55,6 +55,11 @@ export async function fetchTopScores(mode: StoredScoreMode, limit = 10): Promise
   return (data ?? []) as ScoreRow[];
 }
 
+export type ModeHighScores = Record<RankedMode, ScoreRow | null>;
+
+let modeHighScoreCache: ModeHighScores | undefined;
+let modeHighScoreInflight: Promise<ModeHighScores> | null = null;
+
 let highScoreCache: ScoreRow | null | undefined;
 let highScoreInflight: Promise<ScoreRow | null> | null = null;
 
@@ -65,22 +70,44 @@ function pickHigherScore(a: ScoreRow | undefined, b: ScoreRow | undefined): Scor
   return new Date(a.created_at) >= new Date(b.created_at) ? a : b;
 }
 
+/** Top score on each ranked board. */
+export async function fetchModeHighScores(): Promise<ModeHighScores> {
+  if (modeHighScoreCache) return modeHighScoreCache;
+  if (modeHighScoreInflight) return modeHighScoreInflight;
+
+  modeHighScoreInflight = Promise.all([
+    fetchTopScores('endless', 1),
+    fetchTopScores('timed-short', 1),
+    fetchTopScores('timed-medium', 1),
+  ])
+    .then(([endless, short, medium]) => {
+      modeHighScoreCache = {
+        endless: endless[0] ?? null,
+        'timed-short': short[0] ?? null,
+        'timed-medium': medium[0] ?? null,
+      };
+      return modeHighScoreCache;
+    })
+    .finally(() => {
+      modeHighScoreInflight = null;
+    });
+
+  return modeHighScoreInflight;
+}
+
 /** Overall #1 across ranked boards (plus legacy combined timed). */
 export async function fetchHighScore(): Promise<ScoreRow | null> {
   if (highScoreCache !== undefined) return highScoreCache;
   if (highScoreInflight) return highScoreInflight;
 
   highScoreInflight = Promise.all([
-    fetchTopScores('endless', 1),
-    fetchTopScores('timed-short', 1),
-    fetchTopScores('timed-medium', 1),
+    fetchModeHighScores(),
     fetchTopScores('timed', 1),
   ])
-    .then((boards) => {
-      highScoreCache = boards.reduce<ScoreRow | null>(
-        (best, rows) => pickHigherScore(best ?? undefined, rows[0]),
-        null,
-      );
+    .then(([boards, timed]) => {
+      highScoreCache = [boards.endless, boards['timed-short'], boards['timed-medium'], timed[0]].reduce<
+        ScoreRow | null
+      >((best, row) => pickHigherScore(best ?? undefined, row ?? undefined), null);
       return highScoreCache;
     })
     .finally(() => {
@@ -92,6 +119,7 @@ export async function fetchHighScore(): Promise<ScoreRow | null> {
 
 export function invalidateHighScoreCache(): void {
   highScoreCache = undefined;
+  modeHighScoreCache = undefined;
 }
 
 /** 1-based rank: 1 + number of strictly higher scores on that board. */

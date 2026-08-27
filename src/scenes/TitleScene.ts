@@ -6,6 +6,7 @@ import { bindHighScoreBanner, highScoreBannerHtml } from '../ui/highScore';
 
 export class TitleScene implements GameScene {
   readonly id = 'title' as const;
+  private unbindHighScore: (() => void) | null = null;
 
   constructor(private ctx: SceneContext) {}
 
@@ -20,7 +21,7 @@ export class TitleScene implements GameScene {
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
-    bindHighScoreBanner(ui);
+    this.unbindHighScore = bindHighScoreBanner(ui);
 
     const advance = () => {
       if (isCoarsePointer()) tryEnterFullscreen();
@@ -46,6 +47,8 @@ export class TitleScene implements GameScene {
   update(): void {}
 
   exit(): void {
+    this.unbindHighScore?.();
+    this.unbindHighScore = null;
     clearUI(this.ctx.uiRoot);
   }
 }
