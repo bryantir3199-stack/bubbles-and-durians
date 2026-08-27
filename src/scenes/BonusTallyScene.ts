@@ -110,10 +110,6 @@ export class BonusTallyScene implements GameScene {
       { label: 'SCORE', target: tally.runScore, prefix: '', suffix: '', cssClass: '' },
     ];
 
-    if (tally.finaleScore > 0) {
-      rows.push({ label: 'FINALE', target: tally.finaleScore, prefix: '', suffix: '', cssClass: 'tally-included' });
-    }
-
     rows.push(
       { label: 'MAX COMBO', target: tally.maxComboBonus, prefix: '+', suffix: '', cssClass: bonus(tally.maxComboBonus) },
       { label: 'COMBO HOLD', target: tally.comboHoldBonus, prefix: '+', suffix: '', cssClass: bonus(tally.comboHoldBonus) },
@@ -233,13 +229,11 @@ export class BonusTallyScene implements GameScene {
 
   private bonusInfoMarkup(): string {
     const max = gameConfig.maxCombo;
-    const finaleSecs = getTimedPreset(this.timedPreset ?? defaultTimedPreset).finalBoostSeconds;
     return `<p class="tally-info-title">Round bonuses</p>
       <ul class="tally-info-list">
         <li><strong>Max combo</strong> — hit ${max}× at least once. +${this.fmt(gameConfig.timedBonusMaxCombo)}</li>
         <li><strong>Combo hold</strong> — +${this.fmt(gameConfig.timedBonusPerSecAtMaxCombo)} per second spent at ${max}×.</li>
         <li><strong>Clean round</strong> — don't shoot any bubbles. +${this.fmt(gameConfig.timedBonusCleanRound)}</li>
-        <li><strong>Finale</strong> — last ${finaleSecs}s, durian/gold score ${gameConfig.timedFinaleScoreMult}× (already in SCORE).</li>
         <li><strong>Accuracy</strong> — durian hits ÷ shots fired (bubbles and misses count against you). Multiplies your total. No shots is 0%.</li>
       </ul>`;
   }
