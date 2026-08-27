@@ -144,6 +144,7 @@ export class PlayScene implements GameScene {
         onReload: () => this.onReload(),
         onPauseToggle: () => this.togglePause(),
         onMuteToggle: () => this.onMuteToggle(),
+        onQuitToMenu: () => this.quitToMenu(),
       },
       this.mode === 'timed' ? this.timedConfig : undefined,
     );
@@ -184,6 +185,7 @@ export class PlayScene implements GameScene {
       this.handleShot(e.clientX, e.clientY);
     };
     const onKey = (e: KeyboardEvent) => {
+      if (this.hud?.isCapturingKeys()) return;
       if (matchesBinding(e, 'pause')) {
         e.preventDefault();
         this.togglePause();
@@ -346,6 +348,12 @@ export class PlayScene implements GameScene {
     this.hud?.setPaused(this.paused);
     if (this.paused) pauseStageBgm();
     else resumeStageBgm();
+  }
+
+  private quitToMenu(): void {
+    if (this.ended) return;
+    this.ended = true;
+    this.ctx.goto('modeSelect');
   }
 
   private onMuteToggle(): void {

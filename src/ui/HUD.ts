@@ -2,6 +2,7 @@ import { gameConfig } from '../config/gameConfig';
 import type { GameMode, TimedPresetConfig } from '../config/gameConfig';
 import { playCountdownTickSound, playTeethWarnBeepSound } from '../audio/sfx';
 import { isCoarsePointer } from '../core/display';
+import { OptionsMenu } from './OptionsMenu';
 
 const TOOTH_IMG = `<img class="hud-tooth-icon" src="/assets/hud/tooth.png" alt="" draggable="false" />`;
 const HEART_IMG = `<img class="hud-heart-icon" src="/assets/hud/heart.png" alt="" draggable="false" />`;
@@ -17,6 +18,7 @@ export type HUDCallbacks = {
   onReload: () => void;
   onPauseToggle: () => void;
   onMuteToggle: () => void;
+  onQuitToMenu: () => void;
 };
 
 export class HUD {
@@ -39,8 +41,12 @@ export class HUD {
   private reloadHint: HTMLElement;
   private pauseBtn: HTMLButtonElement;
   private muteBtn: HTMLButtonElement;
-  private pauseBanner: HTMLElement;
   private pauseOverlay: HTMLElement;
+  private pauseMenu: HTMLElement;
+  private pauseConfirm: HTMLElement;
+  private pauseOptionsHost: HTMLElement;
+  private optionsMenu: OptionsMenu | null = null;
+  private callbacks: HUDCallbacks;
   private frenzyMeterEl: HTMLElement | null = null;
   private frenzyFillEl: HTMLElement | null = null;
   private lastComboLevel = 1;
@@ -59,6 +65,7 @@ export class HUD {
   ) {
     this.mode = mode;
     this.timedConfig = mode === 'timed' ? (timedConfig ?? null) : null;
+    this.callbacks = callbacks;
     this.root = document.createElement('div');
     this.root.className = this.mobile ? 'hud hud-mobile' : 'hud';
 
@@ -96,8 +103,10 @@ export class HUD {
     this.reloadHint = this.root.querySelector('.hud-reload-hint')!;
     this.pauseBtn = this.root.querySelector('.hud-pause-btn')!;
     this.muteBtn = this.root.querySelector('.hud-mute-btn')!;
-    this.pauseBanner = this.root.querySelector('.hud-pause-banner')!;
     this.pauseOverlay = this.root.querySelector('.hud-pause-overlay')!;
+    this.pauseMenu = this.root.querySelector('.hud-pause-menu')!;
+    this.pauseConfirm = this.root.querySelector('.hud-pause-confirm')!;
+    this.pauseOptionsHost = this.root.querySelector('.hud-pause-options')!;
     this.frenzyMeterEl = this.root.querySelector('.hud-frenzy-meter');
     this.frenzyFillEl = this.root.querySelector('.hud-frenzy-fill');
 
@@ -122,6 +131,7 @@ export class HUD {
     }
     bindCtrl(this.pauseBtn, () => callbacks.onPauseToggle());
     bindCtrl(this.muteBtn, () => callbacks.onMuteToggle());
+    this.bindPauseMenu();
 
     if (mode === 'timed' && this.timedConfig) {
       this.setTimer(this.timedConfig.seconds);
@@ -158,7 +168,7 @@ export class HUD {
         <button type="button" class="hud-ctrl hud-mute-btn" aria-label="Mute" title="Mute" aria-pressed="false">${SPEAKER_ICON}</button>
       </div>
       ${frenzyMeter}
-      <div class="hud-pause-banner" hidden>PAUSED</div>
+      ${this.pauseMenuMarkup()}
       <div class="hud-dock">
         <div class="hud-left">
           <div class="hud-combo" aria-label="Combo" hidden>
@@ -216,9 +226,79 @@ export class HUD {
         <button type="button" class="hud-reload-btn" aria-label="Reload" title="Reload">${RELOAD_ICON}</button>
       </div>
       ${frenzyMeter}
-      <div class="hud-pause-banner" hidden>PAUSED</div>
+      ${this.pauseMenuMarkup()}
       <div class="hud-reload-hint" hidden>RELOAD! (shake or tap reload)</div>
     `;
+  }
+
+  private pauseMenuMarkup(): string {
+    return `
+      <div class="hud-pause-menu" hidden>
+        <div class="hud-pause-menu-title">PAUSED</div>
+        <nav class="hud-pause-nav" aria-label="Pause menu">
+          <button type="button" class="menu-option" data-pause="resume">RESUME</button>
+          <button type="button" class="menu-option" data-pause="options">OPTIONS</button>
+          <button type="button" class="menu-option" data-pause="quit">QUIT TO MAIN MENU</button>
+        </nav>
+      </div>
+      <div class="hud-pause-confirm" hidden>
+        <p class="hud-pause-confirm-copy">Are you sure you want to quit to the main menu?</p>
+        <div class="hud-pause-confirm-actions">
+          <button type="button" class="menu-option" data-confirm="yes">YES</button>
+          <button type="button" class="menu-option" data-confirm="no">NO</button>
+        </div>
+      </div>
+      <div class="hud-pause-options" hidden></div>
+    `;
+  }
+
+  private bindPauseMenu(): void {
+    const bind = (el: HTMLElement | null, fn: () => void) => {
+      el?.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fn();
+      });
+    };
+    bind(this.pauseMenu.querySelector('[data-pause="resume"]'), () => this.callbacks.onPauseToggle());
+    bind(this.pauseMenu.querySelector('[data-pause="options"]'), () => this.openPauseOptions());
+    bind(this.pauseMenu.querySelector('[data-pause="quit"]'), () => this.showQuitConfirm());
+    bind(this.pauseConfirm.querySelector('[data-confirm="yes"]'), () => this.callbacks.onQuitToMenu());
+    bind(this.pauseConfirm.querySelector('[data-confirm="no"]'), () => this.showPauseRoot());
+  }
+
+  private showPauseRoot(): void {
+    this.closePauseOptions();
+    this.pauseConfirm.hidden = true;
+    this.pauseMenu.hidden = false;
+  }
+
+  private showQuitConfirm(): void {
+    this.closePauseOptions();
+    this.pauseMenu.hidden = true;
+    this.pauseConfirm.hidden = false;
+  }
+
+  private openPauseOptions(): void {
+    this.pauseMenu.hidden = true;
+    this.pauseConfirm.hidden = true;
+    this.closePauseOptions();
+    this.pauseOptionsHost.hidden = false;
+    this.optionsMenu = new OptionsMenu(this.pauseOptionsHost, {
+      variant: 'overlay',
+      onBack: () => this.showPauseRoot(),
+    });
+  }
+
+  private closePauseOptions(): void {
+    this.optionsMenu?.destroy();
+    this.optionsMenu = null;
+    this.pauseOptionsHost.replaceChildren();
+    this.pauseOptionsHost.hidden = true;
+  }
+
+  isCapturingKeys(): boolean {
+    return this.optionsMenu?.isCapturingKeys() ?? false;
   }
 
   private hearts(lives: number): string {
@@ -342,14 +422,20 @@ export class HUD {
 
   setPaused(paused: boolean): void {
     this.paused = paused;
-    this.pauseBanner.hidden = !paused;
     this.pauseOverlay.hidden = !paused;
     this.pauseOverlay.setAttribute('aria-hidden', paused ? 'false' : 'true');
     this.root.classList.toggle('is-paused', paused);
     this.pauseBtn.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
     this.pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
     this.pauseBtn.title = paused ? 'Resume' : 'Pause';
-    if (paused) this.reloadHint.hidden = true;
+    if (paused) {
+      this.reloadHint.hidden = true;
+      this.showPauseRoot();
+    } else {
+      this.closePauseOptions();
+      this.pauseMenu.hidden = true;
+      this.pauseConfirm.hidden = true;
+    }
   }
 
   setMuted(muted: boolean): void {
@@ -543,6 +629,7 @@ export class HUD {
   }
 
   destroy(): void {
+    this.closePauseOptions();
     this.root.remove();
   }
 }

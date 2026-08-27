@@ -888,35 +888,70 @@
       .hud-ctrl.is-muted {
         color: #ffb4b4;
       }
-      /* Dims the stage behind PAUSED + pause/mute controls */
+      /* Dims the stage behind pause menu + pause/mute controls */
       .hud-pause-overlay {
         position: absolute;
         inset: 0;
         z-index: 15;
-        background: rgba(0, 0, 0, 0.35);
-        pointer-events: none;
+        background: rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
       }
       .hud-pause-overlay[hidden] { display: none !important; }
-      .hud-pause-banner {
+      .hud-pause-menu,
+      .hud-pause-confirm,
+      .hud-pause-options {
         position: absolute;
         left: 50%;
-        top: 42%;
+        top: 46%;
         transform: translate(-50%, -50%);
-        z-index: 18;
+        z-index: 19;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        width: min(400px, 90vw);
+        max-height: min(82vh, 720px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        pointer-events: auto;
+        user-select: none;
+      }
+      .hud-pause-menu[hidden],
+      .hud-pause-confirm[hidden],
+      .hud-pause-options[hidden] { display: none !important; }
+      .hud-pause-menu-title {
         font: 800 clamp(36px, 8vw, 64px)/1 'Baloo 2', 'Fredoka', sans-serif;
         letter-spacing: 0.12em;
         color: #fff;
         -webkit-text-stroke: 4px #1a1018;
         paint-order: stroke fill;
         text-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-        pointer-events: none;
-        user-select: none;
         animation: pausePulse 1.4s ease-in-out infinite;
       }
-      .hud-pause-banner[hidden] { display: none !important; }
       @keyframes pausePulse {
-        0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        50% { transform: translate(-50%, -50%) scale(1.04); opacity: 0.85; }
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.04); opacity: 0.85; }
+      }
+      .hud-pause-nav,
+      .hud-pause-confirm-actions,
+      .pause-options-sheet .main-menu-nav {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        width: 100%;
+      }
+      .hud-pause-confirm-copy {
+        margin: 0;
+        text-align: center;
+        font: 700 clamp(18px, 3.2vw, 24px) / 1.35 var(--title-serif);
+        letter-spacing: 0.04em;
+        color: #f7e9cf;
+        text-shadow: 0 2px 0 #120c06, 0 4px 12px rgba(0, 0, 0, 0.45);
+      }
+      .pause-options-host,
+      .pause-options-sheet {
+        width: 100%;
       }
 
       .hud-dock {
@@ -2017,7 +2052,9 @@
         inset: 0;
       }
       html.touch-ui .hud-pause-overlay,
-      html.touch-ui .hud-pause-banner,
+      html.touch-ui .hud-pause-menu,
+      html.touch-ui .hud-pause-confirm,
+      html.touch-ui .hud-pause-options,
       html.touch-ui .hud-reload-hint,
       html.touch-ui .hud-announce,
       html.touch-ui .hud-countdown,
