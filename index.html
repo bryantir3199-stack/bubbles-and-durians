@@ -91,8 +91,7 @@
         position: absolute;
         inset: 0;
       }
-      .menu.title-splash,
-      .menu.main-menu {
+      .menu.title-splash {
         position: relative;
         background:
           linear-gradient(180deg, rgba(6, 10, 18, 0.28) 0%, rgba(6, 10, 18, 0.45) 100%),
@@ -100,7 +99,47 @@
         cursor: pointer;
       }
       .menu.main-menu {
+        --menu-pattern-size: 270px;
+        position: relative;
+        overflow: hidden;
         cursor: default;
+        background-color: #2a82d0;
+        background-image:
+          repeating-linear-gradient(
+            to bottom,
+            transparent 0 6px,
+            rgba(12, 48, 96, 0.16) 6px 11px
+          ),
+          linear-gradient(to bottom, #58a8e4 0%, #1762ad 100%);
+      }
+      .menu.main-menu::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 240vmax;
+        height: 240vmax;
+        transform: translate(-50%, -50%) rotate(-28deg);
+        background-image: url('/assets/menu-pattern.png');
+        background-repeat: repeat;
+        background-size: var(--menu-pattern-size) var(--menu-pattern-size);
+        animation: menuPatternScroll 132s linear infinite;
+        opacity: 0.48;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .menu.main-menu > * {
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes menuPatternScroll {
+        from { background-position: 0 0; }
+        to { background-position: 810px 2700px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .menu.main-menu::before {
+          animation: none;
+        }
       }
       .menu.main-menu:has(.main-menu-home) {
         --menu-gap: clamp(28px, 3.2vmin, 52px);
