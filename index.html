@@ -312,6 +312,19 @@
         cursor: pointer;
         transition: transform 0.12s ease, background 0.12s ease;
       }
+      .menu-tile.is-selecting {
+        animation: menuTileSelectFlash 0.75s steps(1, end) forwards;
+        pointer-events: none;
+      }
+      @keyframes menuTileSelectFlash {
+        0% { opacity: 0; }
+        16.666% { opacity: 1; }
+        33.333% { opacity: 0; }
+        50% { opacity: 1; }
+        66.666% { opacity: 0; }
+        83.333% { opacity: 1; }
+        100% { opacity: 1; }
+      }
       .menu-tile:hover,
       .menu-tile:focus-visible {
         background: rgba(32, 52, 78, 0.92);

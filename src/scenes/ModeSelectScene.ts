@@ -12,11 +12,11 @@ export class ModeSelectScene implements GameScene {
   private options: OptionsMenu | null = null;
   private unbindHighScore: (() => void) | null = null;
   private leaving = false;
+  private flashTimer = 0;
 
   constructor(private ctx: SceneContext) {}
 
   enter(_data?: SceneData): void {
-    this.leaving = false;
     this.renderMain();
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
@@ -25,6 +25,8 @@ export class ModeSelectScene implements GameScene {
   update(): void {}
 
   exit(): void {
+    window.clearTimeout(this.flashTimer);
+    this.flashTimer = 0;
     this.unbindHighScore?.();
     this.unbindHighScore = null;
     this.options?.destroy();
@@ -32,7 +34,13 @@ export class ModeSelectScene implements GameScene {
     clearUI(this.ctx.uiRoot);
   }
 
+  private flashThen(tile: HTMLElement, next: () => void): void {
+    tile.classList.add('is-selecting');
+    this.flashTimer = window.setTimeout(next, 750);
+  }
+
   private renderMain(): void {
+    this.leaving = false;
     this.unbindHighScore?.();
     this.unbindHighScore = null;
     this.options?.destroy();
@@ -71,19 +79,33 @@ export class ModeSelectScene implements GameScene {
         if (this.leaving) return;
         this.leaving = true;
         if (isCoarsePointer()) tryEnterFullscreen();
-        void requestShakePermission()
-          .then(() => fadeToWhiteAndHold())
-          .then(() => {
-            this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined });
-            return fadeFromOverlay();
-          })
-          .catch(() => {
-            this.leaving = false;
-          });
+        this.flashThen(el, () => {
+          void requestShakePermission()
+            .then(() => fadeToWhiteAndHold())
+            .then(() => {
+              this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined });
+              return fadeFromOverlay();
+            })
+            .catch(() => {
+              this.leaving = false;
+            });
+        });
       });
     });
-    bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));
-    bindClick(ui, '[data-action="options"]', () => this.openOptions());
+    bindClick(ui, '[data-action="lb"]', () => {
+      if (this.leaving) return;
+      const tile = ui.querySelector<HTMLElement>('[data-action="lb"]');
+      if (!tile) return;
+      this.leaving = true;
+      this.flashThen(tile, () => this.ctx.goto('leaderboard', { mode: 'endless' }));
+    });
+    bindClick(ui, '[data-action="options"]', () => {
+      if (this.leaving) return;
+      const tile = ui.querySelector<HTMLElement>('[data-action="options"]');
+      if (!tile) return;
+      this.leaving = true;
+      this.flashThen(tile, () => this.openOptions());
+    });
   }
 
   private openOptions(): void {
