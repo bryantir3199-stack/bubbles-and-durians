@@ -8,6 +8,7 @@ import {
   type ScoreRow,
 } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
+import { fadeFromOverlay, fadeToBlackAndHold } from '../ui/screenFade';
 
 const BOARDS: { id: RankedMode; label: string }[] = [
   { id: 'endless', label: 'ENDLESS' },
@@ -24,10 +25,12 @@ export class LeaderboardScene implements GameScene {
   private playerName: string | undefined;
   private listEl: HTMLElement | null = null;
   private runEl: HTMLElement | null = null;
+  private leaving = false;
 
   constructor(private ctx: SceneContext) {}
 
   enter(data?: SceneData): void {
+    this.leaving = false;
     const fromRun = data?.score != null || data?.highlightScore != null;
     if (fromRun) {
       this.runScore = data?.score;
@@ -76,7 +79,18 @@ export class LeaderboardScene implements GameScene {
         this.ctx.goto('leaderboard', { rankedMode: board });
       });
     });
-    bindClick(ui, '[data-action="back"]', () => this.ctx.goto('modeSelect'));
+    bindClick(ui, '[data-action="back"]', () => {
+      if (this.leaving) return;
+      this.leaving = true;
+      if (this.runScore == null) {
+        this.ctx.goto('modeSelect');
+        return;
+      }
+      void fadeToBlackAndHold().then(() => {
+        this.ctx.goto('modeSelect');
+        return fadeFromOverlay();
+      });
+    });
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);

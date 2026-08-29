@@ -408,6 +408,27 @@ export function stopStageBgm(): void {
   tearDownBgmSource();
 }
 
+/** Ramp looping stage BGM to silence (e.g. fade-to-black). */
+export function fadeOutStageBgm(durationSec = 0.5): void {
+  if (!bgmActive || bgmPaused) return;
+  const ac = ctx;
+  if (!bgmGain || !ac || muted) {
+    stopStageBgm();
+    return;
+  }
+  const dur = Math.max(0.05, durationSec);
+  const param = bgmGain.gain;
+  const now = ac.currentTime;
+  param.cancelScheduledValues(now);
+  param.setValueAtTime(Math.max(0.0001, param.value), now);
+  param.linearRampToValueAtTime(0, now + dur);
+  const gainNode = bgmGain;
+  window.setTimeout(() => {
+    if (bgmGain !== gainNode) return;
+    stopStageBgm();
+  }, dur * 1000 + 40);
+}
+
 /** Munch sample for shooting — randomly picks between the two clips. */
 export function playShootSound(): void {
   playMunchSample(0.9, 0.12);

@@ -51,6 +51,18 @@ export class PlayScene implements GameScene {
   private paused = false;
   /** True until the opening fade (and countdown, if any) finishes. */
   private introLocked = false;
+  /** True while fading back to the main menu. */
+  private leavingToMenu = false;
+  private historyPushed = false;
+  private ignorePop = false;
+  private readonly onPopState = (): void => {
+    if (this.ignorePop) {
+      this.ignorePop = false;
+      return;
+    }
+    if (this.mode === 'tutorial') return;
+    this.fadeToMainMenu(true);
+  };
   private spawner: Spawner | null = null;
   private ammo: AmmoSystem | null = null;
   private hud: HUD | null = null;
@@ -102,6 +114,8 @@ export class PlayScene implements GameScene {
     this.ended = false;
     this.paused = false;
     this.introLocked = true;
+    this.leavingToMenu = false;
+    this.ignorePop = false;
     this.frenzyMeter = 0;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
@@ -216,6 +230,11 @@ export class PlayScene implements GameScene {
 
     document.body.classList.add('playing');
     startStageBgm();
+    if (this.mode !== 'tutorial') {
+      history.pushState({ play: true }, '');
+      this.historyPushed = true;
+      window.addEventListener('popstate', this.onPopState);
+    }
     void waitUntilFadeClear().then(() => {
       if (this.ended) return;
       if (this.mode === 'tutorial') {
@@ -311,6 +330,12 @@ export class PlayScene implements GameScene {
   }
 
   exit(): void {
+    window.removeEventListener('popstate', this.onPopState);
+    if (this.historyPushed) {
+      this.ignorePop = true;
+      this.historyPushed = false;
+      history.back();
+    }
     document.body.classList.remove('playing');
     stopStageBgm();
     for (const u of this.unsubs) u();
@@ -362,8 +387,21 @@ export class PlayScene implements GameScene {
   }
 
   private quitToMenu(): void {
-    if (this.ended) return;
+    this.fadeToMainMenu();
+  }
+
+  /** Fade to black, hold, then crossfade into the main menu. */
+  private fadeToMainMenu(fromPopState = false): void {
+    if (this.leavingToMenu) return;
+    this.leavingToMenu = true;
     this.ended = true;
+    if (this.historyPushed && !fromPopState) {
+      this.ignorePop = true;
+      this.historyPushed = false;
+      history.back();
+    } else {
+      this.historyPushed = false;
+    }
     void fadeToBlackAndHold().then(() => {
       this.ctx.goto('modeSelect');
       return fadeFromOverlay();
@@ -664,14 +702,8 @@ export class PlayScene implements GameScene {
         setArrows: (specs: ArrowSpec[]) => this.tutorialArrows?.set(specs),
         revealCombo: () => this.hud?.revealCombo(),
         showTeethWarn: () => this.hud?.showTeethWarn(),
-        finish: () => {
-          this.ended = true;
-          this.ctx.goto('modeSelect');
-        },
-        quit: () => {
-          this.ended = true;
-          this.ctx.goto('modeSelect');
-        },
+        finish: () => this.fadeToMainMenu(),
+        quit: () => this.fadeToMainMenu(),
       },
       this.tutorialCoach,
     );
@@ -683,7 +715,7 @@ export class PlayScene implements GameScene {
     this.ended = true;
     this.spawner?.stop();
     if (this.mode === 'tutorial') {
-      this.ctx.goto('modeSelect');
+      this.fadeToMainMenu();
       return;
     }
     window.setTimeout(() => {
