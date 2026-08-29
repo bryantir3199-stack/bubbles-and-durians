@@ -29,6 +29,7 @@ import {
   toggleMute,
 } from '../audio/sfx';
 import { matchesBinding } from '../config/settings';
+import { fadeFromOverlay, fadeToBlackAndHold, waitUntilFadeClear } from '../ui/screenFade';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -48,6 +49,8 @@ export class PlayScene implements GameScene {
   private timeLeft = getTimedPreset(defaultTimedPreset).seconds;
   private ended = false;
   private paused = false;
+  /** True until the opening fade (and countdown, if any) finishes. */
+  private introLocked = false;
   private spawner: Spawner | null = null;
   private ammo: AmmoSystem | null = null;
   private hud: HUD | null = null;
@@ -98,6 +101,7 @@ export class PlayScene implements GameScene {
     this.timeLeft = this.timedConfig.seconds;
     this.ended = false;
     this.paused = false;
+    this.introLocked = true;
     this.frenzyMeter = 0;
     this.frenzyActive = false;
     this.frenzyTimeLeftMs = 0;
@@ -180,7 +184,7 @@ export class PlayScene implements GameScene {
       this.hud?.setPointer(e.clientX, e.clientY);
     };
     const onDown = (e: PointerEvent) => {
-      if (this.ended || this.paused) return;
+      if (this.ended || this.paused || this.introLocked) return;
       if (e.pointerType === 'touch') e.preventDefault();
       this.handleShot(e.clientX, e.clientY);
     };
@@ -191,7 +195,7 @@ export class PlayScene implements GameScene {
         this.togglePause();
         return;
       }
-      if (this.paused) return;
+      if (this.paused || this.introLocked) return;
       if (matchesBinding(e, 'reload')) {
         e.preventDefault();
         this.onReload();
@@ -212,12 +216,19 @@ export class PlayScene implements GameScene {
 
     document.body.classList.add('playing');
     startStageBgm();
-    if (this.mode === 'tutorial') this.beginTutorial();
-    else this.spawner.start();
+    void waitUntilFadeClear().then(() => {
+      if (this.ended) return;
+      if (this.mode === 'tutorial') {
+        this.introLocked = false;
+        this.beginTutorial();
+        return;
+      }
+      this.runStartCountdown();
+    });
   }
 
   update(dt: number): void {
-    if (this.ended || this.paused) return;
+    if (this.ended || this.paused || this.introLocked) return;
 
     if (this.mode === 'timed') {
       if (this.combo >= gameConfig.maxCombo) {
@@ -337,13 +348,13 @@ export class PlayScene implements GameScene {
   }
 
   private onReload(): void {
-    if (this.ended || this.paused) return;
+    if (this.ended || this.paused || this.introLocked) return;
     const started = this.ammo?.tryReload();
     if (started) this.tutorial?.onReload();
   }
 
   private togglePause(): void {
-    if (this.ended) return;
+    if (this.ended || this.introLocked) return;
     this.paused = !this.paused;
     this.hud?.setPaused(this.paused);
     if (this.paused) pauseStageBgm();
@@ -353,7 +364,10 @@ export class PlayScene implements GameScene {
   private quitToMenu(): void {
     if (this.ended) return;
     this.ended = true;
-    this.ctx.goto('modeSelect');
+    void fadeToBlackAndHold().then(() => {
+      this.ctx.goto('modeSelect');
+      return fadeFromOverlay();
+    });
   }
 
   private onMuteToggle(): void {
@@ -362,7 +376,7 @@ export class PlayScene implements GameScene {
   }
 
   private handleShot(clientX: number, clientY: number): void {
-    if (this.paused || this.ended) return;
+    if (this.paused || this.ended || this.introLocked) return;
     if (!this.ammo || !this.spawner || !this.hud) return;
 
     if (!this.ammo.canShoot()) {
@@ -577,6 +591,30 @@ export class PlayScene implements GameScene {
 
   private usesLives(): boolean {
     return this.mode === 'endless' || this.mode === 'tutorial';
+  }
+
+  private runStartCountdown(): void {
+    const beats: Array<{ text: string; tick?: boolean; go?: boolean }> = [
+      { text: 'Ready?' },
+      { text: '3', tick: true },
+      { text: '2', tick: true },
+      { text: '1', tick: true },
+      { text: 'Go!', go: true },
+    ];
+    let i = 0;
+    const next = () => {
+      if (this.ended) return;
+      if (i >= beats.length) {
+        this.introLocked = false;
+        this.spawner?.start();
+        return;
+      }
+      const beat = beats[i++];
+      this.hud?.showStartCountdown(beat.text, { tick: beat.tick, go: beat.go });
+      const id = window.setTimeout(next, 1000);
+      this.unsubs.push(() => window.clearTimeout(id));
+    };
+    next();
   }
 
   private beginTutorial(): void {

@@ -5,15 +5,18 @@ import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
 import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
+import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
 
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
   private options: OptionsMenu | null = null;
   private unbindHighScore: (() => void) | null = null;
+  private leaving = false;
 
   constructor(private ctx: SceneContext) {}
 
   enter(_data?: SceneData): void {
+    this.leaving = false;
     this.renderMain();
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
@@ -65,10 +68,18 @@ export class ModeSelectScene implements GameScene {
         e.stopPropagation();
         const mode = el.dataset.mode as GameMode;
         const timedPreset = (el.dataset.timed as TimedPreset | undefined) ?? defaultTimedPreset;
+        if (this.leaving) return;
+        this.leaving = true;
         if (isCoarsePointer()) tryEnterFullscreen();
-        void requestShakePermission().then(() =>
-          this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined }),
-        );
+        void requestShakePermission()
+          .then(() => fadeToWhiteAndHold())
+          .then(() => {
+            this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined });
+            return fadeFromOverlay();
+          })
+          .catch(() => {
+            this.leaving = false;
+          });
       });
     });
     bindClick(ui, '[data-action="lb"]', () => this.ctx.goto('leaderboard', { mode: 'endless' }));

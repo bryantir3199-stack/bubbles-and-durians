@@ -62,6 +62,22 @@
         pointer-events: none;
         z-index: 10;
       }
+      .screen-fade {
+        position: absolute;
+        inset: 0;
+        background: #f5f5f5;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 80;
+        transition: opacity 0.5s ease;
+      }
+      .screen-fade.is-black {
+        background: #000;
+      }
+      .screen-fade.is-on {
+        opacity: 1;
+        pointer-events: auto;
+      }
       .ui-root button,
       .ui-root .mode-card,
       .ui-root .menu-tile,
@@ -1862,6 +1878,18 @@
         will-change: transform, opacity;
         animation: countdownPop 0.9s ease-out forwards;
       }
+      .hud-start-countdown {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        z-index: 26;
+        white-space: nowrap;
+        will-change: transform, opacity;
+        animation: countdownPop 0.95s ease-out forwards;
+      }
+      .hud-start-countdown.is-go {
+        color: #ffe566;
+      }
       @keyframes countdownPop {
         0% {
           opacity: 0;
@@ -2299,6 +2327,7 @@
       html.touch-ui .hud-reload-hint,
       html.touch-ui .hud-announce,
       html.touch-ui .hud-countdown,
+      html.touch-ui .hud-start-countdown,
       html.touch-ui .hud-thirty-banner,
       html.touch-ui .hud-frenzy-announce,
       html.touch-ui .hud-teeth-warn {

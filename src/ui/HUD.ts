@@ -326,6 +326,17 @@ export class HUD {
     this.root.classList.toggle('is-frenzy', active);
   }
 
+  /** Center pop for Ready? / 3 / 2 / 1 / Go! at the start of a run. */
+  showStartCountdown(label: string, opts?: { tick?: boolean; go?: boolean }): void {
+    if (opts?.tick) playCountdownTickSound();
+    const el = document.createElement('div');
+    el.className = opts?.go ? 'hud-announce hud-start-countdown is-go' : 'hud-announce hud-start-countdown';
+    el.setAttribute('aria-hidden', 'true');
+    el.textContent = label;
+    this.root.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
   /** Large centered “FRENZY” announce at the start of a frenzy. */
   showFrenzyAnnounce(): void {
     if (this.mode === 'timed') return;
