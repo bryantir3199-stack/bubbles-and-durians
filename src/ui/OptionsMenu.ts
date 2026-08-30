@@ -22,6 +22,7 @@ import {
   playPopSound,
 } from '../audio/sfx';
 import { bindClick, panel } from './dom';
+import { paintMenuArt } from './menuArt';
 
 type OptionsView = 'hub' | 'graphics' | 'sound' | 'controls';
 
@@ -78,18 +79,20 @@ export class OptionsMenu {
   }
 
   private wrap(aria: string, innerNav: string): HTMLElement {
-    if (this.opts.variant === 'overlay') {
-      return panel(
-        'pause-options-sheet',
-        `<nav class="main-menu-nav options-panel" aria-label="${aria}">${innerNav}</nav>`,
-      );
-    }
-    return panel(
-      'menu main-menu',
-      `<div class="main-menu-content">
+    const ui =
+      this.opts.variant === 'overlay'
+        ? panel(
+            'pause-options-sheet',
+            `<nav class="main-menu-nav options-panel" aria-label="${aria}">${innerNav}</nav>`,
+          )
+        : panel(
+            'menu main-menu',
+            `<div class="main-menu-content">
         <nav class="main-menu-nav options-panel" aria-label="${aria}">${innerNav}</nav>
       </div>`,
-    );
+          );
+    paintMenuArt(ui);
+    return ui;
   }
 
   private renderHub(): void {

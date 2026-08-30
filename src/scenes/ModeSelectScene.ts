@@ -5,6 +5,7 @@ import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
 import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
+import { paintMenuArt } from '../ui/menuArt';
 import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
 import { playGameStartSound } from '../audio/sfx';
 
@@ -70,6 +71,7 @@ export class ModeSelectScene implements GameScene {
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
+    paintMenuArt(ui);
     this.unbindHighScore = bindHighScoreBanner(ui);
 
     ui.querySelectorAll<HTMLElement>('[data-mode]').forEach((el) => {
