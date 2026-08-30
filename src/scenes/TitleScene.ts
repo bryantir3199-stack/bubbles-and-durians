@@ -16,12 +16,17 @@ export class TitleScene implements GameScene {
       'menu title-splash',
       `${highScoreBannerHtml()}
       <div class="title-splash-content">
-        <img class="title-logo" src="assets/logo.png" alt="Bubbles & Durians" />
-        <p class="click-anywhere">${isCoarsePointer() ? 'TAP ANYWHERE' : 'CLICK ANYWHERE'}</p>
+        <img class="title-logo" src="assets/title-logo.png" alt="Bubbles & Durians" />
+        <p class="click-anywhere">
+          <span class="prompt-click">CLICK ANYWHERE TO START</span>
+          <span class="prompt-tap">TAP ANYWHERE TO START</span>
+        </p>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
     this.unbindHighScore = bindHighScoreBanner(ui);
+    this.ctx.canvas.style.visibility = 'hidden';
+    document.body.style.background = '#fff800';
 
     const advance = () => {
       if (isCoarsePointer()) tryEnterFullscreen();
@@ -37,7 +42,12 @@ export class TitleScene implements GameScene {
     });
     ui.tabIndex = 0;
     ui.setAttribute('role', 'button');
-    ui.setAttribute('aria-label', 'Click anywhere to open the main menu');
+    ui.setAttribute(
+      'aria-label',
+      document.documentElement.classList.contains('touch-ui')
+        ? 'Tap anywhere to open the main menu'
+        : 'Click anywhere to open the main menu',
+    );
     ui.focus({ preventScroll: true });
 
     this.ctx.three.camera.position.set(0, 110, 635);
@@ -49,6 +59,8 @@ export class TitleScene implements GameScene {
   exit(): void {
     this.unbindHighScore?.();
     this.unbindHighScore = null;
+    this.ctx.canvas.style.visibility = '';
+    document.body.style.background = '';
     clearUI(this.ctx.uiRoot);
   }
 }
