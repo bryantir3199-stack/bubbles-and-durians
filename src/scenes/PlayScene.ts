@@ -18,6 +18,8 @@ import { getCastleStage } from '../world/CastleStage';
 import {
   isMuted,
   pauseStageBgm,
+  playComboLevelSound,
+  playComboLostSound,
   playDryFireSound,
   playGlitterSound,
   playPopSound,
@@ -556,6 +558,7 @@ export class PlayScene implements GameScene {
       this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
+      playComboLevelSound(this.combo);
       return;
     }
 
@@ -567,6 +570,7 @@ export class PlayScene implements GameScene {
     this.combo = 1;
     this.comboShots = 0;
     this.hud?.setCombo(this.combo, this.comboShots);
+    playComboLostSound();
   }
 
   /** Clock 2× during Timed’s last `finalBoostSeconds`. Endless always 1. */

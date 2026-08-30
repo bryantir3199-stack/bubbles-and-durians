@@ -50,6 +50,7 @@ export class HUD {
   private frenzyMeterEl: HTMLElement | null = null;
   private frenzyFillEl: HTMLElement | null = null;
   private lastComboLevel = 1;
+  private comboBreakTimer = 0;
   private thirtyBannerShown = false;
   private lastCountdownSec = -1;
   private paused = false;
@@ -378,20 +379,49 @@ export class HUD {
     const progress = Math.max(0, Math.min(perLevel, Math.floor(progressShots)));
     const filled = level >= max ? perLevel : progress;
     const active = level > 1 || progress > 0;
+
+    if (!active) {
+      const visible = !this.comboEl.hidden;
+      this.comboEl.classList.remove('active', 'max', 'pop');
+      this.lastComboLevel = 1;
+      if (visible && !this.comboEl.classList.contains('break')) this.startComboBreak();
+      return;
+    }
+
+    const appearing = this.comboEl.hidden || this.comboEl.classList.contains('break');
+    this.cancelComboBreak();
     if (this.comboTextEl) this.comboTextEl.textContent = `COMBO ${level}X`;
     else if (this.comboMultEl) this.comboMultEl.textContent = `${level}X`;
-    this.comboEl.hidden = !active;
+    this.comboEl.hidden = false;
     this.comboEl.classList.toggle('active', active);
     this.comboEl.classList.toggle('max', level >= max);
     this.comboEl.dataset.level = String(level);
     this.comboPips.forEach((pip, i) => pip.classList.toggle('filled', i < filled));
     this.comboTrackEl?.setAttribute('aria-valuenow', String(filled));
-    if (active && level !== this.lastComboLevel) {
+    if (appearing || level !== this.lastComboLevel) {
       this.comboEl.classList.remove('pop');
       void this.comboEl.offsetWidth;
       this.comboEl.classList.add('pop');
     }
     this.lastComboLevel = level;
+  }
+
+  private startComboBreak(): void {
+    this.comboEl.classList.remove('pop');
+    this.comboEl.classList.add('break');
+    const finish = () => {
+      if (!this.comboEl.classList.contains('break')) return;
+      this.comboEl.classList.remove('break');
+      this.comboEl.hidden = true;
+    };
+    this.comboEl.addEventListener('animationend', finish, { once: true });
+    window.clearTimeout(this.comboBreakTimer);
+    this.comboBreakTimer = window.setTimeout(finish, 380);
+  }
+
+  private cancelComboBreak(): void {
+    window.clearTimeout(this.comboBreakTimer);
+    this.comboEl.classList.remove('break');
   }
 
   setLives(lives: number): void {
@@ -625,6 +655,7 @@ export class HUD {
 
   /** Keep the combo meter visible while the tutorial talks about it. */
   revealCombo(): void {
+    this.cancelComboBreak();
     this.comboEl.hidden = false;
     this.comboEl.classList.add('active');
   }

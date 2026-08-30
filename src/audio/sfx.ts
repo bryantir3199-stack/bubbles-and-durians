@@ -65,6 +65,10 @@ let tallyRevealDrumrollBuffer: AudioBuffer | null = null;
 let tallyRevealDrumrollLoad: Promise<AudioBuffer | null> | null = null;
 let tallyThudBuffer: AudioBuffer | null = null;
 let tallyThudLoad: Promise<AudioBuffer | null> | null = null;
+let comboLostBuffer: AudioBuffer | null = null;
+let comboLostLoad: Promise<AudioBuffer | null> | null = null;
+let comboLevelBuffer: AudioBuffer | null = null;
+let comboLevelLoad: Promise<AudioBuffer | null> | null = null;
 let tallyCalcDrumrollSource: AudioBufferSourceNode | null = null;
 let tallyCalcDrumrollGain: GainNode | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
@@ -123,6 +127,8 @@ export async function preloadSfx(): Promise<void> {
     ensureTallyCalcDrumrollBuffer(),
     ensureTallyRevealDrumrollBuffer(),
     ensureTallyThudBuffer(),
+    ensureComboLostBuffer(),
+    ensureComboLevelBuffer(),
   ]);
 }
 
@@ -332,6 +338,30 @@ async function ensureTallyThudBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return tallyThudLoad;
+}
+
+async function ensureComboLostBuffer(): Promise<AudioBuffer | null> {
+  if (comboLostBuffer) return comboLostBuffer;
+  if (comboLostLoad) return comboLostLoad;
+
+  comboLostLoad = (async () => {
+    comboLostBuffer = await loadBuffer('assets/combo-lost.mp3');
+    return comboLostBuffer;
+  })();
+
+  return comboLostLoad;
+}
+
+async function ensureComboLevelBuffer(): Promise<AudioBuffer | null> {
+  if (comboLevelBuffer) return comboLevelBuffer;
+  if (comboLevelLoad) return comboLevelLoad;
+
+  comboLevelLoad = (async () => {
+    comboLevelBuffer = await loadBuffer('assets/combo-level.wav');
+    return comboLevelBuffer;
+  })();
+
+  return comboLevelLoad;
 }
 
 export function isMuted(): boolean {
@@ -857,6 +887,32 @@ export function playTallyRevealDrumroll(): void {
     return;
   }
   void ensureTallyRevealDrumrollBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** Orchestral hit when combo multiplier increases. Pitch scales with combo (1x = 1, 2x = 1.25, …). */
+export function playComboLevelSound(comboLevel: number): void {
+  const steps = Math.max(0, Math.floor(comboLevel) - 1);
+  const rate = 1.25 ** steps;
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.8, 0, rate);
+  if (comboLevelBuffer) {
+    play(comboLevelBuffer);
+    return;
+  }
+  void ensureComboLevelBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** Lost-item sting when a combo streak resets. Faster + higher via 1.5× playback. */
+export function playComboLostSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.3, 0, 1.5);
+  if (comboLostBuffer) {
+    play(comboLostBuffer);
+    return;
+  }
+  void ensureComboLostBuffer().then((buf) => {
     if (buf) play(buf);
   });
 }
