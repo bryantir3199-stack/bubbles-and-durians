@@ -306,7 +306,7 @@ export class HUD {
 
   private hearts(lives: number): string {
     const n = Math.max(0, lives);
-    if (n === 0) return '<span class="hud-heart empty"><span class="hud-heart-zero">0</span></span>';
+    if (n === 0) return '';
     return Array.from({ length: n }, () =>
       `<span class="hud-heart filled">${HEART_IMG}</span>`,
     ).join('');
