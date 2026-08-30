@@ -20,6 +20,7 @@ import {
 } from './display';
 import { getSettings, onSettingsChange } from '../config/settings';
 import { attachScreenFade } from '../ui/screenFade';
+import { attachResultsCrash } from '../ui/resultsCrash';
 import { installMenuButtonSfx } from '../audio/sfx';
 
 /**
@@ -68,6 +69,7 @@ export class Game {
     this.canvas.className = 'game-canvas';
     container.appendChild(this.canvas);
     attachScreenFade(container);
+    attachResultsCrash(container);
 
     this.camera = new THREE.PerspectiveCamera(DESIGN_VFOV_DEG, 1, 1, 2000);
     this.camera.position.set(0, 110, 635);

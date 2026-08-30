@@ -88,6 +88,8 @@ let comboLostBuffer: AudioBuffer | null = null;
 let comboLostLoad: Promise<AudioBuffer | null> | null = null;
 let comboLevelBuffer: AudioBuffer | null = null;
 let comboLevelLoad: Promise<AudioBuffer | null> | null = null;
+let coachWhistleBuffer: AudioBuffer | null = null;
+let coachWhistleLoad: Promise<AudioBuffer | null> | null = null;
 let tallyCalcDrumrollSource: AudioBufferSourceNode | null = null;
 let tallyCalcDrumrollGain: GainNode | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
@@ -148,6 +150,7 @@ export async function preloadSfx(): Promise<void> {
     ensureTallyThudBuffer(),
     ensureComboLostBuffer(),
     ensureComboLevelBuffer(),
+    ensureCoachWhistleBuffer(),
   ]);
 }
 
@@ -385,6 +388,18 @@ async function ensureComboLevelBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return comboLevelLoad;
+}
+
+async function ensureCoachWhistleBuffer(): Promise<AudioBuffer | null> {
+  if (coachWhistleBuffer) return coachWhistleBuffer;
+  if (coachWhistleLoad) return coachWhistleLoad;
+
+  coachWhistleLoad = (async () => {
+    coachWhistleBuffer = await loadBuffer('assets/coach-whistle.wav');
+    return coachWhistleBuffer;
+  })();
+
+  return coachWhistleLoad;
 }
 
 export function isMuted(): boolean {
@@ -959,6 +974,19 @@ export function playSquishSound(): void {
 
   void ensureSquishBuffer().then((buf) => {
     if (buf) playBuffer(buf);
+  });
+}
+
+/** Coach whistle when a run ends (timer or last life). */
+export function playGameOverWhistleSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.95, 0, 1);
+  if (coachWhistleBuffer) {
+    play(coachWhistleBuffer);
+    return;
+  }
+
+  void ensureCoachWhistleBuffer().then((buf) => {
+    if (buf) play(buf);
   });
 }
 

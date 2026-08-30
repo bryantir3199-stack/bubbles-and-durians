@@ -9,6 +9,7 @@ import {
 } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
 import { fadeFromOverlay, fadeToBlackAndHold } from '../ui/screenFade';
+import { hideResultsCrash } from '../ui/resultsCrash';
 
 const BOARDS: { id: RankedMode; label: string }[] = [
   { id: 'endless', label: 'ENDLESS' },
@@ -87,6 +88,7 @@ export class LeaderboardScene implements GameScene {
         return;
       }
       void fadeToBlackAndHold().then(() => {
+        hideResultsCrash();
         this.ctx.goto('modeSelect');
         return fadeFromOverlay();
       });

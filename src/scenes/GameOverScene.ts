@@ -11,6 +11,7 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer } from '../core/display';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
 import { clearUI, panel, bindClick } from '../ui/dom';
+import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
 export class GameOverScene implements GameScene {
   readonly id = 'gameOver' as const;
@@ -26,13 +27,15 @@ export class GameOverScene implements GameScene {
 
   constructor(private ctx: SceneContext) {}
 
-  enter(data?: SceneData): void {
+  async enter(data?: SceneData): Promise<void> {
     this.mode = data?.mode ?? 'endless';
     this.timedPreset = data?.timedPreset;
     this.score = data?.timedTally?.total ?? data?.score ?? 0;
     this.letters = ['', '', ''];
     this.cursor = 0;
     this.submitting = false;
+
+    if (!isResultsCrashHeld()) await playResultsCrash();
 
     clearUI(this.ctx.uiRoot);
     const slots = Array.from({ length: PLAYER_NAME_LENGTH }, (_, i) => this.slotHtml(i)).join('');

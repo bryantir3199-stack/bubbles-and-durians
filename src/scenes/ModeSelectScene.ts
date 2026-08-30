@@ -7,6 +7,7 @@ import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { paintMenuArt } from '../ui/menuArt';
 import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
+import { hideResultsCrash } from '../ui/resultsCrash';
 import { playGameStartSound } from '../audio/sfx';
 
 export class ModeSelectScene implements GameScene {
@@ -19,6 +20,7 @@ export class ModeSelectScene implements GameScene {
   constructor(private ctx: SceneContext) {}
 
   enter(_data?: SceneData): void {
+    hideResultsCrash();
     this.renderMain();
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);

@@ -3,6 +3,7 @@ import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
 import { CastleStage } from '../world/CastleStage';
 import { ModelCache } from '../world/ModelCache';
 import { preloadSfx } from '../audio/sfx';
+import { preloadResultsCrash } from '../ui/resultsCrash';
 import { fetchModeHighScores } from '../services/leaderboard';
 import { clearUI } from '../ui/dom';
 
@@ -30,7 +31,7 @@ export class BootScene implements GameScene {
     this.stage = new CastleStage(this.ctx.three.scene);
 
     void fetchModeHighScores();
-    await Promise.all([this.stage.load(), ModelCache.preload(), preloadSfx()]);
+    await Promise.all([this.stage.load(), ModelCache.preload(), preloadSfx(), preloadResultsCrash()]);
     this.ctx.markStageReady();
 
     this.ctx.three.camera.position.set(0, 110, 635);

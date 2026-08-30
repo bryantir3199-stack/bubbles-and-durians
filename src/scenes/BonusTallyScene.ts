@@ -9,6 +9,7 @@ import {
 } from '../audio/sfx';
 import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
 import { clearUI, panel, bindClick } from '../ui/dom';
+import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
 interface TallyRow {
   label: string;
@@ -37,7 +38,7 @@ export class BonusTallyScene implements GameScene {
 
   constructor(private ctx: SceneContext) {}
 
-  enter(data?: SceneData): void {
+  async enter(data?: SceneData): Promise<void> {
     this.mode = data?.mode ?? 'timed';
     this.timedPreset = data?.timedPreset;
     this.timedTally = data?.timedTally;
@@ -46,6 +47,8 @@ export class BonusTallyScene implements GameScene {
       this.timedPreset = this.timedPreset ?? 'short';
       this.timedTally = this.timedTally ?? dummyTimedTally();
     }
+
+    if (!isResultsCrashHeld()) await playResultsCrash();
 
     clearUI(this.ctx.uiRoot);
     const ui = panel(
@@ -101,7 +104,7 @@ export class BonusTallyScene implements GameScene {
       };
       window.addEventListener('pointerdown', this.previewClick, { once: true });
     } else {
-      this.startTimer = window.setTimeout(() => this.animateScores(), 500);
+      this.startTimer = window.setTimeout(() => this.animateScores(), 180);
     }
   }
 

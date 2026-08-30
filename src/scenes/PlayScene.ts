@@ -16,11 +16,13 @@ import { onDeviceShake, requestShakePermission } from '../core/shake';
 import { clearUI } from '../ui/dom';
 import { getCastleStage } from '../world/CastleStage';
 import {
+  fadeOutStageBgm,
   isMuted,
   pauseStageBgm,
   playComboLevelSound,
   playComboLostSound,
   playDryFireSound,
+  playGameOverWhistleSound,
   playGlitterSound,
   playShootSound,
   playSquishSound,
@@ -31,6 +33,7 @@ import {
 } from '../audio/sfx';
 import { matchesBinding } from '../config/settings';
 import { fadeFromOverlay, fadeToBlackAndHold, waitUntilFadeClear } from '../ui/screenFade';
+import { hideResultsCrash, playResultsCrash } from '../ui/resultsCrash';
 
 export class PlayScene implements GameScene {
   readonly id = 'play' as const;
@@ -97,6 +100,7 @@ export class PlayScene implements GameScene {
   constructor(private ctx: SceneContext) {}
 
   enter(data?: SceneData): void {
+    hideResultsCrash();
     clearUI(this.ctx.uiRoot);
     this.mode = data?.mode ?? 'endless';
     this.timedPreset = data?.timedPreset ?? defaultTimedPreset;
@@ -408,6 +412,7 @@ export class PlayScene implements GameScene {
       this.historyPushed = false;
     }
     void fadeToBlackAndHold().then(() => {
+      hideResultsCrash();
       this.ctx.goto('modeSelect');
       return fadeFromOverlay();
     });
@@ -732,31 +737,41 @@ export class PlayScene implements GameScene {
       this.fadeToMainMenu();
       return;
     }
-    window.setTimeout(() => {
-      const timedTally =
-        this.mode === 'timed'
-          ? computeTimedRunTally({
-              runScore: this.score,
-              peakCombo: this.peakCombo,
-              timeAtMaxCombo: this.timeAtMaxCombo,
-              bubblesHit: this.bubblesHit,
-              finaleScore: this.finaleScore,
-              shotsFired: this.shotsFired,
-              accurateHits: this.accurateHits,
-            })
-          : undefined;
-      if (timedTally) {
-        this.ctx.goto('bonusTally', {
-          mode: this.mode,
-          timedPreset: this.timedPreset,
-          timedTally,
-        });
-      } else {
-        this.ctx.goto('gameOver', {
-          mode: this.mode,
-          score: this.score,
-        });
-      }
-    }, 400);
+    playGameOverWhistleSound();
+    fadeOutStageBgm(0.45);
+    this.hud?.destroy();
+    this.hud = null;
+    void this.finishEndGame();
+  }
+
+  private async finishEndGame(): Promise<void> {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 1050));
+    if (this.leavingToMenu) return;
+    await playResultsCrash();
+    if (this.leavingToMenu) return;
+    const timedTally =
+      this.mode === 'timed'
+        ? computeTimedRunTally({
+            runScore: this.score,
+            peakCombo: this.peakCombo,
+            timeAtMaxCombo: this.timeAtMaxCombo,
+            bubblesHit: this.bubblesHit,
+            finaleScore: this.finaleScore,
+            shotsFired: this.shotsFired,
+            accurateHits: this.accurateHits,
+          })
+        : undefined;
+    if (timedTally) {
+      this.ctx.goto('bonusTally', {
+        mode: this.mode,
+        timedPreset: this.timedPreset,
+        timedTally,
+      });
+    } else {
+      this.ctx.goto('gameOver', {
+        mode: this.mode,
+        score: this.score,
+      });
+    }
   }
 }
