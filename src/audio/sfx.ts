@@ -24,6 +24,7 @@ function getBgmGain(): number {
 function syncMutedFromSettings(): void {
   muted = getSettings().audio.muted;
   applyBgmGain();
+  applyBubbleLoopGains();
 }
 
 let muted = getSettings().audio.muted;
@@ -34,7 +35,25 @@ let ctx: AudioContext | null = null;
 let squishBuffer: AudioBuffer | null = null;
 let squishLoad: Promise<AudioBuffer | null> | null = null;
 let popBuffer: AudioBuffer | null = null;
+let popReverseBuffer: AudioBuffer | null = null;
+let popLoopBuffer: AudioBuffer | null = null;
 let popLoad: Promise<AudioBuffer | null> | null = null;
+/** Alternate bubble SFX: false = start forward, true = start reverse. */
+let popPlayReverse = false;
+
+const BUBBLE_LOOP_GAIN = 0.2875;
+/** Base loop was 2×; unchased bubbles run 50% slower, chased 50% faster. */
+const BUBBLE_LOOP_RATE = 1;
+const BUBBLE_LOOP_RATE_CHASED = 3;
+const bubbleLoops = new Set<BubbleLoopHandle>();
+
+export interface BubbleLoopHandle {
+  stopped: boolean;
+  playbackRate: number;
+  src: AudioBufferSourceNode | null;
+  panner: PannerNode | null;
+  gain: GainNode | null;
+}
 let glitterBuffer: AudioBuffer | null = null;
 let glitterLoad: Promise<AudioBuffer | null> | null = null;
 let reloadBuffer: AudioBuffer | null = null;
@@ -150,6 +169,10 @@ async function ensurePopBuffer(): Promise<AudioBuffer | null> {
 
   popLoad = (async () => {
     popBuffer = await loadBuffer('assets/bubble-pop.wav');
+    if (popBuffer) {
+      popReverseBuffer = reverseAudioBuffer(popBuffer);
+      popLoopBuffer = makePingPongBuffer(popBuffer);
+    }
     return popBuffer;
   })();
 
@@ -378,6 +401,7 @@ export function setMuted(value: boolean): boolean {
   muted = value;
   setAudioSettings({ muted: value });
   applyBgmGain();
+  applyBubbleLoopGains();
   return muted;
 }
 
@@ -392,6 +416,7 @@ export function setMusicVolume(volume: number): void {
 export function setSfxVolume(volume: number): void {
   const clamped = Math.max(0, Math.min(1, volume));
   setAudioSettings({ sfxVolume: clamped });
+  applyBubbleLoopGains();
 }
 
 /** Get current music volume (0-1). */
@@ -407,6 +432,198 @@ export function getSfxVolume(): number {
 /** Toggle mute. Returns the new muted state. */
 export function toggleMute(): boolean {
   return setMuted(!muted);
+}
+
+function makePingPongBuffer(forward: AudioBuffer): AudioBuffer | null {
+  const ac = getCtx();
+  if (!ac) return null;
+  const pingPong = ac.createBuffer(forward.numberOfChannels, forward.length * 2, forward.sampleRate);
+  for (let c = 0; c < forward.numberOfChannels; c++) {
+    const src = forward.getChannelData(c);
+    const dst = pingPong.getChannelData(c);
+    dst.set(src, 0);
+    const off = src.length;
+    for (let i = 0, j = src.length - 1; i < src.length; i++, j--) {
+      dst[off + i] = src[j];
+    }
+  }
+  return pingPong;
+}
+
+function bubbleLoopGainValue(): number {
+  return muted ? 0 : BUBBLE_LOOP_GAIN * getSfxScale();
+}
+
+function applyBubbleLoopGains(): void {
+  const g = bubbleLoopGainValue();
+  for (const handle of bubbleLoops) {
+    if (handle.stopped || !handle.gain) continue;
+    handle.gain.gain.value = g;
+  }
+}
+
+function applyPlayListener(ac: AudioContext): void {
+  const listener = ac.listener;
+  if (listener.positionX) {
+    listener.positionX.value = 0;
+    listener.positionY.value = 110;
+    listener.positionZ.value = 635;
+    listener.forwardX.value = 0;
+    listener.forwardY.value = 0;
+    listener.forwardZ.value = -1;
+    listener.upX.value = 0;
+    listener.upY.value = 1;
+    listener.upZ.value = 0;
+  } else {
+    const legacy = listener as AudioListener & {
+      setPosition?: (x: number, y: number, z: number) => void;
+      setOrientation?: (
+        fx: number,
+        fy: number,
+        fz: number,
+        ux: number,
+        uy: number,
+        uz: number,
+      ) => void;
+    };
+    legacy.setPosition?.(0, 110, 635);
+    legacy.setOrientation?.(0, 0, -1, 0, 1, 0);
+  }
+}
+
+function setPannerPosition(panner: PannerNode, x: number, y: number, z: number): void {
+  if (panner.positionX) {
+    panner.positionX.value = x;
+    panner.positionY.value = y;
+    panner.positionZ.value = z;
+  } else {
+    (
+      panner as PannerNode & {
+        setPosition?: (x: number, y: number, z: number) => void;
+      }
+    ).setPosition?.(x, y, z);
+  }
+}
+
+function connectBubbleLoop(
+  handle: BubbleLoopHandle,
+  buffer: AudioBuffer,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  if (handle.stopped) return;
+  const ac = getCtx();
+  if (!ac) return;
+
+  applyPlayListener(ac);
+
+  const src = ac.createBufferSource();
+  const panner = ac.createPanner();
+  const gain = ac.createGain();
+  src.buffer = buffer;
+  src.loop = true;
+  src.playbackRate.value = handle.playbackRate;
+
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 280;
+  panner.maxDistance = 1400;
+  panner.rolloffFactor = 1.15;
+  setPannerPosition(panner, x, y, z);
+
+  gain.gain.value = bubbleLoopGainValue();
+  src.connect(panner);
+  panner.connect(gain);
+  gain.connect(ac.destination);
+
+  const offset = popPlayReverse ? buffer.duration * 0.5 : 0;
+  popPlayReverse = !popPlayReverse;
+  src.start(0, offset);
+
+  handle.src = src;
+  handle.panner = panner;
+  handle.gain = gain;
+}
+
+/** Looping spatial bezier SFX at a bubble's world position (ping-pong). */
+export function startBubbleLoop(
+  x: number,
+  y: number,
+  z: number,
+  chased = false,
+): BubbleLoopHandle {
+  const handle: BubbleLoopHandle = {
+    stopped: false,
+    playbackRate: chased ? BUBBLE_LOOP_RATE_CHASED : BUBBLE_LOOP_RATE,
+    src: null,
+    panner: null,
+    gain: null,
+  };
+  bubbleLoops.add(handle);
+
+  const begin = (buf: AudioBuffer | null) => {
+    if (!buf || handle.stopped) return;
+    connectBubbleLoop(handle, buf, x, y, z);
+  };
+
+  if (popLoopBuffer) begin(popLoopBuffer);
+  else void ensurePopBuffer().then(() => begin(popLoopBuffer));
+
+  return handle;
+}
+
+export function setBubbleLoopPosition(
+  handle: BubbleLoopHandle,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  if (handle.stopped || !handle.panner) return;
+  setPannerPosition(handle.panner, x, y, z);
+}
+
+export function stopBubbleLoop(handle: BubbleLoopHandle | null | undefined): void {
+  if (!handle || handle.stopped) return;
+  handle.stopped = true;
+  bubbleLoops.delete(handle);
+  try {
+    handle.src?.stop();
+  } catch {
+    // already stopped
+  }
+  try {
+    handle.src?.disconnect();
+  } catch {
+    // already disconnected
+  }
+  try {
+    handle.panner?.disconnect();
+  } catch {
+    // already disconnected
+  }
+  try {
+    handle.gain?.disconnect();
+  } catch {
+    // already disconnected
+  }
+  handle.src = null;
+  handle.panner = null;
+  handle.gain = null;
+}
+
+function reverseAudioBuffer(buffer: AudioBuffer): AudioBuffer | null {
+  const ac = getCtx();
+  if (!ac) return null;
+  const reversed = ac.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const src = buffer.getChannelData(c);
+    const dst = reversed.getChannelData(c);
+    for (let i = 0, j = src.length - 1; i < src.length; i++, j--) {
+      dst[i] = src[j];
+    }
+  }
+  return reversed;
 }
 
 function playBuffer(
@@ -427,7 +644,7 @@ function playBuffer(
   gain.gain.value = gainValue * getSfxScale();
   src.connect(gain);
   gain.connect(ac.destination);
-  src.start(0);
+  src.start();
 }
 
 function tearDownBgmSource(): void {
@@ -970,15 +1187,23 @@ export function installMenuButtonSfx(): void {
   );
 }
 
-/** Bubble pop sample when a bubble is shot. */
+/** Bubble pop sample when a bubble is shot — 2× pitch, alternating forward/reverse. */
 export function playPopSound(): void {
+  const play = (forward: AudioBuffer) => {
+    const reverse = popReverseBuffer ?? reverseAudioBuffer(forward);
+    if (reverse && !popReverseBuffer) popReverseBuffer = reverse;
+    const buf = popPlayReverse && reverse ? reverse : forward;
+    popPlayReverse = !popPlayReverse;
+    playBuffer(buf, 0.2875, 0, BUBBLE_LOOP_RATE);
+  };
+
   if (popBuffer) {
-    playBuffer(popBuffer, 0.95, 0.1);
+    play(popBuffer);
     return;
   }
 
   void ensurePopBuffer().then((buf) => {
-    if (buf) playBuffer(buf, 0.95, 0.1);
+    if (buf) play(buf);
   });
 }
 

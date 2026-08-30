@@ -22,7 +22,6 @@ import {
   playComboLostSound,
   playDryFireSound,
   playGlitterSound,
-  playPopSound,
   playShootSound,
   playSquishSound,
   resumeStageBgm,
@@ -506,7 +505,6 @@ export class PlayScene implements GameScene {
         this.finaleScore += points;
       }
     } else if (kind === 'bubble') {
-      playPopSound();
       this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
       this.bubblesHit += 1;

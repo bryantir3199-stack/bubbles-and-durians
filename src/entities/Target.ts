@@ -20,7 +20,7 @@ import { ModelCache } from '../world/ModelCache';
 import { getDoorController } from '../world/DoorController';
 import { SweatParticles } from '../effects/SweatParticles';
 import { DustParticles } from '../effects/DustParticles';
-import { playChompSoundAt, playTeethFlybyEnterSound, playTeethFlybyExitSound } from '../audio/sfx';
+import { playChompSoundAt, playTeethFlybyEnterSound, playTeethFlybyExitSound, startBubbleLoop, setBubbleLoopPosition, stopBubbleLoop, type BubbleLoopHandle } from '../audio/sfx';
 
 function randBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
@@ -40,6 +40,7 @@ const RUN_SQUASH_AMP = 0.07;
 
 const _pathInDir = new THREE.Vector3();
 const _pathOutDir = new THREE.Vector3();
+const _bubbleSfxPos = new THREE.Vector3();
 
 
 export interface TargetSpawnSpec {
@@ -150,6 +151,7 @@ export class Target {
   private readonly pinned: boolean;
   private sweat: SweatParticles | null = null;
   private dust: DustParticles | null = null;
+  private bubbleLoop: BubbleLoopHandle | null = null;
   /** Phase for path-run squash/stretch (radians). */
   private runSquashPhase = Math.random() * Math.PI * 2;
   /** Path chase pair — keeps full run squash rate; solo path runners are slower. */
@@ -240,6 +242,10 @@ export class Target {
     scene.add(this.root);
     this.root.scale.setScalar(0.01);
     if (kind === 'heart') this.visual.lookAt(CAM_X, this.root.position.y, CAM_Z);
+    if (kind === 'bubble') {
+      const p = this.root.position;
+      this.bubbleLoop = startBubbleLoop(p.x, p.y, p.z, !!spec.pathPairLead);
+    }
   }
 
   /**
@@ -560,6 +566,7 @@ export class Target {
         if (this.heartMat) this.heartMat.opacity = 1 - t;
       }
       if (t >= 1) this.destroy();
+      else this.syncBubbleLoop();
       return;
     }
 
@@ -573,10 +580,14 @@ export class Target {
       const e = t * t;
       this.root.position.y = this.sinkFromY + (this.sinkToY - this.sinkFromY) * e;
       if (t >= 1) this.destroy();
+      else this.syncBubbleLoop();
       return;
     }
 
-    if (this.cleared || this.escaped) return;
+    if (this.cleared || this.escaped) {
+      this.syncBubbleLoop();
+      return;
+    }
 
     this.age += dt * 1000;
     // Close targets re-zero age after rising — don't replay the pop-in then.
@@ -656,6 +667,18 @@ export class Target {
 
     this.sweat?.update(dt, this.pathMoveDir);
     this.dust?.update(dt, this.pathMoveDir, this.phase === 'move' && this.pattern === 'path');
+    this.syncBubbleLoop();
+  }
+
+  private syncBubbleLoop(): void {
+    if (!this.bubbleLoop || this.bubbleLoop.stopped) return;
+    this.root.getWorldPosition(_bubbleSfxPos);
+    setBubbleLoopPosition(this.bubbleLoop, _bubbleSfxPos.x, _bubbleSfxPos.y, _bubbleSfxPos.z);
+  }
+
+  private stopBubbleSfx(): void {
+    stopBubbleLoop(this.bubbleLoop);
+    this.bubbleLoop = null;
   }
 
   /** Subtle rapid squash/stretch while path-running (not hearts/teeth), feet planted. */
@@ -866,6 +889,7 @@ export class Target {
     this.startScale = this.root.scale.x;
     this.knockDown = !!opts?.knockDown;
     if (this.knockDown) {
+      this.stopBubbleSfx();
       // Settle the hit-pulse scale so the tip-over reads cleanly.
       this.root.scale.setScalar(1);
       this.visual.scale.set(1, 1, 1);
@@ -880,6 +904,7 @@ export class Target {
   }
 
   destroy(): void {
+    this.stopBubbleSfx();
     this.freeSlot();
     for (const d of this.hpDots) {
       d.parent?.remove(d);
