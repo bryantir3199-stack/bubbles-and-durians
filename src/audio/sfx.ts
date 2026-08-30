@@ -53,6 +53,20 @@ let teethWarnBeepBuffer: AudioBuffer | null = null;
 let teethWarnBeepLoad: Promise<AudioBuffer | null> | null = null;
 let bgmBuffer: AudioBuffer | null = null;
 let bgmLoad: Promise<AudioBuffer | null> | null = null;
+let gameStartBuffer: AudioBuffer | null = null;
+let gameStartLoad: Promise<AudioBuffer | null> | null = null;
+let menuButtonBuffer: AudioBuffer | null = null;
+let menuButtonLoad: Promise<AudioBuffer | null> | null = null;
+let tutorialSelectBuffer: AudioBuffer | null = null;
+let tutorialSelectLoad: Promise<AudioBuffer | null> | null = null;
+let tallyCalcDrumrollBuffer: AudioBuffer | null = null;
+let tallyCalcDrumrollLoad: Promise<AudioBuffer | null> | null = null;
+let tallyRevealDrumrollBuffer: AudioBuffer | null = null;
+let tallyRevealDrumrollLoad: Promise<AudioBuffer | null> | null = null;
+let tallyThudBuffer: AudioBuffer | null = null;
+let tallyThudLoad: Promise<AudioBuffer | null> | null = null;
+let tallyCalcDrumrollSource: AudioBufferSourceNode | null = null;
+let tallyCalcDrumrollGain: GainNode | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
 let bgmGain: GainNode | null = null;
 /** True while a play session wants stage BGM (even if currently paused). */
@@ -103,6 +117,12 @@ export async function preloadSfx(): Promise<void> {
     ensureTeethFlybyBBuffer(),
     ensureTeethWarnBeepBuffer(),
     ensureBgmBuffer(),
+    ensureGameStartBuffer(),
+    ensureMenuButtonBuffer(),
+    ensureTutorialSelectBuffer(),
+    ensureTallyCalcDrumrollBuffer(),
+    ensureTallyRevealDrumrollBuffer(),
+    ensureTallyThudBuffer(),
   ]);
 }
 
@@ -240,6 +260,78 @@ async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return bgmLoad;
+}
+
+async function ensureGameStartBuffer(): Promise<AudioBuffer | null> {
+  if (gameStartBuffer) return gameStartBuffer;
+  if (gameStartLoad) return gameStartLoad;
+
+  gameStartLoad = (async () => {
+    gameStartBuffer = await loadBuffer('assets/game-start.ogg');
+    return gameStartBuffer;
+  })();
+
+  return gameStartLoad;
+}
+
+async function ensureMenuButtonBuffer(): Promise<AudioBuffer | null> {
+  if (menuButtonBuffer) return menuButtonBuffer;
+  if (menuButtonLoad) return menuButtonLoad;
+
+  menuButtonLoad = (async () => {
+    menuButtonBuffer = await loadBuffer('assets/menu-button.wav');
+    return menuButtonBuffer;
+  })();
+
+  return menuButtonLoad;
+}
+
+async function ensureTutorialSelectBuffer(): Promise<AudioBuffer | null> {
+  if (tutorialSelectBuffer) return tutorialSelectBuffer;
+  if (tutorialSelectLoad) return tutorialSelectLoad;
+
+  tutorialSelectLoad = (async () => {
+    tutorialSelectBuffer = await loadBuffer('assets/tutorial-select.wav');
+    return tutorialSelectBuffer;
+  })();
+
+  return tutorialSelectLoad;
+}
+
+async function ensureTallyCalcDrumrollBuffer(): Promise<AudioBuffer | null> {
+  if (tallyCalcDrumrollBuffer) return tallyCalcDrumrollBuffer;
+  if (tallyCalcDrumrollLoad) return tallyCalcDrumrollLoad;
+
+  tallyCalcDrumrollLoad = (async () => {
+    tallyCalcDrumrollBuffer = await loadBuffer('assets/tally-calc-drumroll.mp3');
+    return tallyCalcDrumrollBuffer;
+  })();
+
+  return tallyCalcDrumrollLoad;
+}
+
+async function ensureTallyRevealDrumrollBuffer(): Promise<AudioBuffer | null> {
+  if (tallyRevealDrumrollBuffer) return tallyRevealDrumrollBuffer;
+  if (tallyRevealDrumrollLoad) return tallyRevealDrumrollLoad;
+
+  tallyRevealDrumrollLoad = (async () => {
+    tallyRevealDrumrollBuffer = await loadBuffer('assets/tally-reveal-drumroll.wav');
+    return tallyRevealDrumrollBuffer;
+  })();
+
+  return tallyRevealDrumrollLoad;
+}
+
+async function ensureTallyThudBuffer(): Promise<AudioBuffer | null> {
+  if (tallyThudBuffer) return tallyThudBuffer;
+  if (tallyThudLoad) return tallyThudLoad;
+
+  tallyThudLoad = (async () => {
+    tallyThudBuffer = await loadBuffer('assets/tally-thud.wav');
+    return tallyThudBuffer;
+  })();
+
+  return tallyThudLoad;
 }
 
 export function isMuted(): boolean {
@@ -621,6 +713,205 @@ export function playSquishSound(): void {
   void ensureSquishBuffer().then((buf) => {
     if (buf) playBuffer(buf);
   });
+}
+
+/** Menu sting when starting Endless / Blitz / Standard. */
+export function playGameStartSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.9, 0, 1);
+  if (gameStartBuffer) {
+    play(gameStartBuffer);
+    return;
+  }
+
+  void ensureGameStartBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** UI click for menus and HUD controls (not How To Play overlay). */
+export function playMenuButtonSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.85, 0, 1);
+  if (menuButtonBuffer) {
+    play(menuButtonBuffer);
+    return;
+  }
+
+  void ensureMenuButtonBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+function tearDownTallyCalcDrumroll(): void {
+  if (tallyCalcDrumrollSource) {
+    try {
+      tallyCalcDrumrollSource.stop();
+    } catch {
+      // already stopped
+    }
+    try {
+      tallyCalcDrumrollSource.disconnect();
+    } catch {
+      // already disconnected
+    }
+    tallyCalcDrumrollSource = null;
+  }
+  if (tallyCalcDrumrollGain) {
+    try {
+      tallyCalcDrumrollGain.disconnect();
+    } catch {
+      // already disconnected
+    }
+    tallyCalcDrumrollGain = null;
+  }
+}
+
+/** Ceremony drumroll while bonus rows count up. */
+export function playTallyCalcDrumroll(): void {
+  stopTallyCalcDrumroll(0);
+  if (muted) return;
+
+  const start = (buf: AudioBuffer) => {
+    if (muted) return;
+    const ac = getCtx();
+    if (!ac) return;
+    tearDownTallyCalcDrumroll();
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buf;
+    src.playbackRate.value = 1;
+    gain.gain.value = 0.9 * getSfxScale();
+    src.connect(gain);
+    gain.connect(ac.destination);
+    tallyCalcDrumrollSource = src;
+    tallyCalcDrumrollGain = gain;
+    src.start(0);
+  };
+
+  if (tallyCalcDrumrollBuffer) {
+    start(tallyCalcDrumrollBuffer);
+    return;
+  }
+  void ensureTallyCalcDrumrollBuffer().then((buf) => {
+    if (buf) start(buf);
+  });
+}
+
+/** Stop the tally calculation drumroll (short fade into the final reveal). */
+export function stopTallyCalcDrumroll(fadeSec = 0.12): void {
+  const src = tallyCalcDrumrollSource;
+  const gain = tallyCalcDrumrollGain;
+  if (!src || !gain) return;
+  tallyCalcDrumrollSource = null;
+  tallyCalcDrumrollGain = null;
+
+  const ac = ctx;
+  const dur = Math.max(0, fadeSec);
+  if (ac && dur > 0 && !muted) {
+    const now = ac.currentTime;
+    const param = gain.gain;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(Math.max(0.0001, param.value), now);
+    param.linearRampToValueAtTime(0, now + dur);
+    window.setTimeout(() => {
+      try {
+        src.stop();
+      } catch {
+        // already stopped
+      }
+      try {
+        src.disconnect();
+      } catch {
+        // already disconnected
+      }
+      try {
+        gain.disconnect();
+      } catch {
+        // already disconnected
+      }
+    }, dur * 1000 + 30);
+    return;
+  }
+
+  try {
+    src.stop();
+  } catch {
+    // already stopped
+  }
+  try {
+    src.disconnect();
+  } catch {
+    // already disconnected
+  }
+  try {
+    gain.disconnect();
+  } catch {
+    // already disconnected
+  }
+}
+
+/** Cymbal crash when the final total finishes counting. */
+export function playTallyRevealDrumroll(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.95, 0, 1);
+  if (tallyRevealDrumrollBuffer) {
+    play(tallyRevealDrumrollBuffer);
+    return;
+  }
+  void ensureTallyRevealDrumrollBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** Impact when the final total slams in. */
+export function playTallyThudSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 1.05, 0, 1);
+  if (tallyThudBuffer) {
+    play(tallyThudBuffer);
+    return;
+  }
+  void ensureTallyThudBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** Click for How To Play overlay buttons. */
+export function playTutorialButtonSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.9, 0, 1);
+  if (tutorialSelectBuffer) {
+    play(tutorialSelectBuffer);
+    return;
+  }
+
+  void ensureTutorialSelectBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+let menuButtonSfxInstalled = false;
+
+/** Play UI click SFX: tutorial overlay, menus, HUD — not mode-start or reload. */
+export function installMenuButtonSfx(): void {
+  if (menuButtonSfxInstalled || typeof document === 'undefined') return;
+  menuButtonSfxInstalled = true;
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const el = e.target instanceof Element ? e.target : null;
+      if (!el) return;
+      const control = el.closest('button, [role="button"]');
+      if (!(control instanceof HTMLElement)) return;
+      if (control instanceof HTMLButtonElement && control.disabled) return;
+      if (control.closest('.tut-coach')) {
+        playTutorialButtonSound();
+        return;
+      }
+      if (control.classList.contains('hud-reload-btn') || control.classList.contains('hud-ammo')) return;
+      const mode = control.dataset.mode;
+      if (mode === 'endless' || mode === 'timed') return;
+      playMenuButtonSound();
+    },
+    true,
+  );
 }
 
 /** Bubble pop sample when a bubble is shot. */

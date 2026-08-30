@@ -6,6 +6,7 @@ import { clearUI, panel, bindClick } from '../ui/dom';
 import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
+import { playGameStartSound } from '../audio/sfx';
 
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
@@ -78,6 +79,7 @@ export class ModeSelectScene implements GameScene {
         const timedPreset = (el.dataset.timed as TimedPreset | undefined) ?? defaultTimedPreset;
         if (this.leaving) return;
         this.leaving = true;
+        if (mode === 'endless' || mode === 'timed') playGameStartSound();
         if (isCoarsePointer()) tryEnterFullscreen();
         this.flashThen(el, () => {
           void requestShakePermission()

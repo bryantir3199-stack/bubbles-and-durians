@@ -53,6 +53,7 @@ export class HUD {
   private thirtyBannerShown = false;
   private lastCountdownSec = -1;
   private paused = false;
+  private introSlideTimer = 0;
   private readonly mode: GameMode;
   private readonly mobile = isCoarsePointer();
   private readonly timedConfig: TimedPresetConfig | null;
@@ -68,6 +69,7 @@ export class HUD {
     this.callbacks = callbacks;
     this.root = document.createElement('div');
     this.root.className = this.mobile ? 'hud hud-mobile' : 'hud';
+    if (mode !== 'tutorial') this.root.classList.add('hud-intro-off');
 
     const frenzyMeter =
       mode !== 'timed'
@@ -639,8 +641,27 @@ export class HUD {
     window.setTimeout(() => el.remove(), 750);
   }
 
+  /** Slide score / ammo / time-or-lives on after the scene fade. Resolves in 0.5s. */
+  playIntroSlide(): Promise<void> {
+    if (!this.root.classList.contains('hud-intro-off')) return Promise.resolve();
+    void this.root.offsetWidth;
+    this.root.classList.add('hud-intro-in');
+    this.root.classList.remove('hud-intro-off');
+    return new Promise((resolve) => {
+      window.clearTimeout(this.introSlideTimer);
+      this.introSlideTimer = window.setTimeout(() => {
+        this.introSlideTimer = 0;
+        this.root.classList.remove('hud-intro-in');
+        resolve();
+      }, 500);
+    });
+  }
+
   destroy(): void {
+    window.clearTimeout(this.introSlideTimer);
+    this.introSlideTimer = 0;
     this.closePauseOptions();
+    this.root.classList.remove('hud-intro-off', 'hud-intro-in');
     this.root.remove();
   }
 }

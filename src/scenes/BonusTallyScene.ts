@@ -1,6 +1,13 @@
 import type { GameMode, TimedPreset, TimedRunTally } from '../config/gameConfig';
 import { defaultTimedPreset, gameConfig, getTimedPreset } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import {
+  playTallyCalcDrumroll,
+  playTallyRevealDrumroll,
+  playTallyThudSound,
+  stopTallyCalcDrumroll,
+} from '../audio/sfx';
+import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
 import { clearUI, panel, bindClick } from '../ui/dom';
 
 interface TallyRow {
@@ -19,6 +26,10 @@ export class BonusTallyScene implements GameScene {
   private timedTally: TimedRunTally | undefined;
   private onKey: ((e: KeyboardEvent) => void) | null = null;
   private animationHandle: number | null = null;
+  private slamHitTimer = 0;
+  private slamShakeTimer = 0;
+  private startTimer = 0;
+  private previewClick: ((e: PointerEvent) => void) | null = null;
   private continueBtn: HTMLButtonElement | null = null;
 
   private tallyInfoWrap: HTMLElement | null = null;
@@ -30,13 +41,20 @@ export class BonusTallyScene implements GameScene {
     this.mode = data?.mode ?? 'timed';
     this.timedPreset = data?.timedPreset;
     this.timedTally = data?.timedTally;
+    if (wantsBonusTallyPreview()) {
+      this.mode = 'timed';
+      this.timedPreset = this.timedPreset ?? 'short';
+      this.timedTally = this.timedTally ?? dummyTimedTally();
+    }
 
     clearUI(this.ctx.uiRoot);
     const ui = panel(
       'menu bonus-tally',
       `<div class="menu-card">
         <h1 class="danger">GAME OVER</h1>
-        <p class="muted">${this.modeLabel()}</p>
+        <p class="muted">${this.modeLabel()}${
+          wantsBonusTallyPreview() ? '<br>Click to start tally preview' : ''
+        }</p>
         ${this.scoreMarkup()}
         <div class="btn-row">
           <button type="button" class="btn primary" data-action="continue" disabled>CONTINUE</button>
@@ -76,7 +94,15 @@ export class BonusTallyScene implements GameScene {
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
-    window.setTimeout(() => this.animateScores(), 500);
+    if (wantsBonusTallyPreview()) {
+      this.previewClick = () => {
+        this.clearPreviewClick();
+        this.animateScores();
+      };
+      window.addEventListener('pointerdown', this.previewClick, { once: true });
+    } else {
+      this.startTimer = window.setTimeout(() => this.animateScores(), 500);
+    }
   }
 
   update(): void {}
@@ -87,11 +113,25 @@ export class BonusTallyScene implements GameScene {
     this.tallyInfoWrap = null;
     this.tallyInfoBtn = null;
     this.continueBtn = null;
+    this.clearPreviewClick();
+    window.clearTimeout(this.startTimer);
+    this.startTimer = 0;
     if (this.animationHandle !== null) {
       cancelAnimationFrame(this.animationHandle);
       this.animationHandle = null;
     }
+    window.clearTimeout(this.slamHitTimer);
+    this.slamHitTimer = 0;
+    window.clearTimeout(this.slamShakeTimer);
+    this.slamShakeTimer = 0;
+    stopTallyCalcDrumroll(0);
     clearUI(this.ctx.uiRoot);
+  }
+
+  private clearPreviewClick(): void {
+    if (!this.previewClick) return;
+    window.removeEventListener('pointerdown', this.previewClick);
+    this.previewClick = null;
   }
 
   private modeLabel(): string {
@@ -154,8 +194,11 @@ export class BonusTallyScene implements GameScene {
     const countDurationMs = 500;
     const delayBetweenRows = 250;
 
+    playTallyCalcDrumroll();
+
     const animateRow = (rowIndex: number) => {
       if (rowIndex >= rows.length) {
+        stopTallyCalcDrumroll(0.08);
         if (this.continueBtn) {
           this.continueBtn.disabled = false;
         }
@@ -195,9 +238,10 @@ export class BonusTallyScene implements GameScene {
 
           if (isTotal) {
             this.slamEffect(row, valueEl);
+            window.setTimeout(() => animateRow(rowIndex + 1), 650);
+          } else {
+            window.setTimeout(() => animateRow(rowIndex + 1), delayBetweenRows);
           }
-
-          window.setTimeout(() => animateRow(rowIndex + 1), delayBetweenRows);
         }
       };
 
@@ -211,16 +255,25 @@ export class BonusTallyScene implements GameScene {
     valueEl.classList.add('slam-pop');
     row.classList.add('slam-pop');
 
-    const menuCard = this.ctx.uiRoot.querySelector<HTMLElement>('.menu-card');
-    if (menuCard) {
-      menuCard.classList.add('screen-shake');
-      window.setTimeout(() => menuCard.classList.remove('screen-shake'), 500);
-    }
+    window.clearTimeout(this.slamShakeTimer);
+    this.slamShakeTimer = window.setTimeout(() => {
+      this.slamShakeTimer = 0;
+      const menuCard = this.ctx.uiRoot.querySelector<HTMLElement>('.menu-card');
+      if (menuCard) {
+        menuCard.classList.add('screen-shake');
+        window.setTimeout(() => menuCard.classList.remove('screen-shake'), 500);
+      }
+    }, 350);
 
-    window.setTimeout(() => {
+    window.clearTimeout(this.slamHitTimer);
+    this.slamHitTimer = window.setTimeout(() => {
+      this.slamHitTimer = 0;
       valueEl.classList.remove('slam-pop');
       row.classList.remove('slam-pop');
-    }, 400);
+      stopTallyCalcDrumroll(0.06);
+      playTallyRevealDrumroll();
+      playTallyThudSound();
+    }, 650);
   }
 
   private easeOutQuart(t: number): number {

@@ -2478,6 +2478,42 @@
       .boot-dot:nth-child(3) {
         animation: bootDot3 1.8s linear infinite;
       }
+      .hud.hud-intro-off .hud-score,
+      .hud.hud-intro-off .hud-ammo,
+      .hud.hud-intro-off .hud-time,
+      .hud.hud-intro-off .hud-lives,
+      html.touch-ui .hud.hud-intro-off .hud-score,
+      html.touch-ui .hud.hud-intro-off .hud-ammo,
+      html.touch-ui .hud.hud-intro-off .hud-time,
+      html.touch-ui .hud.hud-intro-off .hud-lives {
+        transition: none;
+      }
+      .hud.hud-intro-off .hud-score,
+      html.touch-ui .hud.hud-intro-off .hud-score {
+        transform: translate3d(-120vw, 0, 0);
+      }
+      .hud.hud-intro-off .hud-ammo,
+      html.touch-ui .hud.hud-intro-off .hud-ammo {
+        transform: translate3d(0, 120vh, 0);
+      }
+      .hud.hud-intro-off .hud-time,
+      .hud.hud-intro-off .hud-lives,
+      html.touch-ui .hud.hud-intro-off .hud-time,
+      html.touch-ui .hud.hud-intro-off .hud-lives {
+        transform: translate3d(120vw, 0, 0);
+      }
+      .hud.hud-intro-in .hud-score,
+      .hud.hud-intro-in .hud-ammo,
+      .hud.hud-intro-in .hud-time,
+      .hud.hud-intro-in .hud-lives,
+      html.touch-ui .hud.hud-intro-in .hud-score,
+      html.touch-ui .hud.hud-intro-in .hud-ammo,
+      html.touch-ui .hud.hud-intro-in .hud-time,
+      html.touch-ui .hud.hud-intro-in .hud-lives {
+        transform: none;
+        transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
       @keyframes bootDot1 {
         0%, 16.66% { opacity: 0; }
         16.67% { opacity: 1; }

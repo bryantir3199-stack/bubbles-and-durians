@@ -229,19 +229,23 @@ export class PlayScene implements GameScene {
     }
 
     document.body.classList.add('playing');
-    startStageBgm();
     if (this.mode !== 'tutorial') {
       history.pushState({ play: true }, '');
       this.historyPushed = true;
       window.addEventListener('popstate', this.onPopState);
     }
-    void waitUntilFadeClear().then(() => {
+    void waitUntilFadeClear().then(async () => {
       if (this.ended) return;
       if (this.mode === 'tutorial') {
         this.introLocked = false;
+        startStageBgm();
         this.beginTutorial();
         return;
       }
+      await this.waitMs(1000);
+      if (this.ended) return;
+      await this.hud?.playIntroSlide();
+      if (this.ended) return;
       this.runStartCountdown();
     });
   }
@@ -631,6 +635,13 @@ export class PlayScene implements GameScene {
     return this.mode === 'endless' || this.mode === 'tutorial';
   }
 
+  private waitMs(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      const id = window.setTimeout(resolve, ms);
+      this.unsubs.push(() => window.clearTimeout(id));
+    });
+  }
+
   private runStartCountdown(): void {
     const beats: Array<{ text: string; tick?: boolean; go?: boolean }> = [
       { text: 'Ready?' },
@@ -644,6 +655,7 @@ export class PlayScene implements GameScene {
       if (this.ended) return;
       if (i >= beats.length) {
         this.introLocked = false;
+        startStageBgm();
         this.spawner?.start();
         return;
       }

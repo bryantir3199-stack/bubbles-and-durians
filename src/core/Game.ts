@@ -20,6 +20,7 @@ import {
 } from './display';
 import { getSettings, onSettingsChange } from '../config/settings';
 import { attachScreenFade } from '../ui/screenFade';
+import { installMenuButtonSfx } from '../audio/sfx';
 
 /**
  * Owns the WebGL renderer, shared Three.js scene/camera,
@@ -50,6 +51,7 @@ export class Game {
     this.uiRoot.id = 'ui-root';
     this.uiRoot.className = 'ui-root';
     container.appendChild(this.uiRoot);
+    installMenuButtonSfx();
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,

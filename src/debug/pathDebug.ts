@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { computeTimedRunTally, type TimedRunTally } from '../config/gameConfig';
 import { GATE_LANE_COUNT, GATE_PATHS } from '../config/spawnLayout';
 
 const LANE_COLORS = [0xff6644, 0x44aaff, 0xffdd33, 0x66ff99];
@@ -50,6 +51,30 @@ export function wantsTeethFlybyNow(): boolean {
   if (!params.has('teeth')) return false;
   const v = params.get('teeth');
   return v === null || v === '' || v === '1' || v === 'true';
+}
+
+/**
+ * Skip to the timed bonus-tally screen with sample scores.
+ * `?tally=1`
+ */
+export function wantsBonusTallyPreview(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('tally')) return false;
+  const v = params.get('tally');
+  return v === null || v === '' || v === '1' || v === 'true';
+}
+
+/** Sample timed breakdown for `?tally=1`. */
+export function dummyTimedTally(): TimedRunTally {
+  return computeTimedRunTally({
+    runScore: 24_600,
+    peakCombo: 5,
+    timeAtMaxCombo: 14,
+    bubblesHit: 0,
+    finaleScore: 4_800,
+    shotsFired: 80,
+    accurateHits: 72,
+  });
 }
 
 /**

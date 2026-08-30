@@ -1,4 +1,5 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
+import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
 import { CastleStage } from '../world/CastleStage';
 import { ModelCache } from '../world/ModelCache';
 import { preloadSfx } from '../audio/sfx';
@@ -34,6 +35,17 @@ export class BootScene implements GameScene {
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
+
+    if (wantsBonusTallyPreview()) {
+      window.setTimeout(() => {
+        this.ctx.goto('bonusTally', {
+          mode: 'timed',
+          timedPreset: 'short',
+          timedTally: dummyTimedTally(),
+        });
+      }, 200);
+      return;
+    }
 
     window.setTimeout(() => this.ctx.goto('title'), 200);
   }
