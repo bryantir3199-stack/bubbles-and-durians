@@ -352,12 +352,51 @@
       }
       .menu-btn-label {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 6px;
+      }
+      .menu-icon {
+        display: block;
+        object-fit: contain;
+        pointer-events: none;
+        flex-shrink: 0;
+      }
+      .menu-tile.endless,
+      .menu-tile.timed {
+        gap: 0;
+      }
+      .menu-icon-mode {
+        position: relative;
+        width: auto;
+        height: 1.5em;
+        margin-bottom: -0.72em;
+        transform: translateY(-0.08em);
+        z-index: 2;
+        pointer-events: none;
+      }
+      .menu-tile:not(.util) .menu-btn-label {
+        transform: translateY(0.12em);
+        z-index: 3;
+      }
+      .menu-tile.util .menu-btn-label {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        column-gap: 0.4em;
+        row-gap: 0.12em;
+      }
+      .menu-icon-util {
+        height: 1em;
+        width: auto;
+      }
+      .menu-tile.util .menu-hi-score {
+        flex-basis: 100%;
+        text-align: center;
       }
       .menu-tile.is-selecting {
         animation: menuTileSelectFlash 0.75s steps(1, end) forwards;

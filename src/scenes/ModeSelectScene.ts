@@ -53,19 +53,35 @@ export class ModeSelectScene implements GameScene {
       `<div class="main-menu-content main-menu-home">
         <nav class="main-menu-layout" aria-label="Main menu">
           <div class="main-menu-modes">
-            <button type="button" class="menu-tile endless" data-mode="endless">Endless Mode</button>
+            <button type="button" class="menu-tile endless" data-mode="endless">
+              <img class="menu-icon menu-icon-mode" src="assets/menu-icon-endless.png" alt="" aria-hidden="true">
+              Endless Mode
+            </button>
             <div class="main-menu-timed">
-              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="short">Blitz</button>
-              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="medium">Standard</button>
+              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="short">
+                <img class="menu-icon menu-icon-mode" src="assets/menu-icon-blitz.png" alt="" aria-hidden="true">
+                Blitz
+              </button>
+              <button type="button" class="menu-tile timed" data-mode="timed" data-timed="medium">
+                <img class="menu-icon menu-icon-mode" src="assets/menu-icon-standard.png" alt="" aria-hidden="true">
+                Standard
+              </button>
             </div>
           </div>
           <div class="main-menu-utils">
-            <button type="button" class="menu-tile util tutorial" data-mode="tutorial">How To Play</button>
+            <button type="button" class="menu-tile util tutorial" data-mode="tutorial">
+              <img class="menu-icon menu-icon-util" src="assets/menu-icon-howto.png" alt="" aria-hidden="true">
+              How To Play
+            </button>
             <button type="button" class="menu-tile util" data-action="lb">
+              <img class="menu-icon menu-icon-util" src="assets/menu-icon-leaderboard.png" alt="" aria-hidden="true">
               Leaderboard
               ${highScoreSlotHtml()}
             </button>
-            <button type="button" class="menu-tile util" data-action="options">Settings</button>
+            <button type="button" class="menu-tile util" data-action="options">
+              <img class="menu-icon menu-icon-util" src="assets/menu-icon-settings.png" alt="" aria-hidden="true">
+              Settings
+            </button>
           </div>
         </nav>
       </div>`,
