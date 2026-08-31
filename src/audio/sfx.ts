@@ -90,6 +90,8 @@ let comboLevelBuffer: AudioBuffer | null = null;
 let comboLevelLoad: Promise<AudioBuffer | null> | null = null;
 let coachWhistleBuffer: AudioBuffer | null = null;
 let coachWhistleLoad: Promise<AudioBuffer | null> | null = null;
+let resultsSlamBuffer: AudioBuffer | null = null;
+let resultsSlamLoad: Promise<AudioBuffer | null> | null = null;
 let tallyCalcDrumrollSource: AudioBufferSourceNode | null = null;
 let tallyCalcDrumrollGain: GainNode | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
@@ -151,6 +153,7 @@ export async function preloadSfx(): Promise<void> {
     ensureComboLostBuffer(),
     ensureComboLevelBuffer(),
     ensureCoachWhistleBuffer(),
+    ensureResultsSlamBuffer(),
   ]);
 }
 
@@ -400,6 +403,18 @@ async function ensureCoachWhistleBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return coachWhistleLoad;
+}
+
+async function ensureResultsSlamBuffer(): Promise<AudioBuffer | null> {
+  if (resultsSlamBuffer) return resultsSlamBuffer;
+  if (resultsSlamLoad) return resultsSlamLoad;
+
+  resultsSlamLoad = (async () => {
+    resultsSlamBuffer = await loadBuffer('assets/results-slam.wav');
+    return resultsSlamBuffer;
+  })();
+
+  return resultsSlamLoad;
 }
 
 export function isMuted(): boolean {
@@ -986,6 +1001,19 @@ export function playGameOverWhistleSound(): void {
   }
 
   void ensureCoachWhistleBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
+/** Metallic anvil slam when the RESULTS plaque halves collide. */
+export function playResultsSlamSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 1.05, 0, 1);
+  if (resultsSlamBuffer) {
+    play(resultsSlamBuffer);
+    return;
+  }
+
+  void ensureResultsSlamBuffer().then((buf) => {
     if (buf) play(buf);
   });
 }

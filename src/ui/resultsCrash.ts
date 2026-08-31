@@ -1,4 +1,7 @@
+import { playResultsSlamSound } from '../audio/sfx';
+
 const SLAM_MS = 320;
+const IMPACT_MS = Math.round(SLAM_MS * 0.72);
 const HIT_MS = 380;
 
 let overlay: HTMLElement | null = null;
@@ -13,9 +16,11 @@ export function attachResultsCrash(host: HTMLElement): void {
   overlay.className = 'results-crash';
   overlay.setAttribute('aria-hidden', 'true');
   overlay.innerHTML =
+    '<div class="results-crash-bleed">' +
     '<div class="results-crash-pane results-crash-top"></div>' +
     '<div class="results-crash-pane results-crash-bottom"></div>' +
-    '<div class="results-crash-flash"></div>';
+    '<div class="results-crash-flash"></div>' +
+    '</div>';
   host.appendChild(overlay);
 }
 
@@ -40,9 +45,10 @@ export async function playResultsCrash(): Promise<void> {
   document.body.classList.add('results-crash-on');
   overlay.getBoundingClientRect();
   overlay.classList.add('is-slam');
-  await wait(SLAM_MS);
+  await wait(IMPACT_MS);
+  playResultsSlamSound();
   overlay.classList.add('is-hit');
-  await wait(HIT_MS);
+  await wait(SLAM_MS - IMPACT_MS + HIT_MS);
   overlay.classList.remove('is-playing', 'is-slam', 'is-hit');
   overlay.classList.add('is-held');
   playing = false;
