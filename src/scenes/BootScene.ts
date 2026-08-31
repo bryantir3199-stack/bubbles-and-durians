@@ -1,5 +1,5 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
+import { dummyTimedTally, wantsBonusTallyPreview, wantsTeethFlybyNow } from '../debug/pathDebug';
 import { CastleStage } from '../world/CastleStage';
 import { ModelCache } from '../world/ModelCache';
 import { preloadSfx } from '../audio/sfx';
@@ -44,6 +44,13 @@ export class BootScene implements GameScene {
           timedPreset: 'short',
           timedTally: dummyTimedTally(),
         });
+      }, 200);
+      return;
+    }
+
+    if (wantsTeethFlybyNow()) {
+      window.setTimeout(() => {
+        this.ctx.goto('play', { mode: 'timed', timedPreset: 'short' });
       }, 200);
       return;
     }

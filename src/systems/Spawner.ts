@@ -24,6 +24,8 @@ export interface SpawnerOptions {
   getLives?: () => number;
   /** Timed mode: seconds remaining when the final spawn-rate boost begins. */
   timedFinalBoostSeconds?: number;
+  /** When true, skip RNG spawns (scripted teeth flyby only). */
+  teethOnly?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export class Spawner {
   private readonly closeOnly: boolean;
   private readonly getLives: (() => number) | undefined;
   private readonly timedFinalBoostSeconds: number;
+  private readonly teethOnly: boolean;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
   /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
@@ -71,6 +74,7 @@ export class Spawner {
     this.closeOnly = options?.closeOnly === true;
     this.getLives = options?.getLives;
     this.timedFinalBoostSeconds = options?.timedFinalBoostSeconds ?? 30;
+    this.teethOnly = options?.teethOnly === true;
   }
 
   start(): void {
@@ -301,6 +305,7 @@ export class Spawner {
   }
 
   private trySpawn(): void {
+    if (this.teethOnly) return;
     // Hard stop: do not remove anyone; only spawn when a slot is free.
     if (this.liveCount() >= gameConfig.maxTargets) return;
 

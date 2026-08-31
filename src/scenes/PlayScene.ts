@@ -26,6 +26,7 @@ import {
   playGlitterSound,
   playShootSound,
   playSquishSound,
+  playTeethHitSound,
   resumeStageBgm,
   startStageBgm,
   stopStageBgm,
@@ -159,6 +160,7 @@ export class PlayScene implements GameScene {
       getLives: () => this.lives,
       timedFinalBoostSeconds:
         this.mode === 'timed' ? this.timedConfig.finalBoostSeconds : undefined,
+      teethOnly: wantsTeethFlybyNow(),
     });
     this.hud = new HUD(
       this.ctx.uiRoot,
@@ -302,9 +304,19 @@ export class PlayScene implements GameScene {
     this.hud.showTeethWarn();
   }
 
-  /** Timed only: scripted one-shot teeth dash after early-game grace. */
+  /** Timed only: scripted teeth dash (debug ?teeth=1 repeats after each pass). */
   private trySpawnTeethFlyby(): void {
-    if (this.mode !== 'timed' || this.teethFlybySpawned || !this.spawner) return;
+    if (this.mode !== 'timed' || !this.spawner) return;
+    if (wantsTeethFlybyNow()) {
+      const live = this.spawner.targets.some((t) => t.kind === 'teeth');
+      if (live) return;
+      if (this.teethFlybySpawned) {
+        this.teethFlybySpawned = false;
+        this.teethWarnShown = false;
+        this.teethFlybyAtMs = this.spawner.getElapsedMs() + 1200;
+      }
+    }
+    if (this.teethFlybySpawned) return;
     if (this.spawner.getElapsedMs() < this.teethFlybyAtMs) return;
     const spawned = this.spawner.forceSpawn('teeth', 'path', {
       pathIndex: TEETH_FLYBY_PATH_INDEX,
@@ -521,6 +533,7 @@ export class PlayScene implements GameScene {
       this.hud?.spawnFloater(clientX, clientY, '+♥', '#ff2d55');
     } else if (kind === 'teeth') {
       playSquishSound();
+      playTeethHitSound();
       // Flat award by preset — no combo / finale mult.
       this.addScore(teethPointsForPreset(this.timedPreset), clientX, clientY, '#ffe8a0');
     }

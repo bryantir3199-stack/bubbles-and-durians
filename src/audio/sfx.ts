@@ -70,6 +70,10 @@ let teethFlybyBBuffer: AudioBuffer | null = null;
 let teethFlybyBLoad: Promise<AudioBuffer | null> | null = null;
 let teethWarnBeepBuffer: AudioBuffer | null = null;
 let teethWarnBeepLoad: Promise<AudioBuffer | null> | null = null;
+let teethHitApplauseBuffer: AudioBuffer | null = null;
+let teethHitApplauseLoad: Promise<AudioBuffer | null> | null = null;
+let teethHitHoorayBuffer: AudioBuffer | null = null;
+let teethHitHoorayLoad: Promise<AudioBuffer | null> | null = null;
 let bgmBuffer: AudioBuffer | null = null;
 let bgmLoad: Promise<AudioBuffer | null> | null = null;
 let gameStartBuffer: AudioBuffer | null = null;
@@ -143,6 +147,8 @@ export async function preloadSfx(): Promise<void> {
     ensureTeethFlybyABuffer(),
     ensureTeethFlybyBBuffer(),
     ensureTeethWarnBeepBuffer(),
+    ensureTeethHitApplauseBuffer(),
+    ensureTeethHitHoorayBuffer(),
     ensureBgmBuffer(),
     ensureGameStartBuffer(),
     ensureMenuButtonBuffer(),
@@ -283,6 +289,30 @@ async function ensureTeethWarnBeepBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return teethWarnBeepLoad;
+}
+
+async function ensureTeethHitApplauseBuffer(): Promise<AudioBuffer | null> {
+  if (teethHitApplauseBuffer) return teethHitApplauseBuffer;
+  if (teethHitApplauseLoad) return teethHitApplauseLoad;
+
+  teethHitApplauseLoad = (async () => {
+    teethHitApplauseBuffer = await loadBuffer('assets/teeth-hit-applause.mp3');
+    return teethHitApplauseBuffer;
+  })();
+
+  return teethHitApplauseLoad;
+}
+
+async function ensureTeethHitHoorayBuffer(): Promise<AudioBuffer | null> {
+  if (teethHitHoorayBuffer) return teethHitHoorayBuffer;
+  if (teethHitHoorayLoad) return teethHitHoorayLoad;
+
+  teethHitHoorayLoad = (async () => {
+    teethHitHoorayBuffer = await loadBuffer('assets/teeth-hit-hooray.wav');
+    return teethHitHoorayBuffer;
+  })();
+
+  return teethHitHoorayLoad;
 }
 
 async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
@@ -928,6 +958,24 @@ export function playTeethFlybyExitSound(): void {
   void ensureTeethFlybyBBuffer().then((buf) => {
     if (buf) playBuffer(buf, 3.6, 0, 1);
   });
+}
+
+/** Crowd applause + hooray when the player hits the teeth. */
+export function playTeethHitSound(): void {
+  const playApplause = (buf: AudioBuffer) => playBuffer(buf, 0.72, 0, 1);
+  const playHooray = (buf: AudioBuffer) => playBuffer(buf, 0.9, 0, 1);
+  if (teethHitApplauseBuffer) playApplause(teethHitApplauseBuffer);
+  else {
+    void ensureTeethHitApplauseBuffer().then((buf) => {
+      if (buf) playApplause(buf);
+    });
+  }
+  if (teethHitHoorayBuffer) playHooray(teethHitHoorayBuffer);
+  else {
+    void ensureTeethHitHoorayBuffer().then((buf) => {
+      if (buf) playHooray(buf);
+    });
+  }
 }
 
 /** Short beep for each teeth-warn exclaim blink (overlaps freely). */

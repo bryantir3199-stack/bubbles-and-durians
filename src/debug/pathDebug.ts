@@ -43,8 +43,9 @@ export function wantsPathPairsOnly(): boolean {
 }
 
 /**
- * Timed teeth flyby debug: spawn ~1s into the run instead of after early-game grace.
- * Use with a Timed mode start: `?teeth=1`
+ * Teeth-only debug: skip menus, start Timed Blitz, suppress other targets,
+ * and spawn the flyby ~1s in (then again after each pass).
+ * `?teeth=1`
  */
 export function wantsTeethFlybyNow(): boolean {
   const params = new URLSearchParams(window.location.search);
