@@ -235,6 +235,15 @@
         --menu-btn-image: url('/assets/menu-button-frame.png');
         --menu-btn-burst: url('/assets/menu-button-burst.png');
         --menu-btn-face: #ade54d;
+        --menu-btn-outline:
+          drop-shadow(1.25px 0 0 #000)
+          drop-shadow(-1.25px 0 0 #000)
+          drop-shadow(0 1.25px 0 #000)
+          drop-shadow(0 -1.25px 0 #000)
+          drop-shadow(1px 1px 0 #000)
+          drop-shadow(-1px 1px 0 #000)
+          drop-shadow(1px -1px 0 #000)
+          drop-shadow(-1px -1px 0 #000);
         --spike-d: 28px;
         --spike-p: 50px;
         --spike-fill: #c0f25f;
@@ -454,6 +463,7 @@
         position: relative;
         isolation: isolate;
         z-index: 0;
+        filter: var(--menu-btn-outline);
         transition: transform 0.12s ease, filter 0.12s ease;
       }
       .menu-zigzag {
@@ -529,12 +539,12 @@
       }
       .menu-tile:hover,
       .menu-tile:focus-visible {
-        filter: brightness(1.06);
+        filter: var(--menu-btn-outline) brightness(1.09);
         outline: none;
       }
       .menu-tile:active {
         transform: translateY(4px);
-        filter: brightness(0.92);
+        filter: var(--menu-btn-outline) brightness(0.92);
       }
       .menu-tile.endless {
         font-size: clamp(28px, 4.8vw, 56px);
@@ -590,16 +600,17 @@
         isolation: isolate;
         z-index: 0;
         text-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
+        filter: var(--menu-btn-outline);
         transition: transform 0.12s ease, filter 0.12s ease;
       }
       .menu.main-menu .menu-option:hover,
       .menu.main-menu .menu-option:focus-visible {
-        filter: brightness(1.06);
+        filter: var(--menu-btn-outline) brightness(1.09);
         outline: none;
       }
       .menu.main-menu .menu-option:active {
         transform: translateY(3px);
-        filter: brightness(0.92);
+        filter: var(--menu-btn-outline) brightness(0.92);
       }
       .menu-option {
         display: block;
