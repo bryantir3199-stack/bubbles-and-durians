@@ -1164,9 +1164,9 @@ export function playTallyRevealDrumroll(): void {
   });
 }
 
-/** Orchestral hit when combo multiplier increases. Pitch scales with combo (1x = 1, 2x = 1.25, …). */
+/** Orchestral hit when combo multiplier increases. Pitch scales with combo (2x = 1, 3x = 1.25, …). */
 export function playComboLevelSound(comboLevel: number): void {
-  const steps = Math.max(0, Math.floor(comboLevel) - 1);
+  const steps = Math.max(0, Math.floor(comboLevel) - 2);
   const rate = 1.25 ** steps;
   const play = (buf: AudioBuffer) => playBuffer(buf, 0.8, 0, rate);
   if (comboLevelBuffer) {
