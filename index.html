@@ -114,6 +114,14 @@
         transform-origin: 50% 50%;
         will-change: transform;
       }
+      /* Narrow/short mobile viewports crop the flag & faces under "cover" — shrink to fit instead.
+         Drop the bleed inset too, since it inflates the box "contain" sizes against. */
+      html.touch-ui .results-crash-bleed {
+        inset: 0;
+      }
+      html.touch-ui .results-crash-pane {
+        background-size: contain;
+      }
       .results-crash-top {
         clip-path: inset(0 0 48% 0);
         transform: translateY(-55%);
