@@ -16,6 +16,8 @@ function getSfxScale(): number {
 
 /** Results BGM plays twice as loud as stage BGM. */
 const RESULTS_BGM_BASE_GAIN = STAGE_BGM_BASE_GAIN * 2;
+/** Menu BGM plays twice as loud as stage BGM. */
+const MENU_BGM_BASE_GAIN = STAGE_BGM_BASE_GAIN * 2;
 
 /** Get effective BGM gain (base × user setting). */
 function getBgmGain(): number {
@@ -26,6 +28,11 @@ function getBgmGain(): number {
 function getResultsBgmGain(): number {
   const settings = getSettings();
   return RESULTS_BGM_BASE_GAIN * settings.audio.musicVolume;
+}
+
+function getMenuBgmGain(): number {
+  const settings = getSettings();
+  return MENU_BGM_BASE_GAIN * settings.audio.musicVolume;
 }
 
 /** Sync muted state from settings. */
@@ -114,6 +121,11 @@ let resultsBgmSource: AudioBufferSourceNode | null = null;
 let resultsBgmGain: GainNode | null = null;
 let resultsBgmActive = false;
 let resultsBgmStartTimer = 0;
+let menuBgmBuffer: AudioBuffer | null = null;
+let menuBgmLoad: Promise<AudioBuffer | null> | null = null;
+let menuBgmSource: AudioBufferSourceNode | null = null;
+let menuBgmGain: GainNode | null = null;
+let menuBgmActive = false;
 /** True while a play session wants stage BGM (even if currently paused). */
 let bgmActive = false;
 /** True while stage BGM is paused mid-session (game pause). */
@@ -165,6 +177,7 @@ export async function preloadSfx(): Promise<void> {
     ensureTeethHitHoorayBuffer(),
     ensureBgmBuffer(),
     ensureResultsBgmBuffer(),
+    ensureMenuBgmBuffer(),
     ensureGameStartBuffer(),
     ensureMenuButtonBuffer(),
     ensureTutorialSelectBuffer(),
@@ -354,6 +367,18 @@ async function ensureResultsBgmBuffer(): Promise<AudioBuffer | null> {
   return resultsBgmLoad;
 }
 
+async function ensureMenuBgmBuffer(): Promise<AudioBuffer | null> {
+  if (menuBgmBuffer) return menuBgmBuffer;
+  if (menuBgmLoad) return menuBgmLoad;
+
+  menuBgmLoad = (async () => {
+    menuBgmBuffer = await loadBuffer('assets/menu-bgm.wav');
+    return menuBgmBuffer;
+  })();
+
+  return menuBgmLoad;
+}
+
 async function ensureGameStartBuffer(): Promise<AudioBuffer | null> {
   if (gameStartBuffer) return gameStartBuffer;
   if (gameStartLoad) return gameStartLoad;
@@ -481,6 +506,7 @@ export function isMuted(): boolean {
 function applyBgmGain(): void {
   if (bgmGain) bgmGain.gain.value = muted || bgmPaused ? 0 : getBgmGain();
   if (resultsBgmGain) resultsBgmGain.gain.value = muted ? 0 : getResultsBgmGain();
+  if (menuBgmGain) menuBgmGain.gain.value = muted ? 0 : getMenuBgmGain();
 }
 
 /** Mute or unmute all SFX and stage BGM. Returns the new muted state. */
@@ -779,6 +805,7 @@ function beginBgmFromOffset(ac: AudioContext, buffer: AudioBuffer, offsetSec: nu
 
 /** Start looping stage BGM while a play session is active. */
 export function startStageBgm(): void {
+  stopMenuBgm();
   const ac = getCtx();
   if (!ac) return;
 
@@ -858,8 +885,94 @@ function tearDownResultsBgmSource(): void {
   }
 }
 
+function tearDownMenuBgmSource(): void {
+  if (menuBgmSource) {
+    try {
+      menuBgmSource.stop();
+    } catch {
+      // already stopped
+    }
+    try {
+      menuBgmSource.disconnect();
+    } catch {
+      // already disconnected
+    }
+    menuBgmSource = null;
+  }
+  if (menuBgmGain) {
+    try {
+      menuBgmGain.disconnect();
+    } catch {
+      // already disconnected
+    }
+    menuBgmGain = null;
+  }
+}
+
+/** Start looping main-menu BGM. Safe to call again while already playing. */
+export function startMenuBgm(): void {
+  const ac = getCtx();
+  if (!ac) return;
+  if (menuBgmActive) return;
+
+  menuBgmActive = true;
+  tearDownMenuBgmSource();
+
+  const begin = (buffer: AudioBuffer) => {
+    if (!menuBgmActive) return;
+    tearDownMenuBgmSource();
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(gain);
+    gain.connect(ac.destination);
+    menuBgmSource = src;
+    menuBgmGain = gain;
+    applyBgmGain();
+    src.start();
+  };
+
+  if (menuBgmBuffer) {
+    begin(menuBgmBuffer);
+    return;
+  }
+
+  void ensureMenuBgmBuffer().then((buf) => {
+    if (buf) begin(buf);
+  });
+}
+
+/** Stop looping main-menu BGM. */
+export function stopMenuBgm(): void {
+  menuBgmActive = false;
+  tearDownMenuBgmSource();
+}
+
+/** Ramp looping menu BGM to silence. */
+export function fadeOutMenuBgm(durationSec = 0.5): void {
+  if (!menuBgmActive) return;
+  const ac = ctx;
+  if (!menuBgmGain || !ac || muted) {
+    stopMenuBgm();
+    return;
+  }
+  const dur = Math.max(0.05, durationSec);
+  const param = menuBgmGain.gain;
+  const now = ac.currentTime;
+  param.cancelScheduledValues(now);
+  param.setValueAtTime(Math.max(0.0001, param.value), now);
+  param.linearRampToValueAtTime(0, now + dur);
+  const gainNode = menuBgmGain;
+  window.setTimeout(() => {
+    if (menuBgmGain !== gainNode) return;
+    stopMenuBgm();
+  }, dur * 1000 + 40);
+}
+
 /** Start looping results music. Safe to call again while already playing or scheduled. */
 export function startResultsBgm(delaySec = 0): void {
+  stopMenuBgm();
   const ac = getCtx();
   if (!ac) return;
   if (resultsBgmActive) return;

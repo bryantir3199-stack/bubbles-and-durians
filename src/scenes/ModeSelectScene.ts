@@ -8,7 +8,7 @@ import { OptionsMenu } from '../ui/OptionsMenu';
 import { paintMenuArt } from '../ui/menuArt';
 import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
 import { hideResultsCrash } from '../ui/resultsCrash';
-import { playGameStartSound } from '../audio/sfx';
+import { playGameStartSound, startMenuBgm } from '../audio/sfx';
 
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
@@ -21,6 +21,7 @@ export class ModeSelectScene implements GameScene {
 
   enter(_data?: SceneData): void {
     hideResultsCrash();
+    startMenuBgm();
     this.renderMain();
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
