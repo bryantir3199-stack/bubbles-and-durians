@@ -54,11 +54,17 @@ export async function playResultsCrash(): Promise<void> {
   playing = false;
 }
 
+function plaqueSrc(): string {
+  return document.documentElement.classList.contains('touch-ui')
+    ? 'assets/results-plaque-mobile.jpg'
+    : 'assets/results-plaque.jpg';
+}
+
 export function preloadResultsCrash(): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve();
     img.onerror = () => resolve();
-    img.src = 'assets/results-plaque.jpg';
+    img.src = plaqueSrc();
   });
 }

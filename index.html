@@ -192,6 +192,29 @@
         0% { opacity: 1; transform: scaleY(3.2); }
         100% { opacity: 0; transform: scaleY(0.15); }
       }
+      html.touch-ui .results-crash-pane {
+        background-image: url('/assets/results-plaque-mobile.jpg');
+      }
+      html.touch-ui .results-crash-bleed {
+        inset: 0;
+      }
+      @media (orientation: portrait) {
+        html.touch-ui .results-crash-pane {
+          background-size: 185% auto;
+          background-position: 50% 0;
+          background-repeat: no-repeat;
+        }
+        html.touch-ui body.results-crash-on .menu.bonus-tally,
+        html.touch-ui body.results-crash-on .menu.game-over,
+        html.touch-ui body.results-crash-on .menu.leaderboard {
+          justify-content: flex-end;
+        }
+        html.touch-ui body.results-crash-on .menu.bonus-tally .menu-card,
+        html.touch-ui body.results-crash-on .menu.game-over .menu-card,
+        html.touch-ui body.results-crash-on .menu.leaderboard .menu-wide {
+          margin-block: 0 8px;
+        }
+      }
       body.results-crash-on .menu.bonus-tally,
       body.results-crash-on .menu.game-over,
       body.results-crash-on .menu.leaderboard {
