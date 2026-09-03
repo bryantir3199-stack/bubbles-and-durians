@@ -25,7 +25,6 @@ export class TitleScene implements GameScene {
     );
     this.ctx.uiRoot.appendChild(ui);
     this.unbindHighScore = bindHighScoreBanner(ui);
-    this.ctx.canvas.style.visibility = 'hidden';
     document.body.style.background = '#fff800';
 
     const advance = () => {
@@ -59,7 +58,6 @@ export class TitleScene implements GameScene {
   exit(): void {
     this.unbindHighScore?.();
     this.unbindHighScore = null;
-    this.ctx.canvas.style.visibility = '';
     document.body.style.background = '';
     clearUI(this.ctx.uiRoot);
   }

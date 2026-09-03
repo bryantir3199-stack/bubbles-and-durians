@@ -11,7 +11,8 @@ import { PlayScene } from '../scenes/PlayScene';
 import { BonusTallyScene } from '../scenes/BonusTallyScene';
 import { GameOverScene } from '../scenes/GameOverScene';
 import { LeaderboardScene } from '../scenes/LeaderboardScene';
-import { getCastleStage } from '../world/CastleStage';
+import { CastleStage, getCastleStage } from '../world/CastleStage';
+import { ModelCache } from '../world/ModelCache';
 import {
   coverVerticalFov,
   DESIGN_VFOV_DEG,
@@ -39,6 +40,7 @@ export class Game {
   private last = 0;
   private raf = 0;
   private sharedStageReady = false;
+  private worldLoad: Promise<void> | null = null;
   private readonly composer: EffectComposer;
   private readonly saoPass: SAOPass;
   private unsubView: (() => void) | null = null;
@@ -67,6 +69,7 @@ export class Game {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = 'game-canvas';
+    this.canvas.style.visibility = 'hidden';
     container.appendChild(this.canvas);
     attachScreenFade(container);
     attachResultsCrash(container);
@@ -122,7 +125,8 @@ export class Game {
     const makeCtx = (): SceneContext => ({
       canvas: this.canvas,
       uiRoot: this.uiRoot,
-      goto: (id, data) => void this.goto(id, data),
+      goto: (id, data) => this.goto(id, data),
+      ensurePlayWorld: () => gameRef.ensurePlayWorld(),
       three: {
         scene: gameRef.scene,
         camera: gameRef.camera,
@@ -170,9 +174,10 @@ export class Game {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.05, (now - this.last) / 1000);
       this.last = now;
-      getCastleStage()?.update(dt);
+      const playing = this.current?.id === 'play';
+      if (playing) getCastleStage()?.update(dt);
       this.current?.update(dt);
-      this.composer.render();
+      if (playing) this.composer.render();
     };
     this.raf = requestAnimationFrame(loop);
   }
@@ -180,7 +185,30 @@ export class Game {
   async goto(id: SceneId, data?: SceneData): Promise<void> {
     this.current?.exit();
     this.current = this.scenes[id];
+    if (id !== 'play') this.setPlayWorldVisible(false);
     await this.current.enter(data);
+    this.setPlayWorldVisible(id === 'play');
+  }
+
+  /** Load the 3D stage and target models once; reuse after returning to the menu. */
+  ensurePlayWorld(): Promise<void> {
+    if (this.sharedStageReady) return Promise.resolve();
+    if (this.worldLoad) return this.worldLoad;
+
+    this.worldLoad = (async () => {
+      const stage = new CastleStage(this.scene);
+      await Promise.all([stage.load(), ModelCache.preload()]);
+      this.sharedStageReady = true;
+    })().catch((err) => {
+      this.worldLoad = null;
+      throw err;
+    });
+
+    return this.worldLoad;
+  }
+
+  private setPlayWorldVisible(visible: boolean): void {
+    this.canvas.style.visibility = visible ? '' : 'hidden';
   }
 
   private pixelRatio(): number {

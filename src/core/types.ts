@@ -16,7 +16,9 @@ export interface SceneData {
 export interface SceneContext {
   canvas: HTMLCanvasElement;
   uiRoot: HTMLElement;
-  goto: (id: SceneId, data?: SceneData) => void;
+  goto: (id: SceneId, data?: SceneData) => void | Promise<void>;
+  /** Load castle + target models once; later calls reuse the in-memory world. */
+  ensurePlayWorld: () => Promise<void>;
   three: {
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;

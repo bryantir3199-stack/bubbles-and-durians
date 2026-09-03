@@ -100,9 +100,10 @@ export class PlayScene implements GameScene {
 
   constructor(private ctx: SceneContext) {}
 
-  enter(data?: SceneData): void {
+  async enter(data?: SceneData): Promise<void> {
     hideResultsCrash();
     clearUI(this.ctx.uiRoot);
+    await this.ctx.ensurePlayWorld();
     this.mode = data?.mode ?? 'endless';
     this.timedPreset = data?.timedPreset ?? defaultTimedPreset;
     this.timedConfig = getTimedPreset(this.timedPreset);

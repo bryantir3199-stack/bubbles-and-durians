@@ -270,11 +270,7 @@
           drop-shadow(1.25px 0 0 #000)
           drop-shadow(-1.25px 0 0 #000)
           drop-shadow(0 1.25px 0 #000)
-          drop-shadow(0 -1.25px 0 #000)
-          drop-shadow(1px 1px 0 #000)
-          drop-shadow(-1px 1px 0 #000)
-          drop-shadow(1px -1px 0 #000)
-          drop-shadow(-1px -1px 0 #000);
+          drop-shadow(0 -1.25px 0 #000);
         --spike-d: 28px;
         --spike-p: 50px;
         --spike-fill: #c0f25f;
@@ -293,26 +289,23 @@
       .menu.main-menu::before {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 240vmax;
-        height: 240vmax;
-        transform: translate(-50%, -50%) rotate(-28deg);
+        inset: -45%;
         background-image: url('/assets/menu-pattern.png');
         background-repeat: repeat;
         background-size: var(--menu-pattern-size) var(--menu-pattern-size);
-        animation: menuPatternScroll 132s linear infinite;
         opacity: 0.48;
         pointer-events: none;
         z-index: 0;
+        contain: paint;
+        animation: menuPatternScroll 44s linear infinite;
       }
       .menu.main-menu > * {
         position: relative;
         z-index: 1;
       }
       @keyframes menuPatternScroll {
-        from { background-position: 0 0; }
-        to { background-position: 810px 2700px; }
+        from { transform: rotate(-28deg) translate3d(0, 0, 0); }
+        to { transform: rotate(-28deg) translate3d(calc(var(--menu-pattern-size) * -1), calc(var(--menu-pattern-size) * -1), 0); }
       }
       @media (prefers-reduced-motion: reduce) {
         .menu.main-menu::before {

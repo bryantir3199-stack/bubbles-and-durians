@@ -372,7 +372,7 @@ async function ensureMenuBgmBuffer(): Promise<AudioBuffer | null> {
   if (menuBgmLoad) return menuBgmLoad;
 
   menuBgmLoad = (async () => {
-    menuBgmBuffer = await loadBuffer('assets/menu-bgm.wav');
+    menuBgmBuffer = await loadBuffer('assets/menu-bgm.mp3');
     return menuBgmBuffer;
   })();
 

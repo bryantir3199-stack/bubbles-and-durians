@@ -100,15 +100,17 @@ export class ModeSelectScene implements GameScene {
         const timedPreset = (el.dataset.timed as TimedPreset | undefined) ?? defaultTimedPreset;
         if (this.leaving) return;
         this.leaving = true;
+        void this.ctx.ensurePlayWorld();
         if (mode === 'endless' || mode === 'timed') playGameStartSound();
         if (isCoarsePointer()) tryEnterFullscreen();
         this.flashThen(el, () => {
           void requestShakePermission()
             .then(() => fadeToWhiteAndHold())
-            .then(() => {
-              this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined });
-              return fadeFromOverlay();
-            })
+            .then(() => this.ctx.ensurePlayWorld())
+            .then(() =>
+              this.ctx.goto('play', { mode, timedPreset: mode === 'timed' ? timedPreset : undefined }),
+            )
+            .then(() => fadeFromOverlay())
             .catch(() => {
               this.leaving = false;
             });
