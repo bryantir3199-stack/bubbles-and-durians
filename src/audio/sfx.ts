@@ -14,10 +14,18 @@ function getSfxScale(): number {
   return SFX_BASE_SCALE * settings.audio.sfxVolume;
 }
 
+/** Results BGM plays twice as loud as stage BGM. */
+const RESULTS_BGM_BASE_GAIN = STAGE_BGM_BASE_GAIN * 2;
+
 /** Get effective BGM gain (base × user setting). */
 function getBgmGain(): number {
   const settings = getSettings();
   return STAGE_BGM_BASE_GAIN * settings.audio.musicVolume;
+}
+
+function getResultsBgmGain(): number {
+  const settings = getSettings();
+  return RESULTS_BGM_BASE_GAIN * settings.audio.musicVolume;
 }
 
 /** Sync muted state from settings. */
@@ -76,6 +84,8 @@ let teethHitHoorayBuffer: AudioBuffer | null = null;
 let teethHitHoorayLoad: Promise<AudioBuffer | null> | null = null;
 let bgmBuffer: AudioBuffer | null = null;
 let bgmLoad: Promise<AudioBuffer | null> | null = null;
+let resultsBgmBuffer: AudioBuffer | null = null;
+let resultsBgmLoad: Promise<AudioBuffer | null> | null = null;
 let gameStartBuffer: AudioBuffer | null = null;
 let gameStartLoad: Promise<AudioBuffer | null> | null = null;
 let menuButtonBuffer: AudioBuffer | null = null;
@@ -100,6 +110,10 @@ let tallyCalcDrumrollSource: AudioBufferSourceNode | null = null;
 let tallyCalcDrumrollGain: GainNode | null = null;
 let bgmSource: AudioBufferSourceNode | null = null;
 let bgmGain: GainNode | null = null;
+let resultsBgmSource: AudioBufferSourceNode | null = null;
+let resultsBgmGain: GainNode | null = null;
+let resultsBgmActive = false;
+let resultsBgmStartTimer = 0;
 /** True while a play session wants stage BGM (even if currently paused). */
 let bgmActive = false;
 /** True while stage BGM is paused mid-session (game pause). */
@@ -150,6 +164,7 @@ export async function preloadSfx(): Promise<void> {
     ensureTeethHitApplauseBuffer(),
     ensureTeethHitHoorayBuffer(),
     ensureBgmBuffer(),
+    ensureResultsBgmBuffer(),
     ensureGameStartBuffer(),
     ensureMenuButtonBuffer(),
     ensureTutorialSelectBuffer(),
@@ -327,6 +342,18 @@ async function ensureBgmBuffer(): Promise<AudioBuffer | null> {
   return bgmLoad;
 }
 
+async function ensureResultsBgmBuffer(): Promise<AudioBuffer | null> {
+  if (resultsBgmBuffer) return resultsBgmBuffer;
+  if (resultsBgmLoad) return resultsBgmLoad;
+
+  resultsBgmLoad = (async () => {
+    resultsBgmBuffer = await loadBuffer('assets/results-bgm.mp3');
+    return resultsBgmBuffer;
+  })();
+
+  return resultsBgmLoad;
+}
+
 async function ensureGameStartBuffer(): Promise<AudioBuffer | null> {
   if (gameStartBuffer) return gameStartBuffer;
   if (gameStartLoad) return gameStartLoad;
@@ -452,8 +479,8 @@ export function isMuted(): boolean {
 }
 
 function applyBgmGain(): void {
-  if (!bgmGain) return;
-  bgmGain.gain.value = muted || bgmPaused ? 0 : getBgmGain();
+  if (bgmGain) bgmGain.gain.value = muted || bgmPaused ? 0 : getBgmGain();
+  if (resultsBgmGain) resultsBgmGain.gain.value = muted ? 0 : getResultsBgmGain();
 }
 
 /** Mute or unmute all SFX and stage BGM. Returns the new muted state. */
@@ -805,6 +832,104 @@ export function stopStageBgm(): void {
   bgmOffset = 0;
   bgmStartCtxTime = 0;
   tearDownBgmSource();
+}
+
+function tearDownResultsBgmSource(): void {
+  if (resultsBgmSource) {
+    try {
+      resultsBgmSource.stop();
+    } catch {
+      // already stopped
+    }
+    try {
+      resultsBgmSource.disconnect();
+    } catch {
+      // already disconnected
+    }
+    resultsBgmSource = null;
+  }
+  if (resultsBgmGain) {
+    try {
+      resultsBgmGain.disconnect();
+    } catch {
+      // already disconnected
+    }
+    resultsBgmGain = null;
+  }
+}
+
+/** Start looping results music. Safe to call again while already playing or scheduled. */
+export function startResultsBgm(delaySec = 0): void {
+  const ac = getCtx();
+  if (!ac) return;
+  if (resultsBgmActive) return;
+
+  resultsBgmActive = true;
+  tearDownResultsBgmSource();
+
+  const begin = (buffer: AudioBuffer) => {
+    if (!resultsBgmActive) return;
+    tearDownResultsBgmSource();
+    const src = ac.createBufferSource();
+    const gain = ac.createGain();
+    src.buffer = buffer;
+    src.loop = true;
+    src.connect(gain);
+    gain.connect(ac.destination);
+    resultsBgmSource = src;
+    resultsBgmGain = gain;
+    applyBgmGain();
+    src.start();
+  };
+
+  const kickoff = () => {
+    resultsBgmStartTimer = 0;
+    if (!resultsBgmActive) return;
+    if (resultsBgmBuffer) {
+      begin(resultsBgmBuffer);
+      return;
+    }
+    void ensureResultsBgmBuffer().then((buf) => {
+      if (buf) begin(buf);
+    });
+  };
+
+  if (delaySec > 0) {
+    resultsBgmStartTimer = window.setTimeout(kickoff, delaySec * 1000);
+    return;
+  }
+  kickoff();
+}
+
+/** Stop looping results music when leaving the results screens. */
+export function stopResultsBgm(): void {
+  resultsBgmActive = false;
+  if (resultsBgmStartTimer) {
+    window.clearTimeout(resultsBgmStartTimer);
+    resultsBgmStartTimer = 0;
+  }
+  tearDownResultsBgmSource();
+}
+
+/** Ramp looping results BGM to silence (e.g. fade-to-black). */
+export function fadeOutResultsBgm(durationSec = 0.5): void {
+  if (!resultsBgmActive) return;
+  const ac = ctx;
+  if (!resultsBgmGain || !ac || muted) {
+    stopResultsBgm();
+    return;
+  }
+  const dur = Math.max(0.05, durationSec);
+  const param = resultsBgmGain.gain;
+  const now = ac.currentTime;
+  param.cancelScheduledValues(now);
+  param.setValueAtTime(Math.max(0.0001, param.value), now);
+  param.linearRampToValueAtTime(0, now + dur);
+  const gainNode = resultsBgmGain;
+  window.setTimeout(() => {
+    if (resultsBgmGain !== gainNode) return;
+    stopResultsBgm();
+  }, dur * 1000 + 40);
 }
 
 /** Ramp looping stage BGM to silence (e.g. fade-to-black). */

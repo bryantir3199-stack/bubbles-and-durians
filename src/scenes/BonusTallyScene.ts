@@ -5,6 +5,7 @@ import {
   playTallyCalcDrumroll,
   playTallyRevealDrumroll,
   playTallyThudSound,
+  startResultsBgm,
   stopTallyCalcDrumroll,
 } from '../audio/sfx';
 import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
@@ -276,6 +277,7 @@ export class BonusTallyScene implements GameScene {
       stopTallyCalcDrumroll(0.06);
       playTallyRevealDrumroll();
       playTallyThudSound();
+      startResultsBgm(1);
     }, 650);
   }
 

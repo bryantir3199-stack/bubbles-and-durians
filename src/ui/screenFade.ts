@@ -1,4 +1,4 @@
-import { fadeOutStageBgm } from '../audio/sfx';
+import { fadeOutResultsBgm, fadeOutStageBgm } from '../audio/sfx';
 
 const FADE_MS = 500;
 const HOLD_MS = 3000;
@@ -44,7 +44,10 @@ function applyTint(tint: FadeTint): void {
 export async function fadeToAndHold(tint: FadeTint): Promise<void> {
   if (!overlay) return;
   applyTint(tint);
-  if (tint === 'black') fadeOutStageBgm(FADE_MS / 1000);
+  if (tint === 'black') {
+    fadeOutStageBgm(FADE_MS / 1000);
+    fadeOutResultsBgm(FADE_MS / 1000);
+  }
   overlay.classList.add('is-on');
   await waitOpacityTransition();
   await wait(HOLD_MS);

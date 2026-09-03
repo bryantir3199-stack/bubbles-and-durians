@@ -10,6 +10,7 @@ import {
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer } from '../core/display';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
+import { startResultsBgm } from '../audio/sfx';
 import { clearUI, panel, bindClick } from '../ui/dom';
 import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
@@ -36,6 +37,7 @@ export class GameOverScene implements GameScene {
     this.submitting = false;
 
     if (!isResultsCrashHeld()) await playResultsCrash();
+    startResultsBgm();
 
     clearUI(this.ctx.uiRoot);
     const slots = Array.from({ length: PLAYER_NAME_LENGTH }, (_, i) => this.slotHtml(i)).join('');

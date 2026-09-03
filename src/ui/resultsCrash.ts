@@ -1,4 +1,4 @@
-import { playResultsSlamSound } from '../audio/sfx';
+import { playResultsSlamSound, stopResultsBgm } from '../audio/sfx';
 
 const SLAM_MS = 320;
 const IMPACT_MS = Math.round(SLAM_MS * 0.72);
@@ -29,6 +29,7 @@ export function isResultsCrashHeld(): boolean {
 }
 
 export function hideResultsCrash(): void {
+  stopResultsBgm();
   if (!overlay) return;
   overlay.className = 'results-crash';
   document.body.classList.remove('results-crash-on');
