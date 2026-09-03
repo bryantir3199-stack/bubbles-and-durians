@@ -172,20 +172,25 @@ export class BonusTallyScene implements GameScene {
     }
 
     const rows = this.getTallyRows();
+    const infoHtml = `<div class="tally-info">
+        <button type="button" class="tally-info-btn" aria-label="How bonuses work" aria-expanded="false" aria-describedby="tally-info-bubble">i</button>
+        <div class="tally-info-bubble" id="tally-info-bubble" role="tooltip" aria-hidden="true">${this.bonusInfoMarkup()}</div>
+      </div>`;
     const rowsHtml = rows.map((row, i) => {
       const baseClass = `tally-row ${row.cssClass}`.trim();
       const totalClass = row.isTotal ? 'tally-total-value' : '';
+      const valueHtml = `<span class="tally-value ${totalClass}" data-target="${row.target}" data-prefix="${row.prefix}" data-suffix="${row.suffix}">${row.prefix}0${row.suffix}</span>`;
+      const valueBlock =
+        row.label === 'SCORE'
+          ? `<span class="tally-value-wrap">${valueHtml}${infoHtml}</span>`
+          : valueHtml;
       return `<div class="${baseClass}" data-row-index="${i}">
         <span>${row.label}</span>
-        <span class="tally-value ${totalClass}" data-target="${row.target}" data-prefix="${row.prefix}" data-suffix="${row.suffix}">${row.prefix}0${row.suffix}</span>
+        ${valueBlock}
       </div>`;
     }).join('\n      ');
 
     return `<div class="run-tally" aria-label="Round tally">
-      <div class="tally-info">
-        <button type="button" class="tally-info-btn" aria-label="How bonuses work" aria-expanded="false" aria-describedby="tally-info-bubble">i</button>
-        <div class="tally-info-bubble" id="tally-info-bubble" role="tooltip" aria-hidden="true">${this.bonusInfoMarkup()}</div>
-      </div>
       ${rowsHtml}
     </div>`;
   }
