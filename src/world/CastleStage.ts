@@ -8,6 +8,7 @@ import { LawnBillboards } from './LawnBillboards';
 const ASSET = {
   glb: 'assets/castle/castle.glb',
   sky: 'assets/sky-clouds.png',
+  frenzySky: 'assets/sky-frenzy.jpg',
 };
 
 /** Normal daytime look. */
@@ -46,6 +47,10 @@ export class CastleStage {
   private ringMat: THREE.MeshStandardMaterial | null = null;
   private hemiLight: THREE.HemisphereLight | null = null;
   private skyTexture: THREE.Texture | null = null;
+  private frenzySkyTexture: THREE.Texture | null = null;
+  private skyMixCanvas: HTMLCanvasElement | null = null;
+  private skyMixCtx: CanvasRenderingContext2D | null = null;
+  private skyMixTexture: THREE.CanvasTexture | null = null;
   private frenzyLook = 0;
   private frenzyLookTarget = 0;
   private readonly tmpSky = new THREE.Color();
@@ -162,16 +167,34 @@ export class CastleStage {
   }
 
   private async loadSkyBackground(): Promise<void> {
-    const tex = await new THREE.TextureLoader().loadAsync(ASSET.sky);
+    const loader = new THREE.TextureLoader();
+    const [tex, frenzyTex] = await Promise.all([
+      loader.loadAsync(ASSET.sky),
+      loader.loadAsync(ASSET.frenzySky),
+    ]);
     tex.colorSpace = THREE.SRGBColorSpace;
+    frenzyTex.colorSpace = THREE.SRGBColorSpace;
     this.skyTexture = tex;
-    // Keep the painted sky while not in a frenzy tint.
-    if (this.frenzyLook <= 0) this.scene.background = tex;
+    this.frenzySkyTexture = frenzyTex;
+    this.initSkyMix(tex);
+    this.applySkyBackground(this.frenzyLook);
+  }
+
+  private initSkyMix(day: THREE.Texture): void {
+    const img = day.image as HTMLImageElement | undefined;
+    const canvas = document.createElement('canvas');
+    canvas.width = img?.naturalWidth || img?.width || 1024;
+    canvas.height = img?.naturalHeight || img?.height || 572;
+    this.skyMixCanvas = canvas;
+    this.skyMixCtx = canvas.getContext('2d');
+    const mix = new THREE.CanvasTexture(canvas);
+    mix.colorSpace = THREE.SRGBColorSpace;
+    this.skyMixTexture = mix;
   }
 
   /**
-   * Target a frenzy (sunset) or normal environment tint.
-   * Colors fade smoothly in `update`.
+   * Target a frenzy (sunset sky) or normal environment look.
+   * Colors and skies fade smoothly in `update`.
    */
   setFrenzyActive(active: boolean): void {
     this.frenzyLookTarget = active ? 1 : 0;
@@ -191,11 +214,7 @@ export class CastleStage {
     this.tmpRing.copy(this.colNormalRing).lerp(this.colFrenzyRing, t);
     this.tmpHemi.copy(this.colNormalHemi).lerp(this.colFrenzyHemi, t);
 
-    if (t <= 0 && this.skyTexture) {
-      this.scene.background = this.skyTexture;
-    } else {
-      this.scene.background = this.tmpSky;
-    }
+    this.applySkyBackground(t);
 
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.copy(this.tmpFog);
@@ -204,6 +223,36 @@ export class CastleStage {
     this.ringMat?.color.copy(this.tmpRing);
     if (this.hemiLight) this.hemiLight.groundColor.copy(this.tmpHemi);
     this.lawn.setFrenzy(t);
+  }
+
+  private applySkyBackground(t: number): void {
+    if (t <= 0 && this.skyTexture) {
+      this.scene.background = this.skyTexture;
+      return;
+    }
+    if (t >= 1 && this.frenzySkyTexture) {
+      this.scene.background = this.frenzySkyTexture;
+      return;
+    }
+    if (
+      this.skyMixCtx &&
+      this.skyMixCanvas &&
+      this.skyMixTexture &&
+      this.skyTexture &&
+      this.frenzySkyTexture
+    ) {
+      const canvas = this.skyMixCanvas;
+      const ctx = this.skyMixCtx;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(this.skyTexture.image, 0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = t;
+      ctx.drawImage(this.frenzySkyTexture.image, 0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+      this.skyMixTexture.needsUpdate = true;
+      this.scene.background = this.skyMixTexture;
+      return;
+    }
+    this.scene.background = this.tmpSky;
   }
 
   /** Grass cards must not be in the SAO depth override (rectangular lawn stains). */
@@ -287,6 +336,12 @@ export class CastleStage {
     this.lawn.dispose();
     this.skyTexture?.dispose();
     this.skyTexture = null;
+    this.frenzySkyTexture?.dispose();
+    this.frenzySkyTexture = null;
+    this.skyMixTexture?.dispose();
+    this.skyMixTexture = null;
+    this.skyMixCanvas = null;
+    this.skyMixCtx = null;
     this.scene.remove(this.root);
     this.root.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
