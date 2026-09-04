@@ -114,13 +114,12 @@
         transform-origin: 50% 50%;
         will-change: transform;
       }
-      /* Narrow/short mobile viewports crop the flag & faces under "cover" — shrink to fit instead.
-         Drop the bleed inset too, since it inflates the box "contain" sizes against. */
       html.touch-ui .results-crash-bleed {
-        inset: 0;
+        inset: -8%;
       }
       html.touch-ui .results-crash-pane {
-        background-size: contain;
+        background-size: cover;
+        background-position: 50% 28%;
       }
       .results-crash-top {
         clip-path: inset(0 0 48% 0);
@@ -196,13 +195,12 @@
         background-image: url('/assets/results-plaque-mobile.jpg');
       }
       html.touch-ui .results-crash-bleed {
-        inset: 0;
+        inset: -8%;
       }
       @media (orientation: portrait) {
         html.touch-ui .results-crash-pane {
-          background-size: 185% auto;
-          background-position: 50% 0;
-          background-repeat: no-repeat;
+          background-size: cover;
+          background-position: 50% 18%;
         }
         html.touch-ui body.results-crash-on .menu.bonus-tally,
         html.touch-ui body.results-crash-on .menu.game-over {
@@ -3341,6 +3339,11 @@
         transform: none;
         cursor: default;
       }
+      :is(html, html.touch-ui) .menu.game-over .menu-card {
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+      }
       :is(html, html.touch-ui) .menu.game-over .go-form {
         flex: 1 1 auto;
         display: flex;
@@ -3397,6 +3400,55 @@
         min-height: 3.4cqh;
         font-size: 2.8cqh;
         margin-bottom: 1.2cqh;
+      }
+
+      /* Mobile results: full-bleed plaque, large reels with arrows + swipe. */
+      html.touch-ui .menu.game-over,
+      html.touch-ui .menu.game-over .menu-card,
+      html.touch-ui .menu.game-over .go-form,
+      html.touch-ui .menu.game-over .name-slot,
+      html.touch-ui .menu.game-over .name-step {
+        overflow: hidden;
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+      html.touch-ui .menu.game-over .name-initials {
+        height: 40vh;
+        max-height: 40dvh;
+        gap: clamp(12px, 3.2vw, 28px);
+        margin: 1.2vh auto 0.8vh;
+        align-items: stretch;
+      }
+      html.touch-ui .menu.game-over .name-slot {
+        --slot-h: 40vh;
+        --arrow-h: clamp(36px, 5.6vh, 48px);
+        --slot-gap: 0.7vh;
+        width: min(28vw, 22vh);
+        height: var(--slot-h);
+        gap: var(--slot-gap);
+        justify-content: space-between;
+      }
+      html.touch-ui .menu.game-over .name-letter {
+        --reel-window: calc(var(--slot-h) - 2 * var(--arrow-h) - 2 * var(--slot-gap));
+        --reel-cell: calc(var(--reel-window) * 0.58);
+        --reel-idle: calc(var(--reel-window) / 2 - 2.5 * var(--reel-cell));
+        width: 100%;
+        height: var(--reel-window);
+        font-size: calc(var(--reel-cell) * 0.82);
+        touch-action: none;
+      }
+      html.touch-ui .menu.game-over .name-step {
+        display: block;
+        width: 72%;
+        height: var(--arrow-h);
+        flex: 0 0 var(--arrow-h);
+        align-self: center;
+        padding: 0;
+        font-size: 0;
+        line-height: 0;
+        color: var(--accent);
+        opacity: 1;
+        filter: drop-shadow(0 0 0.28cqh #000) drop-shadow(0 0 0.28cqh #000);
       }
     </style>
   </head>

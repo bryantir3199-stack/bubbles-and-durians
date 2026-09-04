@@ -36,6 +36,7 @@ export class GameOverScene implements GameScene {
   private onKey: ((e: KeyboardEvent) => void) | null = null;
   private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
   private onPointerUp: (() => void) | null = null;
+  private onBlockScroll: ((event: Event) => void) | null = null;
   private flashTimer = 0;
   private reelTimers: number[] = [0, 0, 0];
   private reelGen: number[] = [0, 0, 0];
@@ -44,6 +45,7 @@ export class GameOverScene implements GameScene {
   private holding: { index: number; dir: 1 | -1 } | null = null;
   private holdFast = false;
   private holdDelayTimer = 0;
+  private swipe: { index: number; pointerId: number; startY: number } | null = null;
   private cruise: {
     index: number;
     dir: 1 | -1;
@@ -72,6 +74,7 @@ export class GameOverScene implements GameScene {
     this.holding = null;
     this.holdFast = false;
     this.holdDelayTimer = 0;
+    this.swipe = null;
     this.stopCruiseImmediate();
 
     if (!isResultsCrashHeld()) await playResultsCrash();
@@ -136,9 +139,15 @@ export class GameOverScene implements GameScene {
       if (event.key === 'ArrowUp' || event.key === 'ArrowDown') this.endHold();
     };
     window.addEventListener('keyup', this.onKeyUp);
-    this.onPointerUp = () => this.endHold();
+    this.onPointerUp = () => {
+      this.swipe = null;
+      this.endHold();
+    };
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
+    this.onBlockScroll = (event) => event.preventDefault();
+    window.addEventListener('touchmove', this.onBlockScroll, { passive: false });
+    window.addEventListener('wheel', this.onBlockScroll, { passive: false });
 
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
@@ -157,6 +166,12 @@ export class GameOverScene implements GameScene {
       window.removeEventListener('pointercancel', this.onPointerUp);
     }
     this.onPointerUp = null;
+    if (this.onBlockScroll) {
+      window.removeEventListener('touchmove', this.onBlockScroll);
+      window.removeEventListener('wheel', this.onBlockScroll);
+    }
+    this.onBlockScroll = null;
+    this.swipe = null;
     this.endHold();
     this.stopCruiseImmediate();
     window.clearTimeout(this.flashTimer);
@@ -218,9 +233,52 @@ export class GameOverScene implements GameScene {
         const index = Number(el.dataset.slot);
         if (!Number.isInteger(index)) return;
         this.setCursor(index);
-        if (isCoarsePointer()) this.cycle(index, 1);
       });
+      if (!isCoarsePointer()) return;
+      el.addEventListener('pointerdown', (event) => this.onSlotSwipeStart(event, el));
+      el.addEventListener('pointermove', (event) => this.onSlotSwipeMove(event));
+      el.addEventListener('pointerup', (event) => this.onSlotSwipeEnd(event, el));
+      el.addEventListener('pointercancel', (event) => this.onSlotSwipeEnd(event, el));
     });
+  }
+
+  private onSlotSwipeStart(event: PointerEvent, el: HTMLElement): void {
+    if (event.button !== 0 || this.submitting) return;
+    const index = Number(el.dataset.slot);
+    if (!Number.isInteger(index)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      el.setPointerCapture(event.pointerId);
+    } catch {
+      /* capture is best-effort on some browsers */
+    }
+    this.setCursor(index);
+    this.swipe = { index, pointerId: event.pointerId, startY: event.clientY };
+  }
+
+  private onSlotSwipeMove(event: PointerEvent): void {
+    const swipe = this.swipe;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    const dy = event.clientY - swipe.startY;
+    const threshold = 18;
+    let dir: 1 | -1 | 0 = 0;
+    if (dy <= -threshold) dir = 1;
+    else if (dy >= threshold) dir = -1;
+    if (!dir) return;
+    if (this.holding?.index === swipe.index && this.holding.dir === dir) return;
+    this.beginHold(swipe.index, dir);
+  }
+
+  private onSlotSwipeEnd(event: PointerEvent, el: HTMLElement): void {
+    if (!this.swipe || this.swipe.pointerId !== event.pointerId) return;
+    try {
+      if (el.hasPointerCapture(event.pointerId)) el.releasePointerCapture(event.pointerId);
+    } catch {
+      /* ignore */
+    }
+    this.swipe = null;
+    this.endHold();
   }
 
   private setCursor(index: number): void {
