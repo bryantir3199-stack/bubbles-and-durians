@@ -1,5 +1,11 @@
-import type { GameMode, TargetKind } from '../config/gameConfig';
-import { gameConfig } from '../config/gameConfig';
+import type { GameMode, TargetKind, TimedPreset } from '../config/gameConfig';
+import {
+  buildTimedSpawnDeck,
+  defaultTimedPreset,
+  gameConfig,
+  getTimedPreset,
+  getTimedSpawnQuota,
+} from '../config/gameConfig';
 import {
   CLOSE_SPOTS,
   PATTERN_WEIGHTS,
@@ -24,6 +30,8 @@ export interface SpawnerOptions {
   getLives?: () => number;
   /** Timed mode: seconds remaining when the final spawn-rate boost begins. */
   timedFinalBoostSeconds?: number;
+  /** Timed preset — selects the Blitz / Standard quota deck. */
+  timedPreset?: TimedPreset;
   /** When true, skip RNG spawns (scripted teeth flyby only). */
   teethOnly?: boolean;
 }
@@ -51,7 +59,17 @@ export class Spawner {
   private readonly closeOnly: boolean;
   private readonly getLives: (() => number) | undefined;
   private readonly timedFinalBoostSeconds: number;
+  private readonly timedPreset: TimedPreset;
   private readonly teethOnly: boolean;
+  /**
+   * Timed Blitz/Standard: remaining ordinary targets. Null = weighted mix.
+   * Empty array means the quota is exhausted (do not fall back to RNG).
+   */
+  private deck: TargetKind[] | null = null;
+  /** Timed quota: last gold spawn on the spawner clock (−1 = none yet). */
+  private lastGoldAtMs = -1;
+  /** Timed quota: refuse another gold until this many ms have passed. */
+  private minGoldGapMs = 0;
   /** Endless: spawn-rate multiplier vs base cadence (1 = original). */
   private endlessRateMult = 1;
   /** Endless: frenzy active — retargets bubble mix away from the 3.5× boost. */
@@ -74,6 +92,7 @@ export class Spawner {
     this.closeOnly = options?.closeOnly === true;
     this.getLives = options?.getLives;
     this.timedFinalBoostSeconds = options?.timedFinalBoostSeconds ?? 30;
+    this.timedPreset = options?.timedPreset ?? defaultTimedPreset;
     this.teethOnly = options?.teethOnly === true;
   }
 
@@ -92,6 +111,10 @@ export class Spawner {
     this.windowCooldownUntil.clear();
     this.closeCooldownUntil.clear();
     this.pathCooldownUntil.clear();
+    this.lastGoldAtMs = -1;
+    this.minGoldGapMs = this.computeMinGoldGapMs();
+    this.deck = this.buildDeck();
+    this.logDeck();
     for (let i = 0; i < 2; i++) {
       window.setTimeout(() => {
         if (this.running) this.trySpawn();
@@ -316,14 +339,20 @@ export class Spawner {
 
     if (this.trySpawnPathPair()) return;
 
-    const kind = this.pickKind();
-    if (!kind) return;
-
+    // Lock a slot first so a quota card is only taken when we can actually spawn.
     const spec = this.pickSpec();
     if (!spec) return;
 
-    // Re-check after pickSpec in case of races with timeouts.
-    if (this.liveCount() >= gameConfig.maxTargets) return;
+    if (this.liveCount() >= gameConfig.maxTargets) {
+      this.releaseSpec(spec);
+      return;
+    }
+
+    const kind = this.pickKind();
+    if (!kind) {
+      this.releaseSpec(spec);
+      return;
+    }
 
     const target = new Target(
       this.scene,
@@ -344,6 +373,7 @@ export class Spawner {
     if (this.closeOnly) return false;
     if (!wantsPathPairsOnly() && Math.random() >= gameConfig.pathPairChance) return false;
     if (this.liveCount() + 2 > gameConfig.maxTargets) return false;
+    if (this.deck && (!this.deckHas('bubble') || !this.deckHas('durian'))) return false;
 
     const freePaths = this.freePathIndices();
     if (freePaths.length === 0) return false;
@@ -382,6 +412,8 @@ export class Spawner {
       this.frenzyActive,
     );
     this.targets.push(bubble, durian);
+    this.takeFromDeck('bubble');
+    this.takeFromDeck('durian');
     return true;
   }
 
@@ -549,6 +581,11 @@ export class Spawner {
   }
 
   private pickKind(): TargetKind | null {
+    if (this.deck) {
+      const kind = this.takeNextFromDeck(this.goldAllowed());
+      if (kind === 'goldDurian') this.lastGoldAtMs = this.elapsed;
+      return kind;
+    }
     const weights = { ...(gameConfig.spawnWeights[this.mode] as SpawnWeights) };
     // First 30s: no gold durians.
     if (this.elapsed < gameConfig.earlyGameGraceMs) {
@@ -602,5 +639,59 @@ export class Spawner {
       return;
     }
     weights.bubble = (targetFraction * others) / (1 - targetFraction);
+  }
+
+  private buildDeck(): TargetKind[] | null {
+    if (this.mode !== 'timed') return null;
+    const quota = getTimedSpawnQuota(this.timedPreset);
+    if (!quota) return null;
+    return buildTimedSpawnDeck(quota, getTimedPreset(this.timedPreset).seconds * 1000);
+  }
+
+  private computeMinGoldGapMs(): number {
+    const quota = getTimedSpawnQuota(this.timedPreset);
+    if (this.mode !== 'timed' || !quota || quota.goldDurian <= 1) return 0;
+    const durationMs = getTimedPreset(this.timedPreset).seconds * 1000;
+    const windowMs = Math.max(0, durationMs - gameConfig.earlyGameGraceMs);
+    return Math.floor((windowMs / quota.goldDurian) * 0.75);
+  }
+
+  private goldAllowed(): boolean {
+    if (this.elapsed < gameConfig.earlyGameGraceMs) return false;
+    if (this.lastGoldAtMs < 0) return true;
+    if (this.elapsed - this.lastGoldAtMs >= this.minGoldGapMs) return true;
+    // Don't strand leftover golds if the deck is gold-only.
+    return !!this.deck && this.deck.every((k) => k === 'goldDurian');
+  }
+
+  private logDeck(): void {
+    if (!import.meta.env.DEV || !this.deck) return;
+    const n = (kind: TargetKind) => this.deck!.filter((k) => k === kind).length;
+    const goldAt = this.deck.flatMap((k, i) => (k === 'goldDurian' ? [i] : []));
+    // eslint-disable-next-line no-console
+    console.log(
+      `[spawn-deck] ${this.timedPreset} ${this.deck.length} cards ` +
+        `(durian ${n('durian')}, gold ${n('goldDurian')}, bubble ${n('bubble')}) ` +
+        `gold@ ${goldAt.join(',') || '—'} gap ${this.minGoldGapMs}ms`,
+    );
+  }
+
+  private deckHas(kind: TargetKind): boolean {
+    return !!this.deck && this.deck.includes(kind);
+  }
+
+  /** Remove one matching card. No-op when not using a quota deck. */
+  private takeFromDeck(kind: TargetKind): void {
+    if (!this.deck) return;
+    const i = this.deck.indexOf(kind);
+    if (i < 0) return;
+    this.deck.splice(i, 1);
+  }
+
+  private takeNextFromDeck(allowGold: boolean): TargetKind | null {
+    if (!this.deck) return null;
+    const i = this.deck.findIndex((k) => allowGold || k !== 'goldDurian');
+    if (i < 0) return null;
+    return this.deck.splice(i, 1)[0] ?? null;
   }
 }

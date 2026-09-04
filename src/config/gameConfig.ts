@@ -147,9 +147,8 @@ export const gameConfig = {
   /** Close-camera bubble hold after rise (other close kinds still use 50% of lifetimeMs). */
   closeBubbleLifetimeMs: { min: 1000, max: 2000 },
   /**
-   * Spawn mix (timed): durian : bubble : gold = 20 : 6 : 3
-   * (~69% / ~21% / ~10%). Gold is still below a flat 6:3:1 (~10%)
-   * because multi-hit golds linger and feel more common than their rate.
+   * Spawn mix for Endless / tutorial (and timed presets with no quota).
+   * Blitz / Standard deal a shuffled quota deck instead — see timedSpawnQuotas.
    * Endless keeps a small heart weight on top of the same 20:6:3 core.
    */
   spawnWeights: {
@@ -179,6 +178,75 @@ export const gameConfig = {
 } as const;
 
 export type TargetKind = 'durian' | 'goldDurian' | 'bubble' | 'heart' | 'teeth';
+
+/** Ordinary timed targets. Teeth stay a midpoint flyby, not a deck card. */
+export interface TimedSpawnQuota {
+  durian: number;
+  goldDurian: number;
+  bubble: number;
+}
+
+export const timedSpawnQuotas: Record<'short' | 'medium', TimedSpawnQuota> = {
+  short: { durian: 42, goldDurian: 4, bubble: 17 },
+  medium: { durian: 92, goldDurian: 10, bubble: 38 },
+};
+
+export function getTimedSpawnQuota(preset: TimedPreset): TimedSpawnQuota | null {
+  if (preset === 'short' || preset === 'medium') return timedSpawnQuotas[preset];
+  return null;
+}
+
+/**
+ * Shuffled ordinary timed targets (no teeth / hearts).
+ * Greens and bubbles are shuffled; golds are placed at even intervals after
+ * the early-game slice so they do not clump (including right after grace).
+ */
+export function buildTimedSpawnDeck(quota: TimedSpawnQuota, durationMs = 0): TargetKind[] {
+  const nonGold: TargetKind[] = [];
+  for (let i = 0; i < quota.durian; i++) nonGold.push('durian');
+  for (let i = 0; i < quota.bubble; i++) nonGold.push('bubble');
+  shuffleInPlace(nonGold);
+
+  const goldCount = quota.goldDurian;
+  if (goldCount <= 0) return nonGold;
+
+  const total = nonGold.length + goldCount;
+  const graceFraction =
+    durationMs > 0 ? gameConfig.earlyGameGraceMs / durationMs : 0;
+  const first = Math.min(Math.ceil(total * graceFraction), total - goldCount);
+  const last = total - 1;
+  const span = last - first + 1;
+  const goldAt = new Set<number>();
+  for (let i = 0; i < goldCount; i++) {
+    const pos =
+      goldCount === 1
+        ? first + Math.floor(span / 2)
+        : first + Math.round((i * (span - 1)) / (goldCount - 1));
+    goldAt.add(pos);
+  }
+  // Rounding can collide; walk forward to the next free slot.
+  if (goldAt.size < goldCount) {
+    for (let pos = first; pos <= last && goldAt.size < goldCount; pos++) {
+      goldAt.add(pos);
+    }
+  }
+
+  const deck: TargetKind[] = [];
+  let ni = 0;
+  for (let i = 0; i < total; i++) {
+    deck.push(goldAt.has(i) ? 'goldDurian' : nonGold[ni++]!);
+  }
+  return deck;
+}
+
+function shuffleInPlace<T>(items: T[]): void {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = items[i]!;
+    items[i] = items[j]!;
+    items[j] = a;
+  }
+}
 
 /** Flat teeth award by timed preset (short 5k / medium+ 10k). */
 export function teethPointsForPreset(preset: TimedPreset = defaultTimedPreset): number {

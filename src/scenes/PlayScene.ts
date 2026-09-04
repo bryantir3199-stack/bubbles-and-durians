@@ -161,6 +161,7 @@ export class PlayScene implements GameScene {
       getLives: () => this.lives,
       timedFinalBoostSeconds:
         this.mode === 'timed' ? this.timedConfig.finalBoostSeconds : undefined,
+      timedPreset: this.mode === 'timed' ? this.timedPreset : undefined,
       teethOnly: wantsTeethFlybyNow(),
     });
     this.hud = new HUD(
