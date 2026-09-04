@@ -1,4 +1,4 @@
-import type { GameMode, TargetKind, TimedPreset } from '../config/gameConfig';
+import type { GameMode, TargetKind, TimedPreset, TimedSpawnCard } from '../config/gameConfig';
 import {
   buildTimedSpawnDeck,
   defaultTimedPreset,
@@ -65,7 +65,7 @@ export class Spawner {
    * Timed Blitz/Standard: remaining ordinary targets. Null = weighted mix.
    * Empty array means the quota is exhausted (do not fall back to RNG).
    */
-  private deck: TargetKind[] | null = null;
+  private deck: TimedSpawnCard[] | null = null;
   /** Timed quota: last gold spawn on the spawner clock (−1 = none yet). */
   private lastGoldAtMs = -1;
   /** Timed quota: refuse another gold until this many ms have passed. */
@@ -348,19 +348,21 @@ export class Spawner {
       return;
     }
 
-    const kind = this.pickKind();
-    if (!kind) {
+    const spawn = this.pickSpawn();
+    if (!spawn) {
       this.releaseSpec(spec);
       return;
     }
 
     const target = new Target(
       this.scene,
-      kind,
+      spawn.kind,
       spec,
       this.onEscape,
       () => this.releaseSpec(spec),
       this.frenzyActive,
+      false,
+      spawn.finale,
     );
     this.targets.push(target);
   }
@@ -395,6 +397,13 @@ export class Spawner {
       }
     };
 
+    let bubbleFinale = false;
+    let durianFinale = false;
+    if (this.deck) {
+      bubbleFinale = this.takeFromDeck('bubble')?.finale === true;
+      durianFinale = this.takeFromDeck('durian')?.finale === true;
+    }
+
     const bubble = new Target(
       this.scene,
       'bubble',
@@ -402,6 +411,8 @@ export class Spawner {
       this.onEscape,
       releasePath,
       this.frenzyActive,
+      false,
+      bubbleFinale,
     );
     const durian = new Target(
       this.scene,
@@ -410,10 +421,10 @@ export class Spawner {
       this.onEscape,
       releasePath,
       this.frenzyActive,
+      false,
+      durianFinale,
     );
     this.targets.push(bubble, durian);
-    this.takeFromDeck('bubble');
-    this.takeFromDeck('durian');
     return true;
   }
 
@@ -580,12 +591,18 @@ export class Spawner {
     }
   }
 
-  private pickKind(): TargetKind | null {
+  private pickSpawn(): { kind: TargetKind; finale: boolean } | null {
     if (this.deck) {
-      const kind = this.takeNextFromDeck(this.goldAllowed());
-      if (kind === 'goldDurian') this.lastGoldAtMs = this.elapsed;
-      return kind;
+      const card = this.takeNextFromDeck(this.goldAllowed());
+      if (!card) return null;
+      if (card.kind === 'goldDurian') this.lastGoldAtMs = this.elapsed;
+      return { kind: card.kind, finale: card.finale };
     }
+    const kind = this.pickWeightedKind();
+    return kind ? { kind, finale: false } : null;
+  }
+
+  private pickWeightedKind(): TargetKind | null {
     const weights = { ...(gameConfig.spawnWeights[this.mode] as SpawnWeights) };
     // First 30s: no gold durians.
     if (this.elapsed < gameConfig.earlyGameGraceMs) {
@@ -641,11 +658,12 @@ export class Spawner {
     weights.bubble = (targetFraction * others) / (1 - targetFraction);
   }
 
-  private buildDeck(): TargetKind[] | null {
+  private buildDeck(): TimedSpawnCard[] | null {
     if (this.mode !== 'timed') return null;
     const quota = getTimedSpawnQuota(this.timedPreset);
     if (!quota) return null;
-    return buildTimedSpawnDeck(quota, getTimedPreset(this.timedPreset).seconds * 1000);
+    const preset = getTimedPreset(this.timedPreset);
+    return buildTimedSpawnDeck(quota, preset.seconds * 1000, preset.finalBoostSeconds * 1000);
   }
 
   private computeMinGoldGapMs(): number {
@@ -661,36 +679,37 @@ export class Spawner {
     if (this.lastGoldAtMs < 0) return true;
     if (this.elapsed - this.lastGoldAtMs >= this.minGoldGapMs) return true;
     // Don't strand leftover golds if the deck is gold-only.
-    return !!this.deck && this.deck.every((k) => k === 'goldDurian');
+    return !!this.deck && this.deck.every((c) => c.kind === 'goldDurian');
   }
 
   private logDeck(): void {
     if (!import.meta.env.DEV || !this.deck) return;
-    const n = (kind: TargetKind) => this.deck!.filter((k) => k === kind).length;
-    const goldAt = this.deck.flatMap((k, i) => (k === 'goldDurian' ? [i] : []));
+    const n = (kind: TargetKind) => this.deck!.filter((c) => c.kind === kind).length;
+    const goldAt = this.deck.flatMap((c, i) => (c.kind === 'goldDurian' ? [i] : []));
+    const finaleN = this.deck.filter((c) => c.finale).length;
     // eslint-disable-next-line no-console
     console.log(
       `[spawn-deck] ${this.timedPreset} ${this.deck.length} cards ` +
         `(durian ${n('durian')}, gold ${n('goldDurian')}, bubble ${n('bubble')}) ` +
-        `gold@ ${goldAt.join(',') || '—'} gap ${this.minGoldGapMs}ms`,
+        `gold@ ${goldAt.join(',') || '—'} finale ${finaleN} gap ${this.minGoldGapMs}ms`,
     );
   }
 
   private deckHas(kind: TargetKind): boolean {
-    return !!this.deck && this.deck.includes(kind);
+    return !!this.deck && this.deck.some((c) => c.kind === kind);
   }
 
   /** Remove one matching card. No-op when not using a quota deck. */
-  private takeFromDeck(kind: TargetKind): void {
-    if (!this.deck) return;
-    const i = this.deck.indexOf(kind);
-    if (i < 0) return;
-    this.deck.splice(i, 1);
+  private takeFromDeck(kind: TargetKind): TimedSpawnCard | null {
+    if (!this.deck) return null;
+    const i = this.deck.findIndex((c) => c.kind === kind);
+    if (i < 0) return null;
+    return this.deck.splice(i, 1)[0] ?? null;
   }
 
-  private takeNextFromDeck(allowGold: boolean): TargetKind | null {
+  private takeNextFromDeck(allowGold: boolean): TimedSpawnCard | null {
     if (!this.deck) return null;
-    const i = this.deck.findIndex((k) => allowGold || k !== 'goldDurian');
+    const i = this.deck.findIndex((c) => allowGold || c.kind !== 'goldDurian');
     if (i < 0) return null;
     return this.deck.splice(i, 1)[0] ?? null;
   }

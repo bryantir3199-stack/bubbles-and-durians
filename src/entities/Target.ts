@@ -81,6 +81,8 @@ export class Target {
    * (even after Frenzy ends).
    */
   readonly frenzySpawned: boolean;
+  /** Timed: this card was in the finale deck slice — 2× on durian/gold. */
+  readonly finaleSpawned: boolean;
   readonly root: THREE.Group;
   readonly hitObjects: THREE.Object3D[] = [];
   hitsLeft: number;
@@ -165,11 +167,13 @@ export class Target {
     onFreeSlot: () => void,
     frenzySpawned = false,
     pinned = false,
+    finaleSpawned = false,
   ) {
     this.kind = kind;
     this.pattern = spec.pattern;
     this.windowId = spec.windowId ?? null;
     this.frenzySpawned = frenzySpawned;
+    this.finaleSpawned = finaleSpawned;
     this.pinned = pinned;
     this.pathPair = !!spec.pathPair || !!spec.pathPairLead;
     this.onEscape = onEscape;

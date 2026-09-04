@@ -65,16 +65,38 @@ export function wantsBonusTallyPreview(): boolean {
   return v === null || v === '' || v === '1' || v === 'true';
 }
 
+/**
+ * Skip to the ranking screen with a full 100-score demo board.
+ * `?ranking=1`
+ */
+export function wantsRankingPreview(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('ranking')) return false;
+  const v = params.get('ranking');
+  return v === null || v === '' || v === '1' || v === 'true';
+}
+
+/** Optional `?place=71` rank used with `?ranking=1` to preview intro scroll. */
+export function rankingPreviewPlace(): number | null {
+  const raw = new URLSearchParams(window.location.search).get('place');
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return null;
+  return Math.floor(n);
+}
+
 /** Sample timed breakdown for `?tally=1`. */
 export function dummyTimedTally(): TimedRunTally {
   return computeTimedRunTally({
-    runScore: 24_600,
-    peakCombo: 5,
-    timeAtMaxCombo: 14,
+    durianScore: 4_200,
+    goldScore: 2_800,
+    teethScore: 5_000,
+    bubbleScore: 0,
     bubblesHit: 0,
-    finaleScore: 4_800,
     shotsFired: 80,
-    accurateHits: 72,
+    accurateHits: 80,
+    finishCombo: 5,
+    timedPreset: 'short',
   });
 }
 

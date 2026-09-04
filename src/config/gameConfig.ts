@@ -42,16 +42,20 @@ export const gameConfig = {
   /** Timed mode: multiply spawn rate by this during the final boost window (2.25 = +125%). */
   timedFinalSpawnRateMult: 2.25,
   /**
-   * Timed mode: extra score on durian/gold during `finalBoostSeconds`.
-   * Combo still multiplies after this. Bubbles stay −1000 with no clock bonus.
+   * Timed: extra score on durian/gold whose deck card is in the finale slice.
+   * Bubbles stay −1000 with no finale bonus. Combo does not multiply timed kills.
    */
   timedFinaleScoreMult: 2,
-  /** Timed results: awarded if combo reached max at least once. */
-  timedBonusMaxCombo: 2000,
-  /** Timed results: points per whole second spent at max combo. */
-  timedBonusPerSecAtMaxCombo: 100,
-  /** Timed results: awarded if no bubbles were shot. */
-  timedBonusCleanRound: 5000,
+  /** Timed results: 100% accuracy. */
+  timedBonusMarksman: 5000,
+  /** Timed results: 95–99% accuracy. */
+  timedBonusMarksmanPartial: 2500,
+  /** Timed results: no bubbles shot. */
+  timedBonusClean: 5000,
+  /** Timed results: still at max combo when the clock ends (Blitz). */
+  timedBonusHotStreakShort: 4000,
+  /** Timed results: still at max combo when the clock ends (Standard / long). */
+  timedBonusHotStreakMedium: 8000,
   /**
    * Opening grace period (ms): no close-camera pops and no gold durians
    * so the first half-minute stays readable.
@@ -196,20 +200,51 @@ export function getTimedSpawnQuota(preset: TimedPreset): TimedSpawnQuota | null 
   return null;
 }
 
+export interface TimedSpawnCard {
+  kind: TargetKind;
+  /** True if this card sits in the finale slice of the deck (2× on durian/gold). */
+  finale: boolean;
+}
+
 /**
  * Shuffled ordinary timed targets (no teeth / hearts).
  * Greens and bubbles are shuffled; golds are placed at even intervals after
  * the early-game slice so they do not clump (including right after grace).
+ * The last slice of the deck is flagged finale so 2× is on the card, not the click.
  */
-export function buildTimedSpawnDeck(quota: TimedSpawnQuota, durationMs = 0): TargetKind[] {
+export function buildTimedSpawnDeck(
+  quota: TimedSpawnQuota,
+  durationMs = 0,
+  finalBoostMs = 0,
+): TimedSpawnCard[] {
   const nonGold: TargetKind[] = [];
   for (let i = 0; i < quota.durian; i++) nonGold.push('durian');
   for (let i = 0; i < quota.bubble; i++) nonGold.push('bubble');
   shuffleInPlace(nonGold);
 
   const goldCount = quota.goldDurian;
-  if (goldCount <= 0) return nonGold;
+  const kinds: TargetKind[] =
+    goldCount <= 0 ? nonGold : placeGoldsInDeck(nonGold, goldCount, durationMs);
 
+  const total = kinds.length;
+  const boostFrac = durationMs > 0 && finalBoostMs > 0 ? finalBoostMs / durationMs : 0;
+  // Finale cadence is denser, so the flagged slice is larger than time-alone.
+  const finaleCount = Math.min(
+    total,
+    Math.max(
+      0,
+      Math.round((total * boostFrac * gameConfig.timedFinalSpawnRateMult) / 1.25),
+    ),
+  );
+  const finaleFrom = total - finaleCount;
+  return kinds.map((kind, i) => ({ kind, finale: i >= finaleFrom }));
+}
+
+function placeGoldsInDeck(
+  nonGold: TargetKind[],
+  goldCount: number,
+  durationMs: number,
+): TargetKind[] {
   const total = nonGold.length + goldCount;
   const graceFraction =
     durationMs > 0 ? gameConfig.earlyGameGraceMs / durationMs : 0;
@@ -224,7 +259,6 @@ export function buildTimedSpawnDeck(quota: TimedSpawnQuota, durationMs = 0): Tar
         : first + Math.round((i * (span - 1)) / (goldCount - 1));
     goldAt.add(pos);
   }
-  // Rounding can collide; walk forward to the next free slot.
   if (goldAt.size < goldCount) {
     for (let pos = first; pos <= last && goldAt.size < goldCount; pos++) {
       goldAt.add(pos);
@@ -253,47 +287,76 @@ export function teethPointsForPreset(preset: TimedPreset = defaultTimedPreset): 
   return preset === 'short' ? gameConfig.points.teethShort : gameConfig.points.teethMedium;
 }
 
-/** Timed results breakdown. `finaleScore` is already inside `runScore`. */
+export function timedHotStreakBonus(preset: TimedPreset = defaultTimedPreset): number {
+  return preset === 'short'
+    ? gameConfig.timedBonusHotStreakShort
+    : gameConfig.timedBonusHotStreakMedium;
+}
+
+export function timedMarksmanBonus(accuracyPct: number): number {
+  if (accuracyPct >= 100) return gameConfig.timedBonusMarksman;
+  if (accuracyPct >= 95) return gameConfig.timedBonusMarksmanPartial;
+  return 0;
+}
+
+/** Timed results breakdown. Bonuses are flat; accuracy is not a multiplier. */
 export interface TimedRunTally {
-  runScore: number;
-  finaleScore: number;
-  maxComboBonus: number;
-  comboHoldBonus: number;
-  cleanRoundBonus: number;
+  durianScore: number;
+  goldScore: number;
+  teethScore: number;
+  bubbleScore: number;
+  marksmanBonus: number;
+  cleanBonus: number;
+  hotStreakBonus: number;
   shotsFired: number;
   accurateHits: number;
-  /** Whole percent 0–100 used as the final multiplier. */
+  /** Whole percent 0–100 (Marksman uses this; does not scale the total). */
   accuracyPct: number;
   total: number;
 }
 
 export function computeTimedRunTally(input: {
-  runScore: number;
-  peakCombo: number;
-  timeAtMaxCombo: number;
+  durianScore: number;
+  goldScore: number;
+  teethScore: number;
+  bubbleScore: number;
   bubblesHit: number;
-  finaleScore: number;
   shotsFired: number;
   accurateHits: number;
+  finishCombo: number;
+  timedPreset?: TimedPreset;
 }): TimedRunTally {
-  const maxComboBonus =
-    input.peakCombo >= gameConfig.maxCombo ? gameConfig.timedBonusMaxCombo : 0;
-  const holdSecs = Math.floor(Math.max(0, input.timeAtMaxCombo));
-  const comboHoldBonus = holdSecs * gameConfig.timedBonusPerSecAtMaxCombo;
-  const cleanRoundBonus = input.bubblesHit <= 0 ? gameConfig.timedBonusCleanRound : 0;
   const shots = Math.max(0, Math.floor(input.shotsFired));
   const hits = Math.max(0, Math.min(shots, Math.floor(input.accurateHits)));
   const accuracyPct = shots <= 0 ? 0 : Math.round((hits / shots) * 100);
-  const subtotal = input.runScore + maxComboBonus + comboHoldBonus + cleanRoundBonus;
+  const marksmanBonus = timedMarksmanBonus(accuracyPct);
+  const cleanBonus = input.bubblesHit <= 0 ? gameConfig.timedBonusClean : 0;
+  const hotStreakBonus =
+    input.finishCombo >= gameConfig.maxCombo
+      ? timedHotStreakBonus(input.timedPreset ?? defaultTimedPreset)
+      : 0;
+  const durianScore = Math.round(input.durianScore);
+  const goldScore = Math.round(input.goldScore);
+  const teethScore = Math.round(input.teethScore);
+  const bubbleScore = Math.round(input.bubbleScore);
   return {
-    runScore: input.runScore,
-    finaleScore: Math.max(0, Math.round(input.finaleScore)),
-    maxComboBonus,
-    comboHoldBonus,
-    cleanRoundBonus,
+    durianScore,
+    goldScore,
+    teethScore,
+    bubbleScore,
+    marksmanBonus,
+    cleanBonus,
+    hotStreakBonus,
     shotsFired: shots,
     accurateHits: hits,
     accuracyPct,
-    total: Math.round(subtotal * (accuracyPct / 100)),
+    total:
+      durianScore +
+      goldScore +
+      teethScore +
+      bubbleScore +
+      marksmanBonus +
+      cleanBonus +
+      hotStreakBonus,
   };
 }

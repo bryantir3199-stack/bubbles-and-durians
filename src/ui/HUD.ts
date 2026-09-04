@@ -522,7 +522,7 @@ export class HUD {
     const el = document.createElement('div');
     el.className = 'hud-announce hud-thirty-banner';
     el.setAttribute('aria-hidden', 'true');
-    el.textContent = `FINAL ${finalBoostSeconds}s · ${gameConfig.timedFinaleScoreMult}× SCORE`;
+    el.textContent = `FINAL ${finalBoostSeconds}s · ${gameConfig.timedFinaleScoreMult}× TARGETS`;
     this.root.appendChild(el);
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }

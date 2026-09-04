@@ -156,16 +156,21 @@ export class BonusTallyScene implements GameScene {
 
     const bonus = (n: number) => (n > 0 ? 'is-earned' : 'is-missed');
     const rows: TallyRow[] = [
-      { label: 'SCORE', target: tally.runScore, prefix: '', suffix: '', cssClass: '' },
-    ];
-
-    rows.push(
-      { label: 'MAX COMBO', target: tally.maxComboBonus, prefix: '+', suffix: '', cssClass: bonus(tally.maxComboBonus) },
-      { label: 'COMBO HOLD', target: tally.comboHoldBonus, prefix: '+', suffix: '', cssClass: bonus(tally.comboHoldBonus) },
-      { label: 'CLEAN ROUND', target: tally.cleanRoundBonus, prefix: '+', suffix: '', cssClass: bonus(tally.cleanRoundBonus) },
-      { label: 'ACCURACY', target: tally.accuracyPct, prefix: '× ', suffix: '%', cssClass: tally.accuracyPct >= 100 ? 'is-earned' : tally.accuracyPct <= 0 ? 'is-missed' : '' },
+      { label: 'DURIANS', target: tally.durianScore, prefix: '', suffix: '', cssClass: '' },
+      { label: 'GOLDS', target: tally.goldScore, prefix: '', suffix: '', cssClass: '' },
+      { label: 'TEETH', target: tally.teethScore, prefix: '', suffix: '', cssClass: tally.teethScore > 0 ? 'is-earned' : 'is-missed' },
+      {
+        label: 'BUBBLES',
+        target: tally.bubbleScore,
+        prefix: '',
+        suffix: '',
+        cssClass: tally.bubbleScore < 0 ? 'is-missed' : '',
+      },
+      { label: 'MARKSMAN', target: tally.marksmanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.marksmanBonus) },
+      { label: 'CLEAN', target: tally.cleanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.cleanBonus) },
+      { label: 'HOT STREAK', target: tally.hotStreakBonus, prefix: '+', suffix: '', cssClass: bonus(tally.hotStreakBonus) },
       { label: 'TOTAL', target: tally.total, prefix: '', suffix: '', cssClass: 'tally-total', isTotal: true },
-    );
+    ];
 
     return rows;
   }
@@ -186,7 +191,7 @@ export class BonusTallyScene implements GameScene {
       const totalClass = row.isTotal ? 'tally-total-value' : '';
       const valueHtml = `<span class="tally-value ${totalClass}" data-target="${row.target}" data-prefix="${row.prefix}" data-suffix="${row.suffix}">${row.prefix}0${row.suffix}</span>`;
       const valueBlock =
-        row.label === 'SCORE'
+        row.isTotal
           ? `<span class="tally-value-wrap">${valueHtml}${infoHtml}</span>`
           : valueHtml;
       return `<div class="${baseClass}" data-row-index="${i}">
@@ -297,12 +302,17 @@ export class BonusTallyScene implements GameScene {
 
   private bonusInfoMarkup(): string {
     const max = gameConfig.maxCombo;
+    const streak = this.fmt(
+      this.timedPreset === 'short'
+        ? gameConfig.timedBonusHotStreakShort
+        : gameConfig.timedBonusHotStreakMedium,
+    );
     return `<p class="tally-info-title">Round bonuses</p>
       <ul class="tally-info-list">
-        <li><strong>Max combo</strong> — hit ${max}× at least once. +${this.fmt(gameConfig.timedBonusMaxCombo)}</li>
-        <li><strong>Combo hold</strong> — +${this.fmt(gameConfig.timedBonusPerSecAtMaxCombo)} per second spent at ${max}×.</li>
-        <li><strong>Clean round</strong> — don't shoot any bubbles. +${this.fmt(gameConfig.timedBonusCleanRound)}</li>
-        <li><strong>Accuracy</strong> — durian hits ÷ shots fired (bubbles and misses count against you). Multiplies your total. No shots is 0%.</li>
+        <li><strong>Finale 2×</strong> — greens and golds from the last stretch of the deck. On the target, not the click.</li>
+        <li><strong>Marksman</strong> — 100% accuracy +${this.fmt(gameConfig.timedBonusMarksman)}. 95% or better +${this.fmt(gameConfig.timedBonusMarksmanPartial)}. Bubbles and misses count against you.</li>
+        <li><strong>Clean</strong> — don't shoot any bubbles. +${this.fmt(gameConfig.timedBonusClean)}</li>
+        <li><strong>Hot streak</strong> — still at ${max}× when time runs out. +${streak}</li>
       </ul>`;
   }
 
