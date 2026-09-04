@@ -44,10 +44,11 @@ export class PlayScene implements GameScene {
   private score = 0;
   private combo = 1;
   private comboShots = 0;
-  private peakCombo = 1;
-  private timeAtMaxCombo = 0;
   private bubblesHit = 0;
-  private finaleScore = 0;
+  private durianScore = 0;
+  private goldScore = 0;
+  private teethScore = 0;
+  private bubbleScore = 0;
   private shotsFired = 0;
   private accurateHits = 0;
   private lives: number = gameConfig.startLives;
@@ -110,10 +111,11 @@ export class PlayScene implements GameScene {
     this.score = 0;
     this.combo = 1;
     this.comboShots = 0;
-    this.peakCombo = 1;
-    this.timeAtMaxCombo = 0;
     this.bubblesHit = 0;
-    this.finaleScore = 0;
+    this.durianScore = 0;
+    this.goldScore = 0;
+    this.teethScore = 0;
+    this.bubbleScore = 0;
     this.shotsFired = 0;
     this.accurateHits = 0;
     this.lives = gameConfig.startLives;
@@ -263,9 +265,6 @@ export class PlayScene implements GameScene {
     if (this.ended || this.paused || this.introLocked) return;
 
     if (this.mode === 'timed') {
-      if (this.combo >= gameConfig.maxCombo) {
-        this.timeAtMaxCombo += Math.min(dt, Math.max(0, this.timeLeft));
-      }
       this.timeLeft -= dt;
       this.hud?.setTimer(this.timeLeft);
     }
@@ -516,19 +515,23 @@ export class PlayScene implements GameScene {
       const frenzyScale = this.frenzyActive
         ? gameConfig.frenzyPointBase / gameConfig.points.durian
         : 1;
-      const timedFinale = this.timedFinaleScoreMult();
-      const points = Math.round(base * frenzyScale * timedFinale) * this.combo;
+      const timedFinale =
+        this.mode === 'timed' && target.finaleSpawned ? gameConfig.timedFinaleScoreMult : 1;
+      const comboMult = this.mode === 'timed' ? 1 : this.combo;
+      const points = Math.round(base * frenzyScale * timedFinale) * comboMult;
       const color = kind === 'goldDurian' ? '#FFD700' : '#7CFF7C';
       const finaleTag = timedFinale > 1 ? `${gameConfig.timedFinaleScoreMult}×` : undefined;
       this.addScore(points, clientX, clientY, color, finaleTag);
-      if (this.mode === 'timed' && timedFinale > 1 && points > 0) {
-        this.finaleScore += points;
+      if (this.mode === 'timed') {
+        if (kind === 'goldDurian') this.goldScore += points;
+        else this.durianScore += points;
       }
     } else if (kind === 'bubble') {
       this.hud?.spawnBubblePop(clientX, clientY);
       this.resetCombo();
       this.bubblesHit += 1;
       this.addScore(gameConfig.points.bubble, clientX, clientY, '#ff6b8a');
+      if (this.mode === 'timed') this.bubbleScore += gameConfig.points.bubble;
       if (this.usesLives()) this.changeLives(-1);
     } else if (kind === 'heart') {
       // Hearts grant a life without breaking the combo streak.
@@ -537,8 +540,9 @@ export class PlayScene implements GameScene {
     } else if (kind === 'teeth') {
       playSquishSound();
       playTeethHitSound();
-      // Flat award by preset — no combo / finale mult.
-      this.addScore(teethPointsForPreset(this.timedPreset), clientX, clientY, '#ffe8a0');
+      const teethPts = teethPointsForPreset(this.timedPreset);
+      this.addScore(teethPts, clientX, clientY, '#ffe8a0');
+      if (this.mode === 'timed') this.teethScore += teethPts;
     }
 
     // Knock down (fall back 90°) instead of shrinking on kill.
@@ -565,7 +569,6 @@ export class PlayScene implements GameScene {
   private registerComboShot(x: number, y: number): void {
     if (this.combo >= gameConfig.maxCombo) {
       this.comboShots = gameConfig.shotsPerComboLevel;
-      this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       return;
     }
@@ -574,7 +577,6 @@ export class PlayScene implements GameScene {
     if (this.comboShots >= gameConfig.shotsPerComboLevel) {
       this.comboShots = 0;
       this.combo += 1;
-      this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
       playComboLevelSound(this.combo);
@@ -590,14 +592,6 @@ export class PlayScene implements GameScene {
     this.comboShots = 0;
     this.hud?.setCombo(this.combo, this.comboShots);
     playComboLostSound();
-  }
-
-  /** Clock 2× during Timed’s last `finalBoostSeconds`. Endless always 1. */
-  private timedFinaleScoreMult(): number {
-    if (this.mode !== 'timed') return 1;
-    return this.timeLeft <= this.timedConfig.finalBoostSeconds
-      ? gameConfig.timedFinaleScoreMult
-      : 1;
   }
 
   private addScore(delta: number, x: number, y: number, color: string, suffix?: string): void {
@@ -768,13 +762,15 @@ export class PlayScene implements GameScene {
     const timedTally =
       this.mode === 'timed'
         ? computeTimedRunTally({
-            runScore: this.score,
-            peakCombo: this.peakCombo,
-            timeAtMaxCombo: this.timeAtMaxCombo,
+            durianScore: this.durianScore,
+            goldScore: this.goldScore,
+            teethScore: this.teethScore,
+            bubbleScore: this.bubbleScore,
             bubblesHit: this.bubblesHit,
-            finaleScore: this.finaleScore,
             shotsFired: this.shotsFired,
             accurateHits: this.accurateHits,
+            finishCombo: this.combo,
+            timedPreset: this.timedPreset,
           })
         : undefined;
     if (timedTally) {
