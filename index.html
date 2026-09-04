@@ -258,8 +258,20 @@
       .menu.title-splash {
         position: absolute;
         inset: 0;
-        background: #fff800;
+        overflow: hidden;
+        background: linear-gradient(to bottom, #ffde38, #ffcc00);
         cursor: pointer;
+      }
+      .menu.title-splash::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url('/assets/title-bg.jpg') center / cover no-repeat;
+        filter: grayscale(1) contrast(1.15) brightness(1.85);
+        mix-blend-mode: multiply;
+        opacity: 0.1;
+        pointer-events: none;
+        z-index: 0;
       }
       .menu.main-menu {
         --menu-pattern-size: 270px;
@@ -326,6 +338,8 @@
         animation: none;
       }
       .title-splash-content {
+        position: relative;
+        z-index: 1;
         width: 100%;
         padding: 24px 0;
       }
@@ -339,9 +353,11 @@
         pointer-events: none;
       }
       .title-logo {
-        width: 50vw;
+        width: 65vw;
+        height: 65vh;
         max-width: none;
         max-height: none;
+        object-fit: contain;
         filter: none;
         animation: none;
       }
@@ -353,7 +369,14 @@
         margin-top: 12px;
         font: 800 clamp(22px, 4.2vw, 36px) / 1.15 'Baloo 2', 'Fredoka', sans-serif;
         letter-spacing: 0.12em;
-        color: #000;
+        color: #fff;
+        -webkit-text-stroke: 4px #000;
+        paint-order: stroke fill;
+        text-shadow:
+          -1px -1px 0 #000,
+           1px -1px 0 #000,
+          -1px  1px 0 #000,
+           1px  1px 0 #000;
         animation: clickBlink 1.2s steps(1, end) infinite;
         pointer-events: none;
       }
@@ -406,10 +429,10 @@
         font-weight: 800;
       }
       .high-score-banner .high-score-name {
-        color: #fff;
+        color: #2ea0e0;
       }
       .high-score-banner .high-score-value {
-        color: var(--gold);
+        color: #28b000;
       }
       .main-menu-home {
         width: 100%;
@@ -2544,9 +2567,11 @@
         margin-block: auto;
       }
       html.touch-ui .title-logo {
-        width: 50vw;
+        width: 65vw;
+        height: 65vh;
         max-width: none;
         max-height: none;
+        object-fit: contain;
         animation: none;
       }
       html.touch-ui .click-anywhere {

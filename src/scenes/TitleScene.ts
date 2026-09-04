@@ -16,7 +16,7 @@ export class TitleScene implements GameScene {
       'menu title-splash',
       `${highScoreBannerHtml()}
       <div class="title-splash-content">
-        <img class="title-logo" src="assets/title-logo.png" alt="Bubbles & Durians" />
+        <img class="title-logo" src="assets/title-logo.png?v=4" alt="Bubbles & Durians" />
         <p class="click-anywhere">
           <span class="prompt-click">CLICK ANYWHERE TO START</span>
           <span class="prompt-tap">TAP ANYWHERE TO START</span>
@@ -25,7 +25,7 @@ export class TitleScene implements GameScene {
     );
     this.ctx.uiRoot.appendChild(ui);
     this.unbindHighScore = bindHighScoreBanner(ui);
-    document.body.style.background = '#fff800';
+    document.body.style.background = 'linear-gradient(to bottom, #ffde38, #ffcc00)';
 
     const advance = () => {
       if (isCoarsePointer()) tryEnterFullscreen();
