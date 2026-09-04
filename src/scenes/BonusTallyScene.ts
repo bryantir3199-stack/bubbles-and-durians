@@ -9,7 +9,7 @@ import {
   stopTallyCalcDrumroll,
 } from '../audio/sfx';
 import { dummyTimedTally, wantsBonusTallyPreview } from '../debug/pathDebug';
-import { clearUI, panel, bindClick } from '../ui/dom';
+import { clearUI, panel, bindClick, flashThen } from '../ui/dom';
 import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
 interface TallyRow {
@@ -33,6 +33,7 @@ export class BonusTallyScene implements GameScene {
   private startTimer = 0;
   private previewClick: ((e: PointerEvent) => void) | null = null;
   private continueBtn: HTMLButtonElement | null = null;
+  private flashTimer = 0;
 
   private tallyInfoWrap: HTMLElement | null = null;
   private tallyInfoBtn: HTMLButtonElement | null = null;
@@ -69,13 +70,7 @@ export class BonusTallyScene implements GameScene {
     this.continueBtn = ui.querySelector('[data-action="continue"]');
     this.bindBonusInfo(ui);
 
-    bindClick(ui, '[data-action="continue"]', () => {
-      this.ctx.goto('gameOver', {
-        mode: this.mode,
-        timedPreset: this.timedPreset,
-        timedTally: this.timedTally,
-      });
-    });
+    bindClick(ui, '[data-action="continue"]', () => this.goContinue());
 
     this.onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -85,11 +80,7 @@ export class BonusTallyScene implements GameScene {
       if (event.key === 'Enter' || event.key === ' ') {
         if (this.continueBtn && !this.continueBtn.disabled) {
           event.preventDefault();
-          this.ctx.goto('gameOver', {
-            mode: this.mode,
-            timedPreset: this.timedPreset,
-            timedTally: this.timedTally,
-          });
+          this.goContinue();
         }
       }
     };
@@ -117,6 +108,8 @@ export class BonusTallyScene implements GameScene {
     this.tallyInfoWrap = null;
     this.tallyInfoBtn = null;
     this.continueBtn = null;
+    window.clearTimeout(this.flashTimer);
+    this.flashTimer = 0;
     this.clearPreviewClick();
     window.clearTimeout(this.startTimer);
     this.startTimer = 0;
@@ -136,6 +129,18 @@ export class BonusTallyScene implements GameScene {
     if (!this.previewClick) return;
     window.removeEventListener('pointerdown', this.previewClick);
     this.previewClick = null;
+  }
+
+  private goContinue(): void {
+    if (this.flashTimer || !this.continueBtn || this.continueBtn.disabled) return;
+    this.flashTimer = flashThen(this.continueBtn, () => {
+      this.flashTimer = 0;
+      this.ctx.goto('gameOver', {
+        mode: this.mode,
+        timedPreset: this.timedPreset,
+        timedTally: this.timedTally,
+      });
+    });
   }
 
   private modeLabel(): string {

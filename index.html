@@ -1048,9 +1048,11 @@
       .tally-info {
         position: absolute;
         left: 100%;
-        top: 50%;
-        transform: translateY(-50%);
+        top: 0;
+        bottom: 0;
         margin-left: 0.5em;
+        display: flex;
+        align-items: center;
         z-index: 3;
       }
       .tally-info-btn {
@@ -1075,64 +1077,59 @@
         color: #0d2438;
       }
       .tally-info-bubble {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        width: min(292px, 78vw);
-        padding: 10px 12px 12px;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        right: auto;
+        z-index: 50;
+        width: min(630px, 90vw);
+        max-height: min(80vh, 780px);
+        overflow: auto;
+        padding: 15px 18px 18px;
         background: rgba(8, 16, 28, 0.96);
-        border: 2px solid rgba(244, 230, 200, 0.78);
-        border-radius: 10px;
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+        border: 3px solid rgba(244, 230, 200, 0.78);
+        border-radius: 15px;
+        box-shadow: 0 15px 36px rgba(0, 0, 0, 0.5);
         text-align: left;
         color: #e8f0fa;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateY(-6px);
+        transform: translate(-50%, -50%) translateY(-8px);
         transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s ease;
       }
       .tally-info-bubble::before {
-        content: '';
-        position: absolute;
-        top: -7px;
-        right: 8px;
-        width: 10px;
-        height: 10px;
-        background: rgba(8, 16, 28, 0.96);
-        border-left: 2px solid rgba(244, 230, 200, 0.78);
-        border-top: 2px solid rgba(244, 230, 200, 0.78);
-        transform: rotate(45deg);
+        content: none;
       }
       .tally-info.is-open .tally-info-bubble,
       .tally-info-btn:focus-visible + .tally-info-bubble {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        transform: none;
+        transform: translate(-50%, -50%);
       }
       @media (hover: hover) and (pointer: fine) {
         .tally-info:hover .tally-info-bubble {
           opacity: 1;
           visibility: visible;
           pointer-events: auto;
-          transform: none;
+          transform: translate(-50%, -50%);
         }
       }
       .tally-info-title {
-        font: 800 13px/1.2 'Fredoka', sans-serif;
+        font: 800 20px/1.2 'Fredoka', sans-serif;
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--gold);
-        margin: 0 0 8px;
+        margin: 0 0 12px;
       }
       .tally-info-list {
         margin: 0;
         padding-left: 1.1em;
-        font: 500 13px/1.45 'Fredoka', sans-serif;
+        font: 500 20px/1.45 'Fredoka', sans-serif;
         color: #d0e4f7;
       }
-      .tally-info-list li + li { margin-top: 6px; }
+      .tally-info-list li + li { margin-top: 9px; }
       .tally-info-list strong { color: #fff; font-weight: 700; }
       .btn {
         display: block;
@@ -2637,7 +2634,7 @@
       html.touch-ui .tally-row { font-size: 15px; }
       html.touch-ui .tally-row.tally-total { font-size: 24px; }
       html.touch-ui .tally-info-btn { width: 32px; height: 32px; font-size: 17px; }
-      html.touch-ui .tally-info-bubble { width: min(280px, 82vw); }
+      html.touch-ui .tally-info-bubble { width: min(630px, 90vw); }
       html.touch-ui .lb-run {
         padding: 8px 12px 10px;
         margin-bottom: 4px;
@@ -3165,14 +3162,14 @@
         font-size: 3cqh;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-bubble {
-        width: min(52cqi, 90%);
-        padding: 1.6cqh 2cqi;
+        width: min(780px, 90vw);
+        padding: 3cqh 3.6cqi 3.3cqh;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-title {
-        font-size: 2.8cqh;
+        font-size: 4.2cqh;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-list {
-        font-size: 2.5cqh;
+        font-size: 3.75cqh;
       }
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn,
       :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn {
@@ -3190,6 +3187,39 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row .btn {
         width: 32cqi;
         max-width: none;
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn {
+        transition: transform 0.12s ease, filter 0.06s ease;
+        transform: translateZ(0);
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:focus-visible,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:hover,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:focus-visible {
+        filter: brightness(1.09);
+        outline: none;
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:hover {
+        transform: translateZ(0) scale(0.95);
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:active,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:active {
+        transform: translateZ(0) scale(0.95) translateY(4px);
+        filter: brightness(0.92);
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn.is-selecting,
+      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn.is-selecting {
+        animation: menuTileSelectFlash 0.75s steps(1, end) forwards;
+        pointer-events: none;
+      }
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled:hover,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled:active {
+        filter: none;
+        transform: none;
+        cursor: default;
       }
       :is(html, html.touch-ui) .menu.game-over .go-form {
         flex: 1 1 auto;

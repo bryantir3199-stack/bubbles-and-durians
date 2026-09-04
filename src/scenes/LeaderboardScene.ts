@@ -7,7 +7,7 @@ import {
   isLeaderboardConfigured,
   type ScoreRow,
 } from '../services/leaderboard';
-import { clearUI, panel, bindClick } from '../ui/dom';
+import { clearUI, panel, bindClick, flashThen } from '../ui/dom';
 import { fadeFromOverlay, fadeToBlackAndHold } from '../ui/screenFade';
 import { hideResultsCrash } from '../ui/resultsCrash';
 
@@ -27,11 +27,13 @@ export class LeaderboardScene implements GameScene {
   private listEl: HTMLElement | null = null;
   private runEl: HTMLElement | null = null;
   private leaving = false;
+  private flashTimer = 0;
 
   constructor(private ctx: SceneContext) {}
 
   enter(data?: SceneData): void {
     this.leaving = false;
+    this.flashTimer = 0;
     const fromRun = data?.score != null || data?.highlightScore != null;
     if (fromRun) {
       this.runScore = data?.score;
@@ -82,15 +84,20 @@ export class LeaderboardScene implements GameScene {
     });
     bindClick(ui, '[data-action="back"]', () => {
       if (this.leaving) return;
+      const back = ui.querySelector<HTMLElement>('[data-action="back"]');
+      if (!back) return;
       this.leaving = true;
-      if (this.runScore == null) {
-        this.ctx.goto('modeSelect');
-        return;
-      }
-      void fadeToBlackAndHold().then(() => {
-        hideResultsCrash();
-        this.ctx.goto('modeSelect');
-        return fadeFromOverlay();
+      this.flashTimer = flashThen(back, () => {
+        this.flashTimer = 0;
+        if (this.runScore == null) {
+          this.ctx.goto('modeSelect');
+          return;
+        }
+        void fadeToBlackAndHold().then(() => {
+          hideResultsCrash();
+          this.ctx.goto('modeSelect');
+          return fadeFromOverlay();
+        });
       });
     });
 
@@ -103,6 +110,8 @@ export class LeaderboardScene implements GameScene {
   update(): void {}
 
   exit(): void {
+    window.clearTimeout(this.flashTimer);
+    this.flashTimer = 0;
     clearUI(this.ctx.uiRoot);
   }
 

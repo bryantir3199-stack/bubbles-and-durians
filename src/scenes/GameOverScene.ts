@@ -11,7 +11,7 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer } from '../core/display';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
 import { startResultsBgm } from '../audio/sfx';
-import { clearUI, panel, bindClick } from '../ui/dom';
+import { clearUI, panel, bindClick, flashThen } from '../ui/dom';
 import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
 export class GameOverScene implements GameScene {
@@ -25,6 +25,7 @@ export class GameOverScene implements GameScene {
   private slotsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
   private onKey: ((e: KeyboardEvent) => void) | null = null;
+  private flashTimer = 0;
 
   constructor(private ctx: SceneContext) {}
 
@@ -35,6 +36,7 @@ export class GameOverScene implements GameScene {
     this.letters = ['', '', ''];
     this.cursor = 0;
     this.submitting = false;
+    this.flashTimer = 0;
 
     if (!isResultsCrashHeld()) await playResultsCrash();
     startResultsBgm();
@@ -63,14 +65,7 @@ export class GameOverScene implements GameScene {
     this.bindSlots(ui);
 
     bindClick(ui, '[data-action="submit"]', () => void this.doSubmit());
-    bindClick(ui, '[data-action="skip"]', () => {
-      this.ctx.goto('leaderboard', {
-        mode: this.mode,
-        timedPreset: this.timedPreset,
-        rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
-        score: this.score,
-      });
-    });
+    bindClick(ui, '[data-action="skip"]', () => this.goSkip());
 
     this.onKey = (event: KeyboardEvent) => {
       if (this.submitting) return;
@@ -112,7 +107,29 @@ export class GameOverScene implements GameScene {
   exit(): void {
     if (this.onKey) window.removeEventListener('keydown', this.onKey);
     this.onKey = null;
+    window.clearTimeout(this.flashTimer);
+    this.flashTimer = 0;
     clearUI(this.ctx.uiRoot);
+  }
+
+  private goLeaderboard(extra?: { highlightScore?: number; playerName?: string }): void {
+    this.ctx.goto('leaderboard', {
+      mode: this.mode,
+      timedPreset: this.timedPreset,
+      rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
+      score: this.score,
+      ...extra,
+    });
+  }
+
+  private goSkip(): void {
+    if (this.submitting || this.flashTimer) return;
+    const skip = this.ctx.uiRoot.querySelector<HTMLElement>('[data-action="skip"]');
+    if (!skip) return;
+    this.flashTimer = flashThen(skip, () => {
+      this.flashTimer = 0;
+      this.goLeaderboard();
+    });
   }
 
   private slotHtml(index: number): string {
@@ -213,7 +230,7 @@ export class GameOverScene implements GameScene {
   }
 
   private async doSubmit(): Promise<void> {
-    if (this.submitting || !this.statusEl) return;
+    if (this.submitting || this.flashTimer || !this.statusEl) return;
     const parsed = validatePlayerName(this.currentName());
     if (!parsed.ok) {
       this.statusEl.className = 'status danger-text';
@@ -235,15 +252,14 @@ export class GameOverScene implements GameScene {
 
     this.statusEl.className = 'status ok-text';
     this.statusEl.textContent = 'Score saved!';
-    window.setTimeout(() => {
-      this.ctx.goto('leaderboard', {
-        mode: this.mode,
-        timedPreset: this.timedPreset,
-        rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
-        score: this.score,
-        highlightScore: this.score,
-        playerName: parsed.name,
-      });
-    }, 500);
+    const submit = this.ctx.uiRoot.querySelector<HTMLElement>('[data-action="submit"]');
+    if (!submit) {
+      this.goLeaderboard({ highlightScore: this.score, playerName: parsed.name });
+      return;
+    }
+    this.flashTimer = flashThen(submit, () => {
+      this.flashTimer = 0;
+      this.goLeaderboard({ highlightScore: this.score, playerName: parsed.name });
+    });
   }
 }

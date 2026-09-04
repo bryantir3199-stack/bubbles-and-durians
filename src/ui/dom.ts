@@ -18,3 +18,9 @@ export function bindClick(root: HTMLElement, selector: string, fn: () => void): 
     fn();
   });
 }
+
+/** Same blink used by main-menu tiles before navigating. */
+export function flashThen(el: HTMLElement, next: () => void, ms = 750): number {
+  el.classList.add('is-selecting');
+  return window.setTimeout(next, ms);
+}
