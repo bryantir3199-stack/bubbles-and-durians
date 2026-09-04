@@ -280,7 +280,6 @@ export class PlayScene implements GameScene {
     this.tryWarnTeethFlyby();
     this.trySpawnTeethFlyby();
     this.tutorial?.update(dt);
-    this.tutorialCoach?.update(dt);
     this.announceVisibleGoldDurians();
 
     if (this.camKick > 0) {
@@ -293,6 +292,7 @@ export class PlayScene implements GameScene {
       );
       this.ctx.three.camera.lookAt(0, 110, 40);
     }
+    this.tutorialCoach?.update(dt);
 
     if (this.mode === 'timed' && this.timeLeft <= 0) this.endGame();
   }
@@ -697,6 +697,10 @@ export class PlayScene implements GameScene {
       getHudPart: (part) => this.hud?.part(part) ?? null,
     });
     this.tutorialCoach = new TutorialCoach(this.ctx.uiRoot, {
+      scene: this.ctx.three.scene,
+      camera: this.ctx.three.camera,
+      canvas: this.ctx.canvas,
+      getTargets: () => this.spawner?.targets ?? [],
       onSkip: () => {
         if (!this.paused) this.tutorial?.skipStep();
       },

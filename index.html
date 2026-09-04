@@ -236,7 +236,6 @@
       .ui-root .hud-ammo,
       .ui-root .hud-ctrl,
       .ui-root .hud-reload-btn,
-      .ui-root .tut-speaker,
       .ui-root .tut-bubble,
       .ui-root .tut-btn {
         pointer-events: auto;
@@ -2182,100 +2181,52 @@
         opacity: 0;
       }
 
-      /* Tutorial dialogue — lower-third GUI (teeth portrait + speech bubble). */
+      /* Tutorial dialogue — screen UI, tail points at the world presenter. */
       .tut-coach {
         position: absolute;
-        inset: 0;
-        z-index: 26;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
+        z-index: 27;
         pointer-events: none;
         text-align: left;
       }
       .tut-dialogue {
-        position: absolute;
+        position: fixed;
         left: 0;
-        right: 0;
-        bottom: 0;
-        height: 32%;
-        min-height: 168px;
-        max-height: 280px;
-        display: flex;
-        align-items: stretch;
-        gap: 0;
-        padding: 0 max(10px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
+        top: 0;
+        width: min(320px, 36vw);
         pointer-events: none;
-        animation: tutDialogueIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+        z-index: 27;
       }
-      @keyframes tutDialogueIn {
-        from { transform: translateY(28px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+      .tut-tail {
+        position: fixed;
+        left: 0;
+        top: 0;
+        overflow: visible;
+        pointer-events: none;
+        z-index: 26;
       }
-      html:not(.touch-ui) .tut-dialogue {
-        height: 36%;
-        max-height: 300px;
-      }
-      html:not(.touch-ui) .tut-bubble {
-        margin-bottom: clamp(62px, 9.5vw, 104px);
-      }
-      .tut-speaker {
-        flex: 0 0 auto;
-        width: clamp(168px, 26vw, 280px);
-        height: 125%;
-        margin-bottom: -10px;
-        margin-right: -12px;
-        position: relative;
-        overflow: hidden;
-        pointer-events: auto;
-        filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5));
-        z-index: 3;
-      }
-      .tut-speaker-canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
+      .tut-tail-shape {
+        fill: #f4f0e4;
+        stroke: none;
       }
       .tut-bubble {
         position: relative;
-        flex: 1 1 auto;
-        min-width: 0;
-        align-self: center;
         box-sizing: border-box;
-        margin-bottom: max(4px, calc(env(safe-area-inset-bottom, 0px) * 0.25));
-        padding: 10px 16px 12px 28px;
+        padding: 10px 16px 12px 16px;
         pointer-events: auto;
-        background: linear-gradient(180deg, #f7f4ea 0%, #ebe6d4 100%);
-        border: 3px solid #2a2a32;
+        background: #f4f0e4;
+        border: none;
         border-radius: 22px;
-        box-shadow:
-          inset 0 2px 0 rgba(255, 255, 255, 0.78),
-          inset 0 -8px 12px rgba(0, 0, 0, 0.08),
-          0 10px 24px rgba(0, 0, 0, 0.4);
-        cursor: pointer;
-      }
-      .tut-bubble::before {
-        content: '';
-        position: absolute;
-        left: -20px;
-        top: 48%;
-        width: 0;
-        height: 0;
-        border: 14px solid transparent;
-        border-right-color: #2a2a32;
-        transform: translateY(-50%);
         box-shadow: none;
-        background: none;
-        border-radius: 0;
+        cursor: pointer;
+        animation: tutBubbleIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
       }
-      .tut-bubble::after {
-        content: '';
-        position: absolute;
-        left: -14px;
-        top: 48%;
-        width: 0;
-        height: 0;
-        border: 11px solid transparent;
-        border-right-color: #f2ece0;
-        transform: translateY(-50%);
-        z-index: 1;
+      @keyframes tutBubbleIn {
+        from { transform: scale(0.92); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
       }
       .tut-bubble-head {
         display: flex;
@@ -2296,7 +2247,7 @@
         text-transform: uppercase;
       }
       .tut-title {
-        font: 800 clamp(18px, 3vw, 26px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
+        font: 800 clamp(16px, 2.4vw, 22px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
         color: #1a1a22;
         margin: 0 0 4px;
         letter-spacing: 0.02em;
@@ -2304,8 +2255,8 @@
       .tut-body {
         margin: 0;
         color: #1a1a22;
-        font: 500 16px/1.45 'Fredoka', sans-serif;
-        min-height: 2.9em;
+        font: 500 15px/1.4 'Fredoka', sans-serif;
+        min-height: 2.4em;
       }
       .tut-type-cursor {
         display: inline;
@@ -2937,11 +2888,8 @@
         position: fixed;
       }
       html.touch-ui .tut-dialogue {
-        height: 34%;
-        min-height: 150px;
-        max-height: 240px;
+        width: min(300px, 58vw);
       }
-      html.touch-ui .tut-speaker { width: clamp(110px, 24vw, 180px); }
       html.touch-ui .tut-title { font-size: clamp(16px, 4.2vh, 22px); }
       html.touch-ui .tut-body { font-size: 14px; min-height: 2.4em; }
       html.touch-ui .tut-btn.tut-back,
@@ -3000,11 +2948,8 @@
           font-size: 16px;
         }
         html.touch-ui .tut-dialogue {
-          height: 42%;
-          min-height: 120px;
-          max-height: 180px;
+          width: min(280px, 62vw);
         }
-        html.touch-ui .tut-speaker { width: clamp(88px, 18vw, 140px); }
         html.touch-ui .tut-bubble { padding: 6px 12px 8px 14px; border-radius: 16px; }
         html.touch-ui .tut-title { font-size: 15px; }
         html.touch-ui .tut-body { font-size: 13px; min-height: 1.8em; }

@@ -2,69 +2,55 @@ import * as THREE from 'three';
 import { gameConfig } from '../config/gameConfig';
 import { ModelCache } from '../world/ModelCache';
 
+/** Play camera XZ — same as lawn / path facing. */
+const CAM_X = 0;
+const CAM_Z = 635;
+
+/** Lawn in front of the keep, just left of the doors. Feet on the ground. */
+const SPEAKER_X = -48;
+const SPEAKER_Z = 148;
+
 /**
- * Tutorial portrait of the teeth — a GUI overlay, not a world-space target.
- * Own WebGL layer so stage lighting / SAO / the play camera cannot affect it.
+ * Tutorial presenter — the teeth stand in the play world in front of the castle.
+ * Same world size as other targets. Not a shootable target.
  */
 export class TutorialSpeaker {
-  readonly el: HTMLElement;
-  private canvas: HTMLCanvasElement;
-  private renderer: THREE.WebGLRenderer | null = null;
-  private scene = new THREE.Scene();
-  private camera: THREE.PerspectiveCamera;
+  readonly root: THREE.Group;
+  private holder: THREE.Group;
   private teethOpen: THREE.Object3D | null = null;
   private teethClose: THREE.Object3D | null = null;
   private openState = true;
   private chompAge = 0;
   private talking = false;
-  private bob = 0;
-  private resizeObs: ResizeObserver | null = null;
-  private lastW = 0;
-  private lastH = 0;
+  private scene: THREE.Scene;
 
-  constructor() {
-    this.el = document.createElement('div');
-    this.el.className = 'tut-speaker';
-    this.el.setAttribute('aria-hidden', 'true');
+  constructor(scene: THREE.Scene) {
+    this.scene = scene;
+    this.root = new THREE.Group();
+    this.root.name = 'tutorial-speaker';
+    this.holder = new THREE.Group();
 
-    this.canvas = document.createElement('canvas');
-    this.canvas.className = 'tut-speaker-canvas';
-    this.el.appendChild(this.canvas);
-
-    this.camera = new THREE.PerspectiveCamera(34, 1, 1, 400);
-    this.camera.position.set(0, 8, 120);
-    this.camera.lookAt(0, 1, 0);
-
-    try {
-      this.renderer = new THREE.WebGLRenderer({
-        canvas: this.canvas,
-        antialias: false,
-        alpha: true,
-        powerPreference: 'low-power',
-      });
-      this.renderer.setClearColor(0x000000, 0);
-      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.4;
-    } catch {
-      this.renderer = null;
-    }
+    this.root.position.set(SPEAKER_X, gameConfig.targetSize * 0.5, SPEAKER_Z);
+    this.faceCamera();
+    this.root.add(this.holder);
+    this.scene.add(this.root);
 
     this.buildTeeth();
-    this.resizeObs = new ResizeObserver(() => this.syncSize());
-    this.resizeObs.observe(this.el);
   }
 
   setTalking(talking: boolean): void {
     this.talking = talking;
   }
 
-  update(dt: number): void {
-    if (!this.renderer || !this.teethOpen || !this.teethClose) return;
+  /** Mouth / eyes — where the speech tail starts. */
+  mouthWorld(out: THREE.Vector3): THREE.Vector3 {
+    this.root.getWorldPosition(out);
+    out.y += gameConfig.targetSize * 0.18;
+    return out;
+  }
 
-    this.bob += dt * (this.talking ? 10 : 4);
-    const lift = this.talking ? Math.sin(this.bob) * 1.6 : Math.sin(this.bob) * 0.5;
-    this.scene.position.y = lift;
+  update(dt: number): void {
+    if (!this.teethOpen || !this.teethClose) return;
 
     const interval = this.talking
       ? gameConfig.teethChompIntervalMs
@@ -76,44 +62,24 @@ export class TutorialSpeaker {
       this.teethOpen.visible = this.openState;
       this.teethClose.visible = !this.openState;
     }
-
-    this.renderer.render(this.scene, this.camera);
   }
 
   destroy(): void {
-    this.resizeObs?.disconnect();
-    this.resizeObs = null;
-    this.renderer?.dispose();
-    this.renderer = null;
-    this.el.remove();
+    this.root.removeFromParent();
+  }
+
+  private faceCamera(): void {
+    const dx = CAM_X - this.root.position.x;
+    const dz = CAM_Z - this.root.position.z;
+    this.root.rotation.y = Math.atan2(dx, dz);
   }
 
   private buildTeeth(): void {
     if (!ModelCache.isReady) return;
-    const holder = new THREE.Group();
     this.teethOpen = ModelCache.cloneModel('teethOpen');
     this.teethClose = ModelCache.cloneModel('teethClose');
     this.teethClose.visible = false;
-    holder.add(this.teethOpen);
-    holder.add(this.teethClose);
-    // Drop in the viewport so the bust crops at the lower-third floor.
-    holder.position.set(0, -4, 0);
-    holder.scale.setScalar(1.15);
-    this.scene.add(holder);
-  }
-
-  private syncSize(): void {
-    if (!this.renderer) return;
-    const w = Math.max(1, this.el.clientWidth);
-    const h = Math.max(1, this.el.clientHeight);
-    if (w === this.lastW && h === this.lastH) return;
-    this.lastW = w;
-    this.lastH = h;
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-    this.renderer.setPixelRatio(dpr);
-    this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
-    this.renderer.render(this.scene, this.camera);
+    this.holder.add(this.teethOpen);
+    this.holder.add(this.teethClose);
   }
 }
