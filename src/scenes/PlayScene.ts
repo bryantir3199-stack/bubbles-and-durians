@@ -280,6 +280,7 @@ export class PlayScene implements GameScene {
     this.tryWarnTeethFlyby();
     this.trySpawnTeethFlyby();
     this.tutorial?.update(dt);
+    this.tutorialCoach?.update(dt);
     this.announceVisibleGoldDurians();
 
     if (this.camKick > 0) {

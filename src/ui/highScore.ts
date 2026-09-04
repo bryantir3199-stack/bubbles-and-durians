@@ -2,7 +2,7 @@ import type { RankedMode } from '../config/gameConfig';
 import { fetchModeHighScores, type ModeHighScores, type ScoreRow } from '../services/leaderboard';
 
 const HOLD_MS = 3000;
-const FADE_MS = 280;
+const FADE_MS = 140;
 
 const MODE_CYCLE: { id: RankedMode; label: string }[] = [
   { id: 'endless', label: 'ENDLESS' },
@@ -12,10 +12,6 @@ const MODE_CYCLE: { id: RankedMode; label: string }[] = [
 
 export function highScoreBannerHtml(): string {
   return `<p class="high-score-banner high-score-rotator" hidden><span class="high-score-mode"></span> <strong class="high-score-label">HIGH SCORE:</strong> <span class="high-score-name"></span> <span class="high-score-value"></span></p>`;
-}
-
-export function highScoreSlotHtml(prefix = 'HI-SCORE:'): string {
-  return `<span class="menu-hi-score high-score-rotator"><span class="high-score-mode">---</span> <strong class="high-score-label">${prefix}</strong> <span class="high-score-name"></span> <span class="high-score-value">---</span></span>`;
 }
 
 function paintRotator(el: HTMLElement, label: string, row: ScoreRow | null): void {

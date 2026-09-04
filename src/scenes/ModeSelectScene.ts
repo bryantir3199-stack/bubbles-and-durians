@@ -3,7 +3,6 @@ import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer, tryEnterFullscreen } from '../core/display';
 import { requestShakePermission } from '../core/shake';
 import { clearUI, panel, bindClick } from '../ui/dom';
-import { bindHighScoreBanner, highScoreSlotHtml } from '../ui/highScore';
 import { OptionsMenu } from '../ui/OptionsMenu';
 import { paintMenuArt } from '../ui/menuArt';
 import { fadeFromOverlay, fadeToWhiteAndHold } from '../ui/screenFade';
@@ -13,7 +12,6 @@ import { playGameStartSound, startMenuBgm } from '../audio/sfx';
 export class ModeSelectScene implements GameScene {
   readonly id = 'modeSelect' as const;
   private options: OptionsMenu | null = null;
-  private unbindHighScore: (() => void) | null = null;
   private leaving = false;
   private flashTimer = 0;
 
@@ -32,8 +30,6 @@ export class ModeSelectScene implements GameScene {
   exit(): void {
     window.clearTimeout(this.flashTimer);
     this.flashTimer = 0;
-    this.unbindHighScore?.();
-    this.unbindHighScore = null;
     this.options?.destroy();
     this.options = null;
     clearUI(this.ctx.uiRoot);
@@ -46,8 +42,6 @@ export class ModeSelectScene implements GameScene {
 
   private renderMain(): void {
     this.leaving = false;
-    this.unbindHighScore?.();
-    this.unbindHighScore = null;
     this.options?.destroy();
     this.options = null;
     clearUI(this.ctx.uiRoot);
@@ -79,7 +73,6 @@ export class ModeSelectScene implements GameScene {
             <button type="button" class="menu-tile util" data-action="lb">
               <img class="menu-icon menu-icon-util" src="assets/menu-icon-leaderboard.png" alt="" aria-hidden="true">
               Leaderboard
-              ${highScoreSlotHtml()}
             </button>
             <button type="button" class="menu-tile util" data-action="options">
               <img class="menu-icon menu-icon-util" src="assets/menu-icon-settings.png" alt="" aria-hidden="true">
@@ -91,7 +84,6 @@ export class ModeSelectScene implements GameScene {
     );
     this.ctx.uiRoot.appendChild(ui);
     paintMenuArt(ui);
-    this.unbindHighScore = bindHighScoreBanner(ui);
 
     ui.querySelectorAll<HTMLElement>('[data-mode]').forEach((el) => {
       el.addEventListener('click', (e) => {
@@ -134,8 +126,6 @@ export class ModeSelectScene implements GameScene {
   }
 
   private openOptions(): void {
-    this.unbindHighScore?.();
-    this.unbindHighScore = null;
     clearUI(this.ctx.uiRoot);
     this.options?.destroy();
     this.options = new OptionsMenu(this.ctx.uiRoot, {

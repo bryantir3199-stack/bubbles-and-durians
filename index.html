@@ -236,7 +236,8 @@
       .ui-root .hud-ammo,
       .ui-root .hud-ctrl,
       .ui-root .hud-reload-btn,
-      .ui-root .tut-coach,
+      .ui-root .tut-speaker,
+      .ui-root .tut-bubble,
       .ui-root .tut-btn {
         pointer-events: auto;
       }
@@ -263,16 +264,7 @@
       }
       .menu.main-menu {
         --menu-pattern-size: 270px;
-        --menu-btn-image: url('/assets/menu-button-frame.png');
-        --menu-btn-burst: url('/assets/menu-button-burst.png');
-        --menu-btn-face: #ade54d;
-        --menu-btn-outline:
-          drop-shadow(1.25px 0 0 #000)
-          drop-shadow(-1.25px 0 0 #000)
-          drop-shadow(0 1.25px 0 #000)
-          drop-shadow(0 -1.25px 0 #000);
-        --spike-d: 28px;
-        --spike-p: 50px;
+        --menu-btn-face: #aee54d;
         --spike-fill: #c0f25f;
         position: relative;
         overflow: hidden;
@@ -397,7 +389,7 @@
         display: none;
       }
       .high-score-rotator {
-        transition: opacity 0.28s ease;
+        transition: opacity 0.14s ease;
       }
       .high-score-rotator.is-swap {
         opacity: 0;
@@ -475,30 +467,132 @@
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
         text-shadow: 0 3px 0 rgba(0, 0, 0, 0.28);
-        background-color: var(--menu-btn-face);
-        border: clamp(22px, 4vmin, 48px) solid transparent;
-        border-image-source: var(--menu-btn-image);
-        border-image-slice: 48 fill;
-        border-image-repeat: stretch;
-        border-radius: clamp(22px, 4.5vmin, 40px);
-        overflow: hidden;
+        background-color: transparent;
+        background-clip: border-box;
+        --menu-btn-border: clamp(22px, 4vmin, 48px);
+        border: var(--menu-btn-border) solid transparent;
+        border-image: none;
+        border-radius: 0;
+        overflow: visible;
         box-shadow: none;
         cursor: pointer;
         position: relative;
         isolation: isolate;
         z-index: 0;
-        filter: var(--menu-btn-outline);
-        transition: transform 0.12s ease, filter 0.12s ease;
+        filter: none;
+        transform: translateZ(0);
+        transition: transform 0.12s ease, filter 0.06s ease;
       }
-      .menu-zigzag {
+      .menu-btn-skin {
         position: absolute;
-        inset: 8px;
+        inset: calc(-1 * var(--menu-btn-border));
         z-index: 1;
         pointer-events: none;
-        border: 32px solid transparent;
-        border-image-source: var(--menu-btn-burst);
-        border-image-slice: 32 fill;
-        border-image-repeat: repeat;
+        display: block;
+      }
+      .menu-btn-skin canvas {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      /* Face color under the 9-slice so subpixel slice gaps stay lime, not the page background. */
+      .menu-tile::before,
+      .menu.main-menu .menu-option::before {
+        content: '';
+        position: absolute;
+        inset: -6px;
+        border-radius: calc(var(--menu-btn-border) * 0.65);
+        background: var(--menu-btn-face);
+        z-index: 0;
+        pointer-events: none;
+      }
+      .menu-zigzag {
+        /* Corner 98×63 cropped at tooth valleys; triangles scale to the 37px tooth. */
+        --zig-ch: clamp(14px, 2.6vmin, 26px);
+        --zig-cw: calc(var(--zig-ch) * 98 / 63);
+        --zig-th: calc(var(--zig-ch) * 37 / 63);
+        --zig-sw: calc(var(--zig-ch) * 37 / 63);
+        position: absolute;
+        inset: clamp(6px, 1.2vmin, 12px);
+        z-index: 2;
+        pointer-events: none;
+      }
+      .menu-zig-fill {
+        position: absolute;
+        top: var(--zig-th);
+        right: var(--zig-sw);
+        bottom: var(--zig-th);
+        left: var(--zig-sw);
+        background-color: var(--spike-fill);
+      }
+      .menu-zig-t,
+      .menu-zig-b,
+      .menu-zig-l,
+      .menu-zig-r,
+      .menu-zig-tl,
+      .menu-zig-tr,
+      .menu-zig-bl,
+      .menu-zig-br {
+        position: absolute;
+        background-repeat: no-repeat;
+      }
+      .menu-zig-t,
+      .menu-zig-b {
+        left: calc(var(--zig-cw) - 1px);
+        right: calc(var(--zig-cw) - 1px);
+        height: var(--zig-th);
+        background-image: url('/assets/zig-top.png');
+        background-repeat: repeat-x;
+        background-size: auto 100%;
+        background-position: left top;
+      }
+      .menu-zig-t { top: 0; }
+      .menu-zig-b {
+        bottom: 0;
+        transform: scaleY(-1);
+      }
+      .menu-zig-l,
+      .menu-zig-r {
+        top: calc(var(--zig-ch) - 1px);
+        bottom: calc(var(--zig-ch) - 1px);
+        width: var(--zig-sw);
+        background-image: url('/assets/zig-side.png');
+        background-repeat: repeat-y;
+        background-size: 100% auto;
+        background-position: left top;
+      }
+      .menu-zig-l { left: 0; }
+      .menu-zig-r {
+        right: 0;
+        transform: scaleX(-1);
+      }
+      .menu-zig-tl,
+      .menu-zig-tr,
+      .menu-zig-bl,
+      .menu-zig-br {
+        width: var(--zig-cw);
+        height: var(--zig-ch);
+        background-image: url('/assets/zig-corner.png');
+        background-size: 100% 100%;
+        z-index: 1;
+      }
+      .menu-zig-tl { top: 0; left: 0; }
+      .menu-zig-tr {
+        top: 0;
+        right: 0;
+        transform: scaleX(-1);
+      }
+      .menu-zig-bl {
+        bottom: 0;
+        left: 0;
+        transform: scaleY(-1);
+      }
+      .menu-zig-br {
+        bottom: 0;
+        right: 0;
+        transform: scale(-1);
       }
       .menu-btn-label {
         position: relative;
@@ -534,19 +628,13 @@
       }
       .menu-tile.util .menu-btn-label {
         flex-direction: row;
-        flex-wrap: wrap;
         justify-content: center;
         align-items: center;
         column-gap: 0.4em;
-        row-gap: 0.12em;
       }
       .menu-icon-util {
         height: 1em;
         width: auto;
-      }
-      .menu-tile.util .menu-hi-score {
-        flex-basis: 100%;
-        text-align: center;
       }
       .menu-tile.is-selecting {
         animation: menuTileSelectFlash 0.75s steps(1, end) forwards;
@@ -563,37 +651,46 @@
       }
       .menu-tile:hover,
       .menu-tile:focus-visible {
-        filter: var(--menu-btn-outline) brightness(1.09);
+        filter: brightness(1.09);
         outline: none;
       }
+      .menu-tile:hover {
+        transform: translateZ(0) scale(0.95);
+      }
       .menu-tile:active {
-        transform: translateY(4px);
-        filter: var(--menu-btn-outline) brightness(0.92);
+        transform: translateZ(0) scale(0.95) translateY(4px);
+        filter: brightness(0.92);
+      }
+      .menu-tile.util {
+        --util-hue: -28deg;
+        min-height: 0;
+        padding: 10px 12px;
+        --menu-btn-border: clamp(14px, 2.6vmin, 28px);
+        border-width: var(--menu-btn-border);
+        font-size: clamp(16px, 2.6vw, 32px);
+        filter: hue-rotate(var(--util-hue));
+      }
+      .menu-tile.util .menu-icon,
+      .menu-tile.util .menu-btn-label {
+        filter: hue-rotate(calc(-1 * var(--util-hue)));
+      }
+      .menu-tile.util:hover,
+      .menu-tile.util:focus-visible {
+        filter: hue-rotate(var(--util-hue)) brightness(1.09);
+      }
+      .menu-tile.util:active {
+        filter: hue-rotate(var(--util-hue)) brightness(0.92);
       }
       .menu-tile.endless {
         font-size: clamp(28px, 4.8vw, 56px);
       }
-      .menu-tile.util {
-        min-height: 0;
-        padding: 10px 12px;
-        border-width: clamp(14px, 2.6vmin, 28px);
-        font-size: clamp(16px, 2.6vw, 32px);
+      .menu-tile.util .menu-zigzag {
+        inset: 5px;
+        --zig-ch: 12px;
       }
-      .menu-hi-score {
-        display: block;
-        font: 800 clamp(12px, 1.8vw, 18px) / 1 'Baloo 2', 'Fredoka', sans-serif;
-        letter-spacing: 0.08em;
-        color: var(--gold);
-        -webkit-text-stroke: 2px #1a1018;
-        paint-order: stroke fill;
-        text-shadow: none;
-      }
-      .menu-hi-score .high-score-mode,
-      .menu-hi-score .high-score-label,
-      .menu-hi-score .high-score-name,
-      .menu-hi-score .high-score-value {
-        color: inherit;
-        font: inherit;
+      .menu.main-menu .menu-option .menu-zigzag {
+        inset: 4px;
+        --zig-ch: 11px;
       }
       .main-menu-nav {
         display: flex;
@@ -611,30 +708,33 @@
         color: #fff;
         -webkit-text-stroke: 3px #1a1018;
         paint-order: stroke fill;
-        background-color: var(--menu-btn-face);
-        border: clamp(16px, 3vmin, 32px) solid transparent;
-        border-image-source: var(--menu-btn-image);
-        border-image-slice: 48 fill;
-        border-image-repeat: stretch;
-        border-radius: clamp(22px, 4.5vmin, 40px);
-        overflow: hidden;
+        background-color: transparent;
+        --menu-btn-border: clamp(16px, 3vmin, 32px);
+        border: var(--menu-btn-border) solid transparent;
+        border-image: none;
+        border-radius: 0;
+        overflow: visible;
         box-shadow: none;
         cursor: pointer;
         position: relative;
         isolation: isolate;
         z-index: 0;
         text-shadow: 0 2px 0 rgba(0, 0, 0, 0.28);
-        filter: var(--menu-btn-outline);
-        transition: transform 0.12s ease, filter 0.12s ease;
+        filter: none;
+        transform: translateZ(0);
+        transition: transform 0.12s ease, filter 0.06s ease;
       }
       .menu.main-menu .menu-option:hover,
       .menu.main-menu .menu-option:focus-visible {
-        filter: var(--menu-btn-outline) brightness(1.09);
+        filter: brightness(1.09);
         outline: none;
       }
+      .menu.main-menu .menu-option:hover {
+        transform: translateZ(0) scale(0.95);
+      }
       .menu.main-menu .menu-option:active {
-        transform: translateY(3px);
-        filter: var(--menu-btn-outline) brightness(0.92);
+        transform: translateZ(0) scale(0.95) translateY(3px);
+        filter: brightness(0.92);
       }
       .menu-option {
         display: block;
@@ -1321,7 +1421,7 @@
         left: max(10px, env(safe-area-inset-left, 0px));
         display: flex;
         gap: 8px;
-        z-index: 20;
+        z-index: 42;
         pointer-events: none;
       }
 
@@ -1415,7 +1515,7 @@
       .hud-pause-overlay {
         position: absolute;
         inset: 0;
-        z-index: 15;
+        z-index: 40;
         background: rgba(0, 0, 0, 0.45);
         pointer-events: auto;
       }
@@ -1427,7 +1527,7 @@
         left: 50%;
         top: 46%;
         transform: translate(-50%, -50%);
-        z-index: 19;
+        z-index: 41;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -2014,66 +2114,173 @@
         opacity: 0;
       }
 
-      /* Tutorial coach — center with left/right + auto margins so titleRise
-         (which animates `transform`) cannot un-center the panel. */
+      /* Tutorial dialogue — lower-third GUI (teeth portrait + speech bubble). */
       .tut-coach {
+        position: absolute;
+        inset: 0;
+        z-index: 26;
+        pointer-events: none;
+        text-align: left;
+      }
+      .tut-dialogue {
         position: absolute;
         left: 0;
         right: 0;
-        top: max(72px, calc(env(safe-area-inset-top, 0px) + 62px));
-        bottom: auto;
-        z-index: 26;
-        width: min(540px, calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-        max-width: 100%;
-        margin-inline: auto;
-        box-sizing: border-box;
-        padding: 12px 16px 14px;
-        pointer-events: auto;
-        text-align: left;
-        background: rgba(8, 16, 28, 0.88);
-        border: 2px solid rgba(244, 230, 200, 0.78);
-        border-radius: 12px;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(8px);
-        animation: titleRise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+        bottom: 0;
+        height: 32%;
+        min-height: 168px;
+        max-height: 280px;
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        padding: 0 max(10px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
+        pointer-events: none;
+        animation: tutDialogueIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
       }
-      .tut-top {
+      @keyframes tutDialogueIn {
+        from { transform: translateY(28px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      html:not(.touch-ui) .tut-dialogue {
+        height: 36%;
+        max-height: 300px;
+      }
+      html:not(.touch-ui) .tut-bubble {
+        margin-bottom: clamp(62px, 9.5vw, 104px);
+      }
+      .tut-speaker {
+        flex: 0 0 auto;
+        width: clamp(168px, 26vw, 280px);
+        height: 125%;
+        margin-bottom: -10px;
+        margin-right: -12px;
+        position: relative;
+        overflow: hidden;
+        pointer-events: auto;
+        filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5));
+        z-index: 3;
+      }
+      .tut-speaker-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .tut-bubble {
+        position: relative;
+        flex: 1 1 auto;
+        min-width: 0;
+        align-self: center;
+        box-sizing: border-box;
+        margin-bottom: max(4px, calc(env(safe-area-inset-bottom, 0px) * 0.25));
+        padding: 10px 16px 12px 28px;
+        pointer-events: auto;
+        background: linear-gradient(180deg, #f7f4ea 0%, #ebe6d4 100%);
+        border: 3px solid #2a2a32;
+        border-radius: 22px;
+        box-shadow:
+          inset 0 2px 0 rgba(255, 255, 255, 0.78),
+          inset 0 -8px 12px rgba(0, 0, 0, 0.08),
+          0 10px 24px rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+      }
+      .tut-bubble::before {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 48%;
+        width: 0;
+        height: 0;
+        border: 14px solid transparent;
+        border-right-color: #2a2a32;
+        transform: translateY(-50%);
+        box-shadow: none;
+        background: none;
+        border-radius: 0;
+      }
+      .tut-bubble::after {
+        content: '';
+        position: absolute;
+        left: -14px;
+        top: 48%;
+        width: 0;
+        height: 0;
+        border: 11px solid transparent;
+        border-right-color: #f2ece0;
+        transform: translateY(-50%);
+        z-index: 1;
+      }
+      .tut-bubble-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 6px;
-        min-width: 0;
-      }
-      .tut-kicker {
-        font: 700 12px/1 var(--title-serif);
-        letter-spacing: 0.16em;
-        color: #b8f07a;
-        text-transform: uppercase;
+        gap: 8px;
+        margin-bottom: 2px;
       }
       .tut-actions {
         display: flex;
         gap: 6px;
+        flex: 0 0 auto;
+      }
+      .tut-kicker {
+        font: 700 11px/1 var(--title-serif);
+        letter-spacing: 0.16em;
+        color: #3a8a2a;
+        text-transform: uppercase;
       }
       .tut-title {
-        font: 800 clamp(20px, 3.4vw, 28px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
-        color: #fff;
+        font: 800 clamp(18px, 3vw, 26px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
+        color: #1a1a22;
         margin: 0 0 4px;
         letter-spacing: 0.02em;
-        text-shadow: 0 2px 0 #000;
       }
       .tut-body {
         margin: 0;
-        color: #d7e6f5;
-        font: 500 15px/1.45 'Fredoka', sans-serif;
+        color: #1a1a22;
+        font: 500 16px/1.45 'Fredoka', sans-serif;
+        min-height: 2.9em;
       }
+      .tut-type-cursor {
+        display: inline;
+        margin-left: 1px;
+        color: #1a1a22;
+        animation: tutTypeBlink 0.7s steps(1) infinite;
+      }
+      .tut-type-cursor[hidden] { display: none !important; }
+      @keyframes tutTypeBlink {
+        50% { opacity: 0; }
+      }
+      .tut-hl-durian { color: #2f9e2a; font-weight: 700; }
+      .tut-hl-gold { color: #c48a00; font-weight: 700; }
+      .tut-hl-bubble { color: #1a7ad4; font-weight: 700; }
+      .tut-hl-teeth { color: #c43a3a; font-weight: 700; }
+      .tut-hl-heart { color: #d63a62; font-weight: 700; }
+      .tut-hl-combo { color: #c48a00; font-weight: 700; }
+      .tut-hl-frenzy { color: #d45a12; font-weight: 700; }
+      .tut-hl-life { color: #d63a62; font-weight: 700; }
+      .tut-hl-mode { color: #1a7ad4; font-weight: 700; }
       .tut-wait {
-        margin: 8px 0 0;
-        color: var(--gold);
+        margin: 6px 0 0;
+        color: #b86a00;
         font: 700 14px/1.3 'Fredoka', sans-serif;
       }
-      .tut-wait.tut-ok { color: #7cff7c; }
-      .tut-wait.tut-warn { color: #ff8aa3; }
+      .tut-wait.tut-ok { color: #2a9a2a; }
+      .tut-wait.tut-warn { color: #c43a3a; }
+      .tut-caret {
+        position: absolute;
+        right: 16px;
+        bottom: 56px;
+        color: #1a7ad4;
+        font-size: 14px;
+        line-height: 1;
+        text-shadow: 0 1px 0 #fff;
+        animation: tutCaretBob 0.55s ease-in-out infinite;
+        pointer-events: none;
+      }
+      .tut-caret[hidden] { display: none !important; }
+      @keyframes tutCaretBob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(5px); }
+      }
       .tut-btn {
         padding: 6px 12px;
         font: 700 13px/1 'Fredoka', sans-serif;
@@ -2088,7 +2295,7 @@
       .tut-nav {
         display: flex;
         gap: 10px;
-        margin-top: 12px;
+        margin-top: 10px;
         min-width: 0;
       }
       .tut-btn.tut-back,
@@ -2096,8 +2303,8 @@
         flex: 1 1 0;
         min-width: 0;
         margin-top: 0;
-        padding: 10px 14px;
-        font-size: 18px;
+        padding: 9px 14px;
+        font-size: 17px;
       }
       .tut-btn.tut-back {
         background: #445566;
@@ -2111,9 +2318,9 @@
       .tut-btn.tut-back:disabled,
       .tut-btn.tut-next.is-disabled,
       .tut-btn.tut-next:disabled {
-        background: #3a4a5c;
-        color: rgba(255, 255, 255, 0.45);
-        border-color: rgba(255, 255, 255, 0.35);
+        background: #8a93a4;
+        color: rgba(255, 255, 255, 0.55);
+        border-color: rgba(255, 255, 255, 0.4);
         cursor: not-allowed;
         pointer-events: none;
         opacity: 0.72;
@@ -2122,18 +2329,27 @@
       .tut-btn.tut-back:disabled:hover,
       .tut-btn.tut-next.is-disabled:hover,
       .tut-btn.tut-next:disabled:hover {
-        background: #3a4a5c;
+        background: #8a93a4;
+      }
+      .tut-btn.tut-skip,
+      .tut-btn.tut-quit {
+        padding: 4px 9px;
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        color: #f4f0e4;
+        background: #4a5564;
+        border-color: #2a2a32;
       }
       .tut-btn.tut-skip:hover,
       .tut-btn.tut-quit:hover {
-        background: #445566;
+        background: #5a6574;
       }
 
       .tut-arrow {
         position: fixed;
         width: 52px;
         height: 64px;
-        z-index: 24;
+        z-index: 28;
         pointer-events: none;
         color: #ffe566;
         filter:
@@ -2348,7 +2564,8 @@
       html.touch-ui .menu-tile {
         padding: 10px 8px;
         font-size: clamp(16px, 4.2vmin, 28px);
-        border-width: clamp(12px, 2.8vmin, 24px);
+        --menu-btn-border: clamp(12px, 2.8vmin, 24px);
+        border-width: var(--menu-btn-border);
         box-shadow: none;
         -webkit-text-stroke-width: 2px;
       }
@@ -2361,10 +2578,6 @@
       html.touch-ui .menu-tile.util {
         min-height: 0;
         font-size: clamp(14px, 3.6vmin, 22px);
-      }
-      html.touch-ui .menu-hi-score {
-        font-size: clamp(10px, 2.4vmin, 14px);
-        -webkit-text-stroke-width: 1.5px;
       }
       html.touch-ui .main-menu-nav {
         gap: 8px;
@@ -2653,18 +2866,14 @@
       html.touch-ui .hud-teeth-warn {
         position: fixed;
       }
-      html.touch-ui .tut-coach {
-        top: max(78px, calc(env(safe-area-inset-top, 0px) + 70px));
-        bottom: auto;
-        width: min(560px, calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-        max-height: calc(100dvh - 88px - env(safe-area-inset-bottom, 0px));
-        overflow-x: hidden;
-        overflow-y: auto;
-        touch-action: pan-y;
-        padding: 10px 12px 12px;
+      html.touch-ui .tut-dialogue {
+        height: 34%;
+        min-height: 150px;
+        max-height: 240px;
       }
+      html.touch-ui .tut-speaker { width: clamp(110px, 24vw, 180px); }
       html.touch-ui .tut-title { font-size: clamp(16px, 4.2vh, 22px); }
-      html.touch-ui .tut-body { font-size: 13px; }
+      html.touch-ui .tut-body { font-size: 14px; min-height: 2.4em; }
       html.touch-ui .tut-btn.tut-back,
       html.touch-ui .tut-btn.tut-next { font-size: 16px; padding: 8px 12px; }
       html.touch-ui .tut-arrow { width: 40px; height: 50px; }
@@ -2714,14 +2923,16 @@
           padding: 8px 10px;
           font-size: 16px;
         }
-        html.touch-ui .tut-coach {
-          top: max(64px, calc(env(safe-area-inset-top, 0px) + 52px));
-          max-height: calc(100dvh - 72px - env(safe-area-inset-bottom, 0px));
-          padding: 8px 10px 10px;
+        html.touch-ui .tut-dialogue {
+          height: 42%;
+          min-height: 120px;
+          max-height: 180px;
         }
-        html.touch-ui .tut-title { font-size: 16px; }
-        html.touch-ui .tut-body { font-size: 13px; }
-        html.touch-ui .tut-nav { margin-top: 8px; gap: 8px; }
+        html.touch-ui .tut-speaker { width: clamp(88px, 18vw, 140px); }
+        html.touch-ui .tut-bubble { padding: 6px 12px 8px 14px; border-radius: 16px; }
+        html.touch-ui .tut-title { font-size: 15px; }
+        html.touch-ui .tut-body { font-size: 13px; min-height: 1.8em; }
+        html.touch-ui .tut-nav { margin-top: 6px; gap: 8px; }
         html.touch-ui .tut-btn.tut-back,
         html.touch-ui .tut-btn.tut-next { font-size: 14px; padding: 6px 10px; }
         html.touch-ui .hud-mobile-stats { gap: 0.2em 0.7em; }
@@ -2844,6 +3055,7 @@
         75% { opacity: 0; }
         100% { opacity: 0; }
       }
+
       /*
         Results overlay (tally / initials / post-run leaderboard): the panel is 75% of
         the viewport, and type + controls scale from the panel via container units.
