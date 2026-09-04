@@ -56,7 +56,7 @@ let popLoad: Promise<AudioBuffer | null> | null = null;
 /** Alternate bubble SFX: false = start forward, true = start reverse. */
 let popPlayReverse = false;
 
-const BUBBLE_LOOP_GAIN = 0.2875;
+const BUBBLE_LOOP_GAIN = 0.14375;
 /** Base loop was 2×; unchased bubbles run 50% slower, chased 50% faster. */
 const BUBBLE_LOOP_RATE = 1;
 const BUBBLE_LOOP_RATE_CHASED = 3;
