@@ -122,10 +122,10 @@ export class GameOverScene implements GameScene {
         this.setCursor(this.cursor + 1);
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
-        if (!event.repeat) this.beginHold(this.cursor, 1);
+        if (!event.repeat) this.beginHold(this.cursor, -1);
       } else if (event.key === 'ArrowDown') {
         event.preventDefault();
-        if (!event.repeat) this.beginHold(this.cursor, -1);
+        if (!event.repeat) this.beginHold(this.cursor, 1);
       } else if (event.key.length === 1) {
         const ch = event.key.toUpperCase();
         if (PLAYER_NAME_CHARS.includes(ch)) {
@@ -206,12 +206,12 @@ export class GameOverScene implements GameScene {
   private slotHtml(index: number): string {
     const cells = Array.from({ length: 5 }, () => '<span class="name-reel-char"></span>').join('');
     return `<div class="name-slot" data-slot="${index}">
-      <button type="button" class="name-step" data-cycle="1" data-slot="${index}" aria-label="Next letter">▲</button>
+      <button type="button" class="name-step" data-cycle="-1" data-slot="${index}" aria-label="Previous letter">▲</button>
       <button type="button" class="name-letter" data-slot="${index}" aria-label="Initial ${index + 1}">
         <span class="name-reel" data-reel>${cells}</span>
         <span class="name-reel-shade" aria-hidden="true"></span>
       </button>
-      <button type="button" class="name-step" data-cycle="-1" data-slot="${index}" aria-label="Previous letter">▼</button>
+      <button type="button" class="name-step" data-cycle="1" data-slot="${index}" aria-label="Next letter">▼</button>
     </div>`;
   }
 
@@ -418,11 +418,11 @@ export class GameOverScene implements GameScene {
     const extra = Math.max(0, steps - 1);
     const count = 5 + extra;
     const cells = this.ensureReelCells(reel, count);
-    const center = dir === 1 ? 2 + extra : 2;
+    const center = dir === 1 ? 2 : 2 + extra;
     reel.style.setProperty('--reel-center', String(center));
     reel.style.setProperty('--reel-steps', String(steps));
     cells.forEach((cell, i) => {
-      cell.textContent = offsetPlayerChar(from, center - i);
+      cell.textContent = offsetPlayerChar(from, i - center);
     });
   }
 
@@ -462,7 +462,7 @@ export class GameOverScene implements GameScene {
     const reel = this.reelEl(this.cruise.index);
     if (!reel) return;
     const { idle, cell } = this.cruiseMetrics(reel);
-    const y = idle + this.cruise.dir * this.cruise.progress * cell;
+    const y = idle - this.cruise.dir * this.cruise.progress * cell;
     reel.style.transition = 'none';
     reel.style.transform = `translateY(${y}px)`;
   }
@@ -572,7 +572,7 @@ export class GameOverScene implements GameScene {
       requestAnimationFrame(() => {
         if (gen !== this.reelGen[index]) return;
         reel.addEventListener('transitionend', onEnd);
-        reel.classList.add('is-spinning', move.dir === 1 ? 'is-spin-down' : 'is-spin-up');
+        reel.classList.add('is-spinning', move.dir === 1 ? 'is-spin-up' : 'is-spin-down');
         this.reelTimers[index] = window.setTimeout(finish, duration + 60);
       });
     });
