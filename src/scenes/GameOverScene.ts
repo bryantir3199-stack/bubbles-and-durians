@@ -360,11 +360,11 @@ export class GameOverScene implements GameScene {
     const extra = Math.max(0, steps - 1);
     const count = 5 + extra;
     const cells = this.ensureReelCells(reel, count);
-    const center = dir === 1 ? 2 : 2 + extra;
+    const center = dir === 1 ? 2 + extra : 2;
     reel.style.setProperty('--reel-center', String(center));
     reel.style.setProperty('--reel-steps', String(steps));
     cells.forEach((cell, i) => {
-      cell.textContent = offsetPlayerChar(from, i - center);
+      cell.textContent = offsetPlayerChar(from, center - i);
     });
   }
 
@@ -404,7 +404,7 @@ export class GameOverScene implements GameScene {
     const reel = this.reelEl(this.cruise.index);
     if (!reel) return;
     const { idle, cell } = this.cruiseMetrics(reel);
-    const y = idle - this.cruise.dir * this.cruise.progress * cell;
+    const y = idle + this.cruise.dir * this.cruise.progress * cell;
     reel.style.transition = 'none';
     reel.style.transform = `translateY(${y}px)`;
   }
@@ -514,7 +514,7 @@ export class GameOverScene implements GameScene {
       requestAnimationFrame(() => {
         if (gen !== this.reelGen[index]) return;
         reel.addEventListener('transitionend', onEnd);
-        reel.classList.add('is-spinning', move.dir === 1 ? 'is-spin-up' : 'is-spin-down');
+        reel.classList.add('is-spinning', move.dir === 1 ? 'is-spin-down' : 'is-spin-up');
         this.reelTimers[index] = window.setTimeout(finish, duration + 60);
       });
     });
