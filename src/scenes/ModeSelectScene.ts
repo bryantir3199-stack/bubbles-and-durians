@@ -72,7 +72,7 @@ export class ModeSelectScene implements GameScene {
             </button>
             <button type="button" class="menu-tile util" data-action="lb">
               <img class="menu-icon menu-icon-util" src="assets/menu-icon-leaderboard.png" alt="" aria-hidden="true">
-              Leaderboard
+              Ranking
             </button>
             <button type="button" class="menu-tile util" data-action="options">
               <img class="menu-icon menu-icon-util" src="assets/menu-icon-settings.png" alt="" aria-hidden="true">

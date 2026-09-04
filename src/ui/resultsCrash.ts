@@ -36,6 +36,14 @@ export function hideResultsCrash(): void {
   playing = false;
 }
 
+/** Show the results plaque immediately, with no slam. */
+export function holdResultsCrash(): void {
+  if (!overlay) return;
+  overlay.className = 'results-crash is-held';
+  document.body.classList.add('results-crash-on');
+  playing = false;
+}
+
 /** Split plaque slams together from off-screen, then stays as the results backdrop. */
 export async function playResultsCrash(): Promise<void> {
   if (!overlay) return;

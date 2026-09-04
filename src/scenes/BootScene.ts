@@ -1,5 +1,5 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { dummyTimedTally, wantsBonusTallyPreview, wantsTeethFlybyNow } from '../debug/pathDebug';
+import { dummyTimedTally, wantsBonusTallyPreview, wantsRankingPreview, wantsTeethFlybyNow } from '../debug/pathDebug';
 import { preloadSfx } from '../audio/sfx';
 import { preloadResultsCrash } from '../ui/resultsCrash';
 import { fetchModeHighScores } from '../services/leaderboard';
@@ -38,6 +38,13 @@ export class BootScene implements GameScene {
           timedPreset: 'short',
           timedTally: dummyTimedTally(),
         });
+      }, 200);
+      return;
+    }
+
+    if (wantsRankingPreview()) {
+      window.setTimeout(() => {
+        this.ctx.goto('leaderboard', { mode: 'endless' });
       }, 200);
       return;
     }

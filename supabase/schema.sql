@@ -35,3 +35,39 @@ create policy "Public insert scores"
   for insert
   to anon, authenticated
   with check (true);
+
+-- Ranking boards keep the best 100 scores per mode (newest wins ties).
+-- Re-run this block in SQL Editor to cap an existing project.
+delete from public.scores
+where id in (
+  select id from (
+    select id,
+      row_number() over (partition by mode order by score desc, created_at desc) as rn
+    from public.scores
+  ) ranked
+  where rn > 100
+);
+
+create or replace function public.trim_scores_to_ranking_cap()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from public.scores
+  where id in (
+    select id from public.scores
+    where mode = NEW.mode
+    order by score desc, created_at desc
+    offset 100
+  );
+  return null;
+end;
+$$;
+
+drop trigger if exists scores_trim_ranking_cap on public.scores;
+create trigger scores_trim_ranking_cap
+after insert on public.scores
+for each row
+execute procedure public.trim_scores_to_ranking_cap();

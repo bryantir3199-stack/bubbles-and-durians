@@ -205,19 +205,20 @@
           background-repeat: no-repeat;
         }
         html.touch-ui body.results-crash-on .menu.bonus-tally,
-        html.touch-ui body.results-crash-on .menu.game-over,
-        html.touch-ui body.results-crash-on .menu.leaderboard {
+        html.touch-ui body.results-crash-on .menu.game-over {
           justify-content: flex-end;
         }
         html.touch-ui body.results-crash-on .menu.bonus-tally .menu-card,
-        html.touch-ui body.results-crash-on .menu.game-over .menu-card,
-        html.touch-ui body.results-crash-on .menu.leaderboard .menu-wide {
+        html.touch-ui body.results-crash-on .menu.game-over .menu-card {
           margin-block: 0 8px;
         }
       }
+      body.ranking-on .results-crash.is-held .results-crash-bleed {
+        filter: brightness(0.7) blur(12px);
+      }
       body.results-crash-on .menu.bonus-tally,
       body.results-crash-on .menu.game-over,
-      body.results-crash-on .menu.leaderboard {
+      body.ranking-on .menu.leaderboard {
         background: transparent;
       }
       body.results-crash-on .menu.bonus-tally h1.danger {
@@ -1216,111 +1217,260 @@
         transition: width 0.2s ease;
       }
 
-      .tabs {
+      .menu.leaderboard {
+        position: relative;
+        justify-content: stretch;
+        align-items: stretch;
+        overflow: hidden;
+        background: transparent;
+      }
+      .ranking-board {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        margin: 0;
+        padding: max(10px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+        box-sizing: border-box;
+        background: none;
+        border: none;
+        border-radius: 0;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        box-shadow: none;
+        container-type: size;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        font-family: 'Fredoka', system-ui, sans-serif;
+        color: #f7f7f7;
+      }
+      .menu.leaderboard h1,
+      .menu.leaderboard .tab,
+      .menu.leaderboard .lb-header,
+      .menu.leaderboard .lb-row,
+      .menu.leaderboard .lb-out,
+      .menu.leaderboard .muted,
+      .menu.leaderboard .warn-text {
+        -webkit-text-stroke: 0.45cqh #1a1018;
+        paint-order: stroke fill;
+        text-shadow: 0 0.22cqh 0 rgba(0, 0, 0, 0.45);
+      }
+      .menu.leaderboard h1 {
+        flex: 0 0 auto;
+        margin: 1cqh 0 0.8cqh;
+        font: 800 clamp(32px, 9cqh, 88px)/1.05 var(--title-serif);
+        letter-spacing: 0.04em;
+        color: #fff70f;
+      }
+      .menu.leaderboard .tabs {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 1.2cqi;
         justify-content: center;
-        margin: 12px 0 18px;
+        margin: 0.2cqh 0 1.2cqh;
       }
-      .tab {
-        padding: 10px 16px;
-        font: 700 16px 'Fredoka', sans-serif;
+      .menu.leaderboard .tab {
+        padding: 0.9cqh 2cqi;
+        font: 700 clamp(14px, 3.2cqh, 28px)/1.15 'Fredoka', sans-serif;
         color: #fff;
         background: #334455;
         border: 2px solid #fff;
         border-radius: 8px;
         cursor: pointer;
       }
-      .tab.active { background: var(--accent); }
-      .lb-run {
-        width: min(520px, 88vw);
-        margin: 0 auto 8px;
-        padding: 10px 16px 12px;
-        background: rgba(255, 229, 102, 0.12);
-        border: 1px solid rgba(255, 229, 102, 0.5);
-        border-radius: 8px;
-      }
-      .lb-run[hidden] { display: none; }
-      .lb-run-label {
-        margin: 0 0 2px;
-        font: 700 12px/1 'Fredoka', sans-serif;
-        letter-spacing: 0.18em;
-        color: var(--gold);
-      }
-      .lb-run-line {
-        margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: baseline;
-        gap: 14px;
-      }
-      .lb-run-score {
-        font-size: 26px;
-        font-weight: 700;
-        color: var(--gold);
-      }
-      .lb-run-detail {
-        color: var(--muted);
-        font-size: 16px;
+      .menu.leaderboard .tab.active {
+        background: var(--accent);
+        color: #fff;
       }
       .lb-panel {
-        width: min(520px, 88vw);
+        width: min(1100px, 100%);
         margin: 0 auto;
-        padding: 18px 16px 24px;
-        background: rgba(10, 22, 40, 0.9);
-        border: 2px solid #fff;
-        border-radius: 10px;
-        min-height: 360px;
+        padding: 0;
+        background: none;
+        border: 0;
+        border-radius: 0;
+        min-height: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
       }
-      .lb-list { font-family: 'Fredoka', sans-serif; text-align: left; padding: 8px 12px; }
       .lb-header,
-      .lb-row {
+      .lb-row,
+      .lb-out {
         display: grid;
-        grid-template-columns: 2.4em minmax(0, 1fr) auto 3.4em;
-        gap: 4px 10px;
+        grid-template-columns: 22% 1fr 38%;
+        gap: 0 1.4cqi;
         align-items: baseline;
       }
+      .lb-header span:first-child,
+      .lb-rank { text-align: right; padding-right: 0.4em; }
+      .lb-name { padding-left: 0.6em; }
       .lb-header {
-        color: #7ec8ff;
-        margin-bottom: 10px;
-        font-size: 14px;
-        letter-spacing: 0.08em;
+        flex: 0 0 auto;
+        color: #fff70f;
+        margin-bottom: 0.6cqh;
+        padding: 0 0.4em 0.7cqh;
+        font: 700 clamp(14px, 3cqh, 26px)/1 'Fredoka', sans-serif;
+        letter-spacing: 0.14em;
+        border-bottom: 4px solid #fff70f;
+      }
+      .lb-viewport {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        container-type: size;
+      }
+      .ranking-board.is-expanded .lb-viewport,
+      .ranking-board.is-manual .lb-viewport {
+        overflow-y: auto;
+        touch-action: pan-y;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 247, 15, 0.55) transparent;
+      }
+      .ranking-board.is-manual .lb-viewport::-webkit-scrollbar {
+        width: 8px;
+      }
+      .ranking-board.is-manual .lb-viewport::-webkit-scrollbar-thumb {
+        background: rgba(255, 247, 15, 0.55);
+        border-radius: 8px;
+      }
+      .lb-track {
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        color: #f7f7f7;
+        will-change: transform;
+      }
+      .ranking-board:not(.is-expanded) .lb-track {
+        transition: none;
+      }
+      .ranking-board:not(.is-expanded) .lb-track.intro-up {
+        animation: rankingIntroUp 3.9s cubic-bezier(0.22, 0.72, 0.18, 1) forwards;
+      }
+      .ranking-board:not(.is-expanded) .lb-track.intro-down {
+        animation: rankingIntroDown 3.9s cubic-bezier(0.22, 0.72, 0.18, 1) forwards;
+      }
+      @keyframes rankingIntroUp {
+        0%, 18% { transform: translateY(-100cqh); }
+        100% { transform: translateY(0); }
+      }
+      @keyframes rankingIntroDown {
+        0%, 18% { transform: translateY(0); }
+        100% { transform: translateY(-100cqh); }
       }
       .lb-row {
-        font-size: 20px;
-        margin: 4px 0;
-        padding: 6px 8px;
-        border-radius: 6px;
+        font: 700 clamp(22px, min(8.4cqh, 6.2cqi), 72px)/1.1 'Fredoka', sans-serif;
+        margin: 0;
+        padding: 0.08em 0.2em;
+        letter-spacing: 0.02em;
+      }
+      .ranking-board:not(.is-expanded) .lb-row {
+        flex: 0 0 20cqh;
+        height: 20cqh;
+        box-sizing: border-box;
+        display: grid;
+        align-items: center;
+      }
+      .ranking-board.is-expanded .lb-row {
+        flex: 0 0 auto;
+        height: auto;
+        font-size: clamp(18px, min(4.4cqh, 3.6cqi), 36px);
+        padding: 0.32em 0.2em;
       }
       .lb-name {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        letter-spacing: 0.12em;
       }
-      .lb-score { text-align: right; font-variant-numeric: tabular-nums; }
-      .lb-you {
-        color: var(--gold);
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
+      .lb-score {
         text-align: right;
+        font-variant-numeric: tabular-nums;
       }
-      .lb-row.gold { color: var(--gold); }
-      .lb-row.yours {
-        background: rgba(255, 229, 102, 0.16);
-        box-shadow: inset 0 0 0 1px rgba(255, 229, 102, 0.7);
-        animation: lbYouIn 0.55s ease-out;
+      .lb-row.rank-1 { color: #fff70f; }
+      .lb-row.rank-2 { color: #f7f7f7; }
+      .lb-row.rank-3 { color: #e39a58; }
+      .lb-row.empty { color: rgba(247, 247, 247, 0.38); }
+      .lb-row.yours,
+      .lb-out {
+        color: #fff70f;
+        animation: rankingYouBlink 0.7s steps(1, end) infinite;
       }
-      @keyframes lbYouIn {
-        from { background: rgba(255, 229, 102, 0.42); }
-        to { background: rgba(255, 229, 102, 0.16); }
+      @keyframes rankingYouBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.22; }
       }
-      .lb-gap {
+      .lb-out {
+        flex: 0 0 auto;
+        font: 700 clamp(20px, min(6.4cqh, 5cqi), 52px)/1.1 'Fredoka', sans-serif;
+        margin-top: 0.4cqh;
+        padding: 0.15em 0.2em 0;
+        letter-spacing: 0.02em;
+        text-align: left;
+      }
+      .lb-out[hidden] { display: none; }
+      .lb-more {
+        flex: 0 0 auto;
+        display: block;
+        width: 100%;
+        margin: 0.8cqh auto 0;
+        padding: 1.1cqh 1.6cqi;
+        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
+        letter-spacing: 0.08em;
+        color: #1a1018;
+        background: #fff70f;
+        border: 2px solid #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        max-width: 28cqi;
+        min-width: 140px;
+        -webkit-text-stroke: 0;
+        text-shadow: none;
+      }
+      .lb-more[hidden] { display: none; }
+      .lb-more:hover,
+      .lb-more:focus-visible {
+        color: #1a1018;
+        filter: brightness(1.08);
+        outline: none;
+      }
+      .menu.leaderboard .btn.lb-more,
+      html.touch-ui .menu.leaderboard .btn.lb-more {
+        flex: 0 0 auto;
+        max-width: 28cqi;
+        min-width: 140px;
+        margin: 0.8cqh auto 0;
+        padding: 1.1cqh 1.6cqi;
+        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
+        letter-spacing: 0.08em;
+        color: #1a1018;
+        background: #fff70f;
+        border: 2px solid #fff;
+        -webkit-text-stroke: 0;
+        text-shadow: none;
+        animation: none;
+      }
+      .menu.leaderboard .btn.muted-btn,
+      html.touch-ui .menu.leaderboard .btn.muted-btn {
+        flex: 0 0 auto;
+        max-width: 28cqi;
+        min-width: 140px;
+        margin: 1cqh auto 0.4cqh;
+        padding: 1.1cqh 1.6cqi;
+        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
+        letter-spacing: 0.06em;
+        background: #445566;
+      }
+      .menu.leaderboard .muted,
+      .menu.leaderboard .warn-text {
+        font: 700 clamp(16px, 3.2cqh, 28px)/1.5 'Fredoka', sans-serif;
+        margin: auto;
         text-align: center;
-        color: var(--muted);
-        letter-spacing: 0.35em;
-        margin: 8px 0 4px;
       }
       .warn-text { color: #ffaa66; text-align: center; line-height: 1.5; }
       .danger-text { color: var(--danger); }
@@ -2631,14 +2781,6 @@
       html.touch-ui .tally-row.tally-total { font-size: 24px; }
       html.touch-ui .tally-info-btn { width: 32px; height: 32px; font-size: 17px; }
       html.touch-ui .tally-info-bubble { width: min(630px, 90vw); }
-      html.touch-ui .lb-run {
-        padding: 8px 12px 10px;
-        margin-bottom: 4px;
-      }
-      html.touch-ui .lb-run-score { font-size: 22px; }
-      html.touch-ui .lb-row { font-size: 16px; padding: 4px 6px; }
-      html.touch-ui .lb-panel { min-height: 0; padding: 12px 10px 16px; }
-
       html.touch-ui .hud-mobile-bar {
         position: absolute;
         top: 0;
@@ -3048,18 +3190,16 @@
       }
 
       /*
-        Results overlay (tally / initials / post-run leaderboard): the panel is 75% of
-        the viewport, and type + controls scale from the panel via container units.
+        Results overlay (tally / initials): the panel is 75% of the viewport,
+        and type + controls scale from the panel via container units.
       */
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over),
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) {
         justify-content: center;
         align-items: center;
         overflow: hidden;
         touch-action: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .menu-card,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .menu-wide {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .menu-card {
         --gold: #fff70f;
         width: 75vw;
         height: 75vh;
@@ -3088,11 +3228,7 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .score-big,
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row,
       :is(html, html.touch-ui) .menu.game-over .go-form,
-      :is(html, html.touch-ui) .menu.game-over .status,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .menu-wide h1,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .muted,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-run,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-row {
+      :is(html, html.touch-ui) .menu.game-over .status {
         -webkit-text-stroke: 0.56cqh #1a1018;
         paint-order: stroke fill;
         text-shadow: 0 0.28cqh 0 rgba(0, 0, 0, 0.4);
@@ -3100,8 +3236,7 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted,
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row,
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row.is-missed,
-      :is(html, html.touch-ui) .menu.bonus-tally .tally-row-active .tally-value,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .muted {
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-row-active .tally-value {
         color: #f7f7f7;
       }
       :is(html, html.touch-ui) .menu.game-over .score-big,
@@ -3109,13 +3244,11 @@
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row.tally-total {
         color: #fff70f;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .menu-card h1,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .menu-wide h1 {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .menu-card h1 {
         font-size: 8.5cqh;
         margin-bottom: 1.2cqh;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .muted {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted {
         font-size: 3.6cqh;
         margin-bottom: 2.4cqh;
       }
@@ -3165,8 +3298,7 @@
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-list {
         font-size: 3.75cqh;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn {
         max-width: 55cqi;
         padding: 2cqh 3.2cqi;
         font-size: 5.4cqh;
@@ -3182,29 +3314,23 @@
         width: 32cqi;
         max-width: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn {
         transition: transform 0.12s ease, filter 0.06s ease;
         transform: translateZ(0);
       }
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover,
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:focus-visible,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:hover,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:focus-visible {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:focus-visible {
         filter: brightness(1.09);
         outline: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:hover {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover {
         transform: translateZ(0) scale(0.95);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:active,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn:active {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:active {
         transform: translateZ(0) scale(0.95) translateY(4px);
         filter: brightness(0.92);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn.is-selecting,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn.is-selecting {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn.is-selecting {
         animation: menuTileSelectFlash 0.75s steps(1, end) forwards;
         pointer-events: none;
       }
@@ -3271,40 +3397,6 @@
         min-height: 3.4cqh;
         font-size: 2.8cqh;
         margin-bottom: 1.2cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .tabs {
-        gap: 1.2cqi;
-        margin: 1.6cqh 0 2.2cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .tab {
-        padding: 1.4cqh 2.4cqi;
-        font-size: 3cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-run,
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-panel {
-        width: 100%;
-        max-width: none;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-run-score {
-        font-size: 5.2cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-run-detail {
-        font-size: 3cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-header {
-        font-size: 2.6cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-row {
-        font-size: 3.8cqh;
-        padding: 0.7cqh 1cqi;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .lb-panel {
-        min-height: 0;
-        flex: 1 1 auto;
-        padding: 2.2cqh 2cqi 2.8cqh;
-      }
-      :is(html, html.touch-ui) body.results-crash-on .menu.leaderboard .btn.muted-btn {
-        max-width: 36cqi;
       }
     </style>
   </head>

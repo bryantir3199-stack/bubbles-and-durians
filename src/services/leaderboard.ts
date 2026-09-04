@@ -3,6 +3,13 @@ import type { GameMode, RankedMode, TimedPreset } from '../config/gameConfig';
 import { toRankedMode } from '../config/gameConfig';
 import { validatePlayerName } from '../config/playerName';
 
+/** Top ranks in the compact intro strip. */
+export const RANKING_DISPLAY_COUNT = 10;
+/** Rows visible in the ranking viewport at once. */
+export const RANKING_WINDOW = 5;
+/** Max stored scores per mode; the rest of the board is behind MORE. */
+export const RANKING_STORE_CAP = 100;
+
 /** Values stored in scores.mode, including pre-split timed rows. */
 export type StoredScoreMode = RankedMode | 'timed';
 
@@ -35,7 +42,10 @@ function isStoredScoreMode(mode: string): mode is StoredScoreMode {
   return mode === 'endless' || mode === 'timed' || mode === 'timed-short' || mode === 'timed-medium';
 }
 
-export async function fetchTopScores(mode: StoredScoreMode, limit = 10): Promise<ScoreRow[]> {
+export async function fetchTopScores(
+  mode: StoredScoreMode,
+  limit = RANKING_STORE_CAP,
+): Promise<ScoreRow[]> {
   if (!isStoredScoreMode(mode)) return [];
   const sb = getClient();
   if (!sb) return [];
@@ -46,7 +56,7 @@ export async function fetchTopScores(mode: StoredScoreMode, limit = 10): Promise
     .eq('mode', mode)
     .order('score', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(Math.min(Math.max(1, limit), RANKING_STORE_CAP));
 
   if (error) {
     console.warn('Leaderboard fetch failed:', error.message);
@@ -162,9 +172,16 @@ export async function submitScore(
   if (!parsed.ok) return { ok: false, error: parsed.error };
   if (score < 0) return { ok: false, error: 'Invalid score' };
 
+  const value = Math.floor(score);
+  const board = await fetchTopScores(ranked, RANKING_STORE_CAP);
+  const cutoff = board[RANKING_STORE_CAP - 1];
+  if (cutoff && value < cutoff.score) {
+    return { ok: true };
+  }
+
   const { error } = await sb.from('scores').insert({
     player_name: parsed.name,
-    score: Math.floor(score),
+    score: value,
     mode: ranked,
   });
 
