@@ -16,6 +16,84 @@ export function isCoarsePointer(): boolean {
   );
 }
 
+const SCROLLABLE_OVERFLOW = /(auto|scroll)/;
+
+function canScroll(el: HTMLElement): boolean {
+  const style = getComputedStyle(el);
+  const overflowY = SCROLLABLE_OVERFLOW.test(style.overflowY);
+  const overflowX = SCROLLABLE_OVERFLOW.test(style.overflowX);
+  return (
+    (overflowY && el.scrollHeight > el.clientHeight + 1) ||
+    (overflowX && el.scrollWidth > el.clientWidth + 1)
+  );
+}
+
+function scrollableAncestor(target: EventTarget | null): HTMLElement | null {
+  let el: Element | null = target instanceof Element ? target : null;
+  while (el && el !== document.documentElement) {
+    if (el instanceof HTMLElement && canScroll(el)) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+/**
+ * Stop mobile browsers from scrolling the page or zooming (pinch / double-tap).
+ * Nested overflow:auto panels (leaderboard, pause menu) still scroll.
+ */
+export function lockMobileBrowserGestures(): void {
+  const mobile =
+    isCoarsePointer() ||
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!mobile) return;
+
+  document.documentElement.classList.add('mobile-web');
+
+  const blockPageScroll = (event: Event) => {
+    if (scrollableAncestor(event.target)) return;
+    event.preventDefault();
+  };
+
+  document.addEventListener('touchmove', blockPageScroll, { passive: false, capture: true });
+  document.addEventListener('wheel', blockPageScroll, { passive: false, capture: true });
+
+  document.addEventListener(
+    'touchstart',
+    (event) => {
+      if (event.touches.length > 1) event.preventDefault();
+    },
+    { passive: false, capture: true },
+  );
+
+  const blockGesture = (event: Event) => event.preventDefault();
+  document.addEventListener('gesturestart', blockGesture, { passive: false });
+  document.addEventListener('gesturechange', blockGesture, { passive: false });
+  document.addEventListener('gestureend', blockGesture, { passive: false });
+  document.addEventListener('dblclick', blockGesture, { capture: true });
+
+  let lastTapAt = 0;
+  document.addEventListener(
+    'touchend',
+    (event) => {
+      const now = performance.now();
+      if (now - lastTapAt < 350 && !scrollableAncestor(event.target)) {
+        event.preventDefault();
+      }
+      lastTapAt = now;
+    },
+    { passive: false, capture: true },
+  );
+
+  const pinViewport = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+  pinViewport();
+  window.addEventListener('scroll', pinViewport, { passive: true });
+  window.visualViewport?.addEventListener('scroll', pinViewport, { passive: true });
+}
+
 export function isFullscreen(): boolean {
   const doc = document as Document & { webkitFullscreenElement?: Element | null };
   return !!(document.fullscreenElement || doc.webkitFullscreenElement);

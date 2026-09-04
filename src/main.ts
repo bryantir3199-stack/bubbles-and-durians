@@ -1,9 +1,11 @@
 import { Game } from './core/Game';
-import { isCoarsePointer } from './core/display';
+import { isCoarsePointer, lockMobileBrowserGestures } from './core/display';
 
 if (isCoarsePointer()) {
   document.documentElement.classList.add('touch-ui');
 }
+
+lockMobileBrowserGestures();
 
 const container = document.getElementById('game-container');
 if (!container) {
