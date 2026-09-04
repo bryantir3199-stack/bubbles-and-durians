@@ -702,10 +702,6 @@ export class PlayScene implements GameScene {
       camera: this.ctx.three.camera,
       canvas: this.ctx.canvas,
       getTargets: () => this.spawner?.targets ?? [],
-      onSkip: () => {
-        if (!this.paused) this.tutorial?.skipStep();
-      },
-      onQuit: () => this.tutorial?.quit(),
       onBack: () => {
         if (!this.paused) this.tutorial?.backStep();
       },

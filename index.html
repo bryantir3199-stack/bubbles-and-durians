@@ -2251,34 +2251,10 @@
         from { transform: scale(0.92); opacity: 0; }
         to { transform: scale(1); opacity: 1; }
       }
-      .tut-bubble-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 2px;
-      }
-      .tut-actions {
-        display: flex;
-        gap: 6px;
-        flex: 0 0 auto;
-      }
-      .tut-kicker {
-        font: 700 11px/1 var(--title-serif);
-        letter-spacing: 0.16em;
-        color: #3a8a2a;
-        text-transform: uppercase;
-      }
-      .tut-title {
-        font: 800 clamp(16px, 2.4vw, 22px)/1.15 'Baloo 2', 'Fredoka', sans-serif;
-        color: #1a1a22;
-        margin: 0 0 4px;
-        letter-spacing: 0.02em;
-      }
       .tut-body {
         margin: 0;
         color: #1a1a22;
-        font: 500 15px/1.4 'Fredoka', sans-serif;
+        font: 500 16px/1.45 'Fredoka', sans-serif;
         min-height: 2.4em;
       }
       .tut-type-cursor {
@@ -2301,28 +2277,12 @@
       .tut-hl-life { color: #d63a62; font-weight: 700; }
       .tut-hl-mode { color: #1a7ad4; font-weight: 700; }
       .tut-wait {
-        margin: 6px 0 0;
-        color: #b86a00;
-        font: 700 14px/1.3 'Fredoka', sans-serif;
+        margin: 8px 0 0;
+        color: #5a4a32;
+        font: 500 15px/1.4 'Fredoka', sans-serif;
       }
       .tut-wait.tut-ok { color: #2a9a2a; }
       .tut-wait.tut-warn { color: #c43a3a; }
-      .tut-caret {
-        position: absolute;
-        right: 16px;
-        bottom: 56px;
-        color: #1a7ad4;
-        font-size: 14px;
-        line-height: 1;
-        text-shadow: 0 1px 0 #fff;
-        animation: tutCaretBob 0.55s ease-in-out infinite;
-        pointer-events: none;
-      }
-      .tut-caret[hidden] { display: none !important; }
-      @keyframes tutCaretBob {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(5px); }
-      }
       .tut-btn {
         padding: 6px 12px;
         font: 700 13px/1 'Fredoka', sans-serif;
@@ -2372,19 +2332,6 @@
       .tut-btn.tut-next.is-disabled:hover,
       .tut-btn.tut-next:disabled:hover {
         background: #8a93a4;
-      }
-      .tut-btn.tut-skip,
-      .tut-btn.tut-quit {
-        padding: 4px 9px;
-        font-size: 11px;
-        letter-spacing: 0.1em;
-        color: #f4f0e4;
-        background: #4a5564;
-        border-color: #2a2a32;
-      }
-      .tut-btn.tut-skip:hover,
-      .tut-btn.tut-quit:hover {
-        background: #5a6574;
       }
 
       .tut-arrow {
@@ -2915,8 +2862,7 @@
       html.touch-ui .tut-dialogue {
         width: min(300px, 58vw);
       }
-      html.touch-ui .tut-title { font-size: clamp(16px, 4.2vh, 22px); }
-      html.touch-ui .tut-body { font-size: 14px; min-height: 2.4em; }
+      html.touch-ui .tut-body { font-size: 15px; min-height: 2.4em; }
       html.touch-ui .tut-btn.tut-back,
       html.touch-ui .tut-btn.tut-next { font-size: 16px; padding: 8px 12px; }
       html.touch-ui .tut-arrow { width: 40px; height: 50px; }
@@ -2976,7 +2922,6 @@
           width: min(280px, 62vw);
         }
         html.touch-ui .tut-bubble { padding: 6px 12px 8px 14px; border-radius: 16px; }
-        html.touch-ui .tut-title { font-size: 15px; }
         html.touch-ui .tut-body { font-size: 13px; min-height: 1.8em; }
         html.touch-ui .tut-nav { margin-top: 6px; gap: 8px; }
         html.touch-ui .tut-btn.tut-back,
