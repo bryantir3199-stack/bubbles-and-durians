@@ -99,6 +99,8 @@ let menuButtonBuffer: AudioBuffer | null = null;
 let menuButtonLoad: Promise<AudioBuffer | null> | null = null;
 let tutorialSelectBuffer: AudioBuffer | null = null;
 let tutorialSelectLoad: Promise<AudioBuffer | null> | null = null;
+let reelSelectBuffer: AudioBuffer | null = null;
+let reelSelectLoad: Promise<AudioBuffer | null> | null = null;
 let tallyCalcDrumrollBuffer: AudioBuffer | null = null;
 let tallyCalcDrumrollLoad: Promise<AudioBuffer | null> | null = null;
 let tallyRevealDrumrollBuffer: AudioBuffer | null = null;
@@ -181,6 +183,7 @@ export async function preloadSfx(): Promise<void> {
     ensureGameStartBuffer(),
     ensureMenuButtonBuffer(),
     ensureTutorialSelectBuffer(),
+    ensureReelSelectBuffer(),
     ensureTallyCalcDrumrollBuffer(),
     ensureTallyRevealDrumrollBuffer(),
     ensureTallyThudBuffer(),
@@ -413,6 +416,18 @@ async function ensureTutorialSelectBuffer(): Promise<AudioBuffer | null> {
   })();
 
   return tutorialSelectLoad;
+}
+
+async function ensureReelSelectBuffer(): Promise<AudioBuffer | null> {
+  if (reelSelectBuffer) return reelSelectBuffer;
+  if (reelSelectLoad) return reelSelectLoad;
+
+  reelSelectLoad = (async () => {
+    reelSelectBuffer = await loadBuffer('assets/reel-select.wav');
+    return reelSelectBuffer;
+  })();
+
+  return reelSelectLoad;
 }
 
 async function ensureTallyCalcDrumrollBuffer(): Promise<AudioBuffer | null> {
@@ -1317,6 +1332,19 @@ export function playGameStartSound(): void {
   });
 }
 
+/** Click when an initials reel character lands in the window. */
+export function playReelSelectSound(): void {
+  const play = (buf: AudioBuffer) => playBuffer(buf, 0.9, 0, 1);
+  if (reelSelectBuffer) {
+    play(reelSelectBuffer);
+    return;
+  }
+
+  void ensureReelSelectBuffer().then((buf) => {
+    if (buf) play(buf);
+  });
+}
+
 /** UI click for menus and HUD controls (not How To Play overlay). */
 export function playMenuButtonSound(): void {
   const play = (buf: AudioBuffer) => playBuffer(buf, 0.85, 0, 1);
@@ -1521,6 +1549,7 @@ export function installMenuButtonSfx(): void {
         return;
       }
       if (control.classList.contains('hud-reload-btn') || control.classList.contains('hud-ammo')) return;
+      if (control.classList.contains('name-step') || control.classList.contains('name-letter')) return;
       const mode = control.dataset.mode;
       if (mode === 'endless' || mode === 'timed') return;
       playMenuButtonSound();

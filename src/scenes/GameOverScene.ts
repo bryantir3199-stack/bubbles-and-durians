@@ -12,7 +12,7 @@ import {
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import { isCoarsePointer } from '../core/display';
 import { isLeaderboardConfigured, submitScore } from '../services/leaderboard';
-import { startResultsBgm } from '../audio/sfx';
+import { playReelSelectSound, startResultsBgm } from '../audio/sfx';
 import { clearUI, panel, bindClick, flashThen } from '../ui/dom';
 import { isResultsCrashHeld, playResultsCrash } from '../ui/resultsCrash';
 
@@ -474,6 +474,7 @@ export class GameOverScene implements GameScene {
     this.cruise.moved += 1;
     const reel = this.reelEl(index);
     if (reel) this.paintStrip(reel, this.letters[index] || 'A', 1, 1);
+    playReelSelectSound();
     this.syncStatus();
   }
 
@@ -553,12 +554,38 @@ export class GameOverScene implements GameScene {
 
     const gen = this.reelGen[index];
     let finished = false;
+    let crossed = 0;
+    let watchRaf = 0;
+    const cell = this.cruiseMetrics(reel).cell || 1;
+    const readY = (): number => {
+      const t = getComputedStyle(reel).transform;
+      if (!t || t === 'none') return 0;
+      return new DOMMatrix(t).m42;
+    };
+
+    const tickCrossings = (originY: number): void => {
+      if (finished || gen !== this.reelGen[index]) return;
+      const passed = Math.min(steps, Math.floor(Math.abs(readY() - originY) / cell + 1e-4));
+      while (crossed < passed) {
+        crossed += 1;
+        playReelSelectSound();
+      }
+      if (crossed < steps) {
+        watchRaf = window.requestAnimationFrame(() => tickCrossings(originY));
+      }
+    };
+
     const finish = (): void => {
       if (finished || gen !== this.reelGen[index]) return;
       finished = true;
+      window.cancelAnimationFrame(watchRaf);
       window.clearTimeout(this.reelTimers[index]);
       this.reelTimers[index] = 0;
       reel.removeEventListener('transitionend', onEnd);
+      while (crossed < steps) {
+        crossed += 1;
+        playReelSelectSound();
+      }
       this.settleReel(index, landed);
       done();
     };
@@ -572,7 +599,9 @@ export class GameOverScene implements GameScene {
       requestAnimationFrame(() => {
         if (gen !== this.reelGen[index]) return;
         reel.addEventListener('transitionend', onEnd);
+        const originY = readY();
         reel.classList.add('is-spinning', move.dir === 1 ? 'is-spin-up' : 'is-spin-down');
+        watchRaf = window.requestAnimationFrame(() => tickCrossings(originY));
         this.reelTimers[index] = window.setTimeout(finish, duration + 60);
       });
     });
