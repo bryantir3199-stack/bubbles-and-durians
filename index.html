@@ -1321,6 +1321,8 @@
       }
       .name-initials.is-blocked .name-letter {
         border-color: var(--danger);
+      }
+      .name-initials.is-blocked .name-reel-char {
         color: var(--danger);
       }
       .name-slot {
@@ -1340,23 +1342,92 @@
         opacity: 0.7;
       }
       .name-step:hover,
-      .name-slot.is-active .name-step {
+      .name-step:focus-visible {
         opacity: 1;
         color: var(--gold);
       }
       .name-letter {
+        --reel-window: 68px;
+        --reel-cell: 42px;
+        --reel-idle: calc(var(--reel-window) / 2 - 2.5 * var(--reel-cell));
+        position: relative;
+        display: block;
+        overflow: hidden;
         width: 58px;
-        height: 68px;
+        height: var(--reel-window);
+        padding: 0;
         font: 700 36px/1 'Fredoka', sans-serif;
         color: #fff;
-        background: #1a3a5c;
+        background:
+          linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, transparent 22%, transparent 78%, rgba(0, 0, 0, 0.38) 100%),
+          linear-gradient(180deg, #071018 0%, #142c48 26%, #2a5f96 50%, #142c48 74%, #071018 100%);
         border: 2px solid #fff;
         border-radius: 8px;
         cursor: pointer;
+        box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.18), inset 0 -4px 8px rgba(0, 0, 0, 0.45);
       }
+      .name-reel {
+        --reel-center: 2;
+        --reel-steps: 1;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        transform: translateY(calc(var(--reel-window) / 2 - (var(--reel-center) + 0.5) * var(--reel-cell)));
+        will-change: transform;
+      }
+      .name-reel.is-spinning {
+        transition: transform 0.32s cubic-bezier(0.33, 0.12, 0.18, 1);
+      }
+      .name-reel.is-spin-up {
+        transform: translateY(calc(var(--reel-window) / 2 - (var(--reel-center) + 0.5 + var(--reel-steps)) * var(--reel-cell)));
+      }
+      .name-reel.is-spin-down {
+        transform: translateY(calc(var(--reel-window) / 2 - (var(--reel-center) + 0.5 - var(--reel-steps)) * var(--reel-cell)));
+      }
+      .name-reel-char {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 var(--reel-cell);
+        height: var(--reel-cell);
+        font: inherit;
+        color: inherit;
+        line-height: 1;
+      }
+      .name-reel-shade {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg,
+            rgba(0, 0, 0, 0.58) 0%,
+            rgba(0, 0, 0, 0.18) 14%,
+            transparent 32%,
+            transparent 68%,
+            rgba(0, 0, 0, 0.18) 86%,
+            rgba(0, 0, 0, 0.58) 100%);
+        box-shadow:
+          inset 10px 0 12px rgba(0, 0, 0, 0.28),
+          inset -12px 0 14px rgba(0, 0, 0, 0.32),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+      .name-reel-shade::before,
+      .name-reel-shade::after {
+        content: '';
+        position: absolute;
+        left: 10%;
+        right: 10%;
+        height: 1px;
+        background: rgba(255, 247, 15, 0.28);
+      }
+      .name-reel-shade::before { top: 31%; }
+      .name-reel-shade::after { bottom: 31%; }
       .name-slot.is-active .name-letter {
         border-color: var(--gold);
-        box-shadow: 0 0 14px rgba(255, 229, 102, 0.35);
+        box-shadow:
+          0 0 14px rgba(255, 229, 102, 0.35),
+          inset 0 2px 0 rgba(255, 255, 255, 0.18),
+          inset 0 -4px 8px rgba(0, 0, 0, 0.45);
       }
       .status { min-height: 22px; color: #ffaa66; font-size: 15px; margin-bottom: 8px; }
 
@@ -2616,8 +2687,10 @@
         font-size: clamp(12px, 2.8vh, 16px);
       }
       html.touch-ui .name-letter {
+        --reel-window: 58px;
+        --reel-cell: 36px;
         width: 50px;
-        height: 58px;
+        height: var(--reel-window);
         font-size: 30px;
       }
       html.touch-ui .name-step { width: 50px; }
@@ -2900,7 +2973,13 @@
         }
         html.touch-ui .name-step { display: none; }
         html.touch-ui .name-initials { margin: 6px auto 4px; gap: 10px; }
-        html.touch-ui .name-letter { width: 44px; height: 48px; font-size: 26px; }
+        html.touch-ui .name-letter {
+          --reel-window: 48px;
+          --reel-cell: 30px;
+          width: 44px;
+          height: var(--reel-window);
+          font-size: 26px;
+        }
         html.touch-ui .status { min-height: 16px; font-size: 13px; margin-bottom: 4px; }
         html.touch-ui .btn-row {
           width: 100%;
@@ -3231,16 +3310,47 @@
         gap: 2.6cqi;
         margin: 2cqh auto 1.2cqh;
       }
-      :is(html, html.touch-ui) .menu.game-over .name-letter {
+      :is(html, html.touch-ui) .menu.game-over .name-slot {
         width: 11cqh;
-        height: 13cqh;
-        font-size: 7.4cqh;
+        align-items: stretch;
+        gap: 20px;
+      }
+      :is(html, html.touch-ui) .menu.game-over .name-letter {
+        --reel-window: 17cqh;
+        --reel-cell: 8cqh;
+        --reel-idle: calc(var(--reel-window) / 2 - 2.5 * var(--reel-cell));
+        width: 100%;
+        height: var(--reel-window);
+        font-size: 6.6cqh;
         border-width: max(2px, 0.45cqh);
         border-radius: 1.2cqh;
       }
       :is(html, html.touch-ui) .menu.game-over .name-step {
-        width: 11cqh;
-        font-size: 2.8cqh;
+        width: 93%;
+        height: 6.5cqh;
+        align-self: center;
+        padding: 0;
+        font-size: 0;
+        line-height: 0;
+        color: var(--accent);
+        opacity: 1;
+        filter: drop-shadow(0 0 0.28cqh #000) drop-shadow(0 0 0.28cqh #000);
+      }
+      :is(html, html.touch-ui) .menu.game-over .name-step:hover,
+      :is(html, html.touch-ui) .menu.game-over .name-step:focus-visible {
+        color: var(--gold);
+        opacity: 1;
+      }
+      :is(html, html.touch-ui) .menu.game-over .name-step::before {
+        content: '';
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: currentColor;
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      }
+      :is(html, html.touch-ui) .menu.game-over .name-step[data-cycle="-1"]::before {
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
       }
       :is(html, html.touch-ui) .menu.game-over .status {
         min-height: 3.4cqh;

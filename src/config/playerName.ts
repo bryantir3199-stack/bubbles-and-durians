@@ -1,7 +1,8 @@
-/** Arcade-style initials: exactly 3 A–Z / 0–9 characters. */
+/** Arcade-style initials: exactly 3 letters, digits, or punctuation. */
 
 export const PLAYER_NAME_LENGTH = 3;
-export const PLAYER_NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+export const PLAYER_NAME_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.?!<>,;:'\"-/\\@#$%&*+=()[]{}~^|";
 
 const BANNED = new Set([
   'SEX', 'XXX',
@@ -38,7 +39,9 @@ function normalizeLeet(name: string): string {
 export function sanitizePlayerName(raw: string): string {
   return raw
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
+    .split('')
+    .filter((ch) => PLAYER_NAME_CHARS.includes(ch))
+    .join('')
     .slice(0, PLAYER_NAME_LENGTH);
 }
 
@@ -61,10 +64,31 @@ export function validatePlayerName(
   return { ok: true, name };
 }
 
+/** Shortest reel roll from one initials character to another. */
+export function shortestPlayerSpin(from: string, to: string): { dir: 1 | -1; steps: number } {
+  const start = PLAYER_NAME_CHARS.indexOf(from || 'A');
+  const end = PLAYER_NAME_CHARS.indexOf(to);
+  if (start < 0 || end < 0 || start === end) return { dir: 1, steps: 0 };
+  const forward = (end - start + PLAYER_NAME_CHARS.length) % PLAYER_NAME_CHARS.length;
+  const backward = (start - end + PLAYER_NAME_CHARS.length) % PLAYER_NAME_CHARS.length;
+  if (forward <= backward) return { dir: 1, steps: forward };
+  return { dir: -1, steps: backward };
+}
+
 export function cyclePlayerChar(current: string, dir: 1 | -1): string {
-  if (!current) return dir === 1 ? 'A' : '9';
+  const last = PLAYER_NAME_CHARS.at(-1) ?? 'A';
+  if (!current) return dir === 1 ? 'A' : last;
   const index = PLAYER_NAME_CHARS.indexOf(current);
   if (index < 0) return 'A';
   const next = (index + dir + PLAYER_NAME_CHARS.length) % PLAYER_NAME_CHARS.length;
   return PLAYER_NAME_CHARS[next] ?? 'A';
+}
+
+/** Neighbor on the initials reel. Empty slots show `_` at the center. */
+export function offsetPlayerChar(current: string, delta: number): string {
+  if (delta === 0) return current || '_';
+  const dir = delta > 0 ? 1 : -1;
+  let ch = current;
+  for (let i = 0; i < Math.abs(delta); i++) ch = cyclePlayerChar(ch, dir);
+  return ch;
 }
