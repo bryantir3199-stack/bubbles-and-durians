@@ -299,7 +299,7 @@ export function timedMarksmanBonus(accuracyPct: number): number {
   return 0;
 }
 
-/** Timed results breakdown. Bonuses are flat; accuracy is not a multiplier. */
+/** Timed results breakdown. Line items sum first; accuracy then multiplies that sum. */
 export interface TimedRunTally {
   durianScore: number;
   goldScore: number;
@@ -310,8 +310,10 @@ export interface TimedRunTally {
   hotStreakBonus: number;
   shotsFired: number;
   accurateHits: number;
-  /** Whole percent 0–100 (Marksman uses this; does not scale the total). */
+  /** Whole percent 0–100. Marksman uses this, and it also scales the total. */
   accuracyPct: number;
+  /** Durian + gold + teeth + bubbles + end bonuses, before accuracy. */
+  subtotal: number;
   total: number;
 }
 
@@ -339,6 +341,14 @@ export function computeTimedRunTally(input: {
   const goldScore = Math.round(input.goldScore);
   const teethScore = Math.round(input.teethScore);
   const bubbleScore = Math.round(input.bubbleScore);
+  const subtotal =
+    durianScore +
+    goldScore +
+    teethScore +
+    bubbleScore +
+    marksmanBonus +
+    cleanBonus +
+    hotStreakBonus;
   return {
     durianScore,
     goldScore,
@@ -350,13 +360,7 @@ export function computeTimedRunTally(input: {
     shotsFired: shots,
     accurateHits: hits,
     accuracyPct,
-    total:
-      durianScore +
-      goldScore +
-      teethScore +
-      bubbleScore +
-      marksmanBonus +
-      cleanBonus +
-      hotStreakBonus,
+    subtotal,
+    total: Math.round(subtotal * (accuracyPct / 100)),
   };
 }

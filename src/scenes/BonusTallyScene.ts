@@ -169,6 +169,13 @@ export class BonusTallyScene implements GameScene {
       { label: 'MARKSMAN', target: tally.marksmanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.marksmanBonus) },
       { label: 'CLEAN', target: tally.cleanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.cleanBonus) },
       { label: 'HOT STREAK', target: tally.hotStreakBonus, prefix: '+', suffix: '', cssClass: bonus(tally.hotStreakBonus) },
+      {
+        label: 'ACCURACY',
+        target: tally.accuracyPct,
+        prefix: '× ',
+        suffix: '%',
+        cssClass: tally.accuracyPct >= 100 ? 'is-earned' : tally.accuracyPct <= 0 ? 'is-missed' : '',
+      },
       { label: 'TOTAL', target: tally.total, prefix: '', suffix: '', cssClass: 'tally-total', isTotal: true },
     ];
 
@@ -310,7 +317,8 @@ export class BonusTallyScene implements GameScene {
     return `<p class="tally-info-title">Round bonuses</p>
       <ul class="tally-info-list">
         <li><strong>Finale 2×</strong> — greens and golds from the last stretch of the deck. On the target, not the click.</li>
-        <li><strong>Marksman</strong> — 100% accuracy +${this.fmt(gameConfig.timedBonusMarksman)}. 95% or better +${this.fmt(gameConfig.timedBonusMarksmanPartial)}. Bubbles and misses count against you.</li>
+        <li><strong>Accuracy</strong> — hits ÷ shots. Multiplies the sum of everything above it. Bubbles and misses count against you.</li>
+        <li><strong>Marksman</strong> — 100% accuracy +${this.fmt(gameConfig.timedBonusMarksman)}. 95% or better +${this.fmt(gameConfig.timedBonusMarksmanPartial)}.</li>
         <li><strong>Clean</strong> — don't shoot any bubbles. +${this.fmt(gameConfig.timedBonusClean)}</li>
         <li><strong>Hot streak</strong> — still at ${max}× when time runs out. +${streak}</li>
       </ul>`;
