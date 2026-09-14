@@ -19,7 +19,7 @@ export class TutorialSpeaker {
   private holder: THREE.Group;
   private teethOpen: THREE.Object3D | null = null;
   private teethClose: THREE.Object3D | null = null;
-  private openState = true;
+  private openState = false;
   private chompAge = 0;
   private talking = false;
   private scene: THREE.Scene;
@@ -40,6 +40,16 @@ export class TutorialSpeaker {
 
   setTalking(talking: boolean): void {
     this.talking = talking;
+    if (!talking) {
+      this.setClosed();
+      return;
+    }
+    this.chompAge = 0;
+    if (this.teethOpen && this.teethClose) {
+      this.openState = true;
+      this.teethOpen.visible = true;
+      this.teethClose.visible = false;
+    }
   }
 
   /** Mouth / eyes — where the speech tail starts. */
@@ -49,14 +59,23 @@ export class TutorialSpeaker {
     return out;
   }
 
+  /** Lawn in front of the keep, between the presenter and the doors. */
+  frontOfKeep(out: THREE.Vector3): THREE.Vector3 {
+    this.root.getWorldPosition(out);
+    out.x = 8;
+    out.y += gameConfig.targetSize * 0.12;
+    return out;
+  }
+
   update(dt: number): void {
     if (!this.teethOpen || !this.teethClose) return;
+    if (!this.talking) {
+      this.setClosed();
+      return;
+    }
 
-    const interval = this.talking
-      ? gameConfig.teethChompIntervalMs
-      : gameConfig.teethChompIntervalMs * 1.8;
     this.chompAge += dt * 1000;
-    if (this.chompAge >= interval) {
+    if (this.chompAge >= gameConfig.teethChompIntervalMs) {
       this.chompAge = 0;
       this.openState = !this.openState;
       this.teethOpen.visible = this.openState;
@@ -78,8 +97,17 @@ export class TutorialSpeaker {
     if (!ModelCache.isReady) return;
     this.teethOpen = ModelCache.cloneModel('teethOpen');
     this.teethClose = ModelCache.cloneModel('teethClose');
-    this.teethClose.visible = false;
     this.holder.add(this.teethOpen);
     this.holder.add(this.teethClose);
+    this.setClosed();
+  }
+
+  /** Idle pose: mouth shut. */
+  private setClosed(): void {
+    if (!this.teethOpen || !this.teethClose) return;
+    this.openState = false;
+    this.chompAge = 0;
+    this.teethOpen.visible = false;
+    this.teethClose.visible = true;
   }
 }

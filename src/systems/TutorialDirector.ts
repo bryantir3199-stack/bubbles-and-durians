@@ -293,6 +293,7 @@ export class TutorialDirector {
           'That\'s me in Timed mode — chomping teeth dash behind the castle. Hit us for a huge bonus, and watch for the warning flash first!',
           true,
         );
+        this.coach.holdInFrontOfCastle();
         this.withAmmo(1, () => this.spawnTeethFlyby());
         this.host.setArrows([{ kind: 'target' }]);
         break;

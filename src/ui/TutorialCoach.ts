@@ -22,8 +22,6 @@ const BASE_ATTACH = 52;
 const PLACE_LERP = 14;
 /** Ignore this much overlap (px²) before an avoid rect counts. */
 const AVOID_SLOP = 120;
-/** Don't switch slots unless the new one is this much better. */
-const PLACE_HYSTERESIS = 280;
 const AVOID_PAD = 8;
 const TEETH_PAD = 6;
 /** Overlap with the presenter is never allowed. */
@@ -139,6 +137,8 @@ export class TutorialCoach {
   private curY = 0;
   private slotX = 0;
   private slotY = 0;
+  /** Park on the lawn in front of the keep (don't chase flyby teeth). */
+  private holdCastleFront = false;
 
   constructor(
     parent: HTMLElement,
@@ -220,10 +220,20 @@ export class TutorialCoach {
     this.waitEl.classList.remove('tut-ok', 'tut-warn');
     this.waitEl.hidden = true;
     this.waitEl.textContent = '';
+    if (this.holdCastleFront) {
+      this.holdCastleFront = false;
+      this.placed = false;
+    }
     this.speaker.setTalking(true);
     this.setBackEnabled(content.backEnabled);
     this.syncContinue();
     if (!this.fullBody) this.completeType();
+  }
+
+  /** Keep the bubble on the lawn in front of the castle for this step. */
+  holdInFrontOfCastle(): void {
+    this.holdCastleFront = true;
+    this.placed = false;
   }
 
   update(dt: number): void {
@@ -296,7 +306,6 @@ export class TutorialCoach {
     const minT = rect.top + pad;
     const hudTop = rect.bottom - rect.height * 0.14;
     const maxT = Math.min(rect.bottom - pad - h, hudTop - h - 8);
-    const slots = this.placementSlots(teeth, body, w, h);
 
     const scoreBox = (box: Rect, prefer: number): number => {
       let score = prefer;
@@ -311,21 +320,26 @@ export class TutorialCoach {
     };
 
     let best = { left: minL, top: minT };
-    let bestScore = Infinity;
-    for (const slot of slots) {
-      let left = Math.min(maxL, Math.max(minL, slot.left));
-      let top = Math.min(maxT, Math.max(minT, slot.top));
-      let box: Rect = { left, top, right: left + w, bottom: top + h };
-      if (overlapArea(box, inflate(body, TEETH_PAD)) > 0) {
-        const nudged = this.nudgeOffTeeth(box, body, w, h, minL, maxL, minT, maxT);
-        left = nudged.left;
-        top = nudged.top;
-        box = { left, top, right: left + w, bottom: top + h };
-      }
-      const score = scoreBox(box, slot.prefer);
-      if (score < bestScore) {
-        bestScore = score;
-        best = { left, top };
+    if (this.holdCastleFront) {
+      best = this.castleFrontSlot(w, h, minL, maxL, minT, maxT, body);
+    } else {
+      const slots = this.placementSlots(teeth, body, w, h);
+      let bestScore = Infinity;
+      for (const slot of slots) {
+        let left = Math.min(maxL, Math.max(minL, slot.left));
+        let top = Math.min(maxT, Math.max(minT, slot.top));
+        let box: Rect = { left, top, right: left + w, bottom: top + h };
+        if (overlapArea(box, inflate(body, TEETH_PAD)) > 0) {
+          const nudged = this.nudgeOffTeeth(box, body, w, h, minL, maxL, minT, maxT);
+          left = nudged.left;
+          top = nudged.top;
+          box = { left, top, right: left + w, bottom: top + h };
+        }
+        const score = scoreBox(box, slot.prefer);
+        if (score < bestScore) {
+          bestScore = score;
+          best = { left, top };
+        }
       }
     }
 
@@ -338,9 +352,8 @@ export class TutorialCoach {
         right: heldLeft + w,
         bottom: heldTop + h,
       };
-      const heldScore = scoreBox(held, 12);
-      const coversTeeth = overlapArea(held, inflate(body, TEETH_PAD)) > 0;
-      if (!coversTeeth && heldScore <= bestScore + PLACE_HYSTERESIS) {
+      const coversSpeaker = overlapArea(held, inflate(body, TEETH_PAD)) > 0;
+      if (!coversSpeaker) {
         best = { left: heldLeft, top: heldTop };
       }
     }
@@ -374,6 +387,33 @@ export class TutorialCoach {
     this.dialogueEl.style.top = `${this.curY}px`;
     this.dialogueEl.style.transform = 'none';
     this.drawTail(teeth.x, teeth.y);
+  }
+
+  /** Lawn overlay in front of the keep, nudged off the presenter. */
+  private castleFrontSlot(
+    w: number,
+    h: number,
+    minL: number,
+    maxL: number,
+    minT: number,
+    maxT: number,
+    body: Rect,
+  ): { left: number; top: number } {
+    this.speaker.frontOfKeep(this.world);
+    const p = this.project(this.world.x, this.world.y, this.world.z);
+    let left = minL;
+    let top = minT;
+    if (p) {
+      left = p.x - w * 0.42;
+      top = p.y - h * 0.42;
+    }
+    left = Math.min(maxL, Math.max(minL, left));
+    top = Math.min(maxT, Math.max(minT, top));
+    const box: Rect = { left, top, right: left + w, bottom: top + h };
+    if (overlapArea(box, inflate(body, TEETH_PAD)) > 0) {
+      return this.nudgeOffTeeth(box, body, w, h, minL, maxL, minT, maxT);
+    }
+    return { left, top };
   }
 
   /** Candidate bubble positions. Lower `prefer` = more “in front of the teeth”. */
@@ -446,7 +486,8 @@ export class TutorialCoach {
     out.push({ rect: inflate(teethBody, TEETH_PAD), weight: 40 });
     for (const t of this.opts.getTargets()) {
       if (!t.active) continue;
-      if (t.kind === 'teeth' && !t.isTeethVisuallyExposed()) continue;
+      // Flyby teeth dash behind the keep — don't shove the bubble aside.
+      if (t.kind === 'teeth') continue;
       const tSize = t.kind === 'heart' ? gameConfig.heartSize : gameConfig.targetSize;
       const c = this.project(t.position.x, t.position.y, t.position.z);
       const top = this.project(t.position.x, t.position.y + tSize * 0.55, t.position.z);
