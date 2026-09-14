@@ -235,7 +235,9 @@ export class TutorialDirector {
       case 1:
         this.waiting = 'destroy-durian';
         this.prompt(
-          'See that green durian? One hit knocks it out — and that\'s how you score.',
+          this.mobile
+            ? 'See that green durian? Shoot it down to earn points. Tap to shoot.'
+            : 'See that green durian? Shoot it down to earn points. Click to shoot.',
         );
         this.spawnNow('durian', 'window', { pinned: true });
         this.host.setArrows([{ kind: 'target' }]);
@@ -243,7 +245,7 @@ export class TutorialDirector {
       case 2:
         this.waiting = 'skip-bubble';
         this.prompt(
-          'Hold up — don\'t shoot the bubbles. Those cost you points.',
+          'Hold up, don\'t shoot the bubbles. Those cost you points.',
           true,
         );
         this.spawnNow('bubble', 'window', { pinned: true });
@@ -256,7 +258,7 @@ export class TutorialDirector {
         this.host.resetCombo();
         this.host.revealCombo();
         this.prompt(
-          'String four clean durian hits in a row and your combo climbs — that multiplies your score. Miss or hit a bubble and it resets.',
+          'String four clean durian hits in a row and your combo meter climbs. Miss or hit a bubble and it resets.',
         );
         this.withAmmo(1, () => this.spawnComboDurian());
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'combo' }]);
@@ -265,8 +267,8 @@ export class TutorialDirector {
         this.waiting = 'reload';
         this.prompt(
           this.mobile
-            ? 'You\'ll run dry. Tap the ammo bar or RELOAD when you need another magazine.'
-            : 'You\'ll run dry. Click the ammo bar, or press SPACE or R, when you need another magazine.',
+            ? 'You\'ll run dry. Tap the RELOAD button on the upper right corner of your screen when you need more ammo.'
+            : 'Click the ammo bar, or press SPACE or R, when you need more ammo.',
         );
         this.host.setArrows(
           this.mobile
@@ -290,7 +292,7 @@ export class TutorialDirector {
       case 6:
         this.waiting = 'watch-teeth';
         this.prompt(
-          'That\'s me in Timed mode — chomping teeth dash behind the castle. Hit us for a huge bonus, and watch for the warning flash first!',
+          'In the Standard or Blitz modes, chomping teeth dash behind the castle. Hit it for a huge bonus!',
           true,
         );
         this.coach.holdInFrontOfCastle();
@@ -310,7 +312,7 @@ export class TutorialDirector {
         this.waiting = 'collect-heart';
         this.host.setLives(Math.max(1, gameConfig.startLives - 1));
         this.prompt(
-          'Need lives back in Endless? Shoot a heart and you\'ll get one.',
+          'Need more lives? Shoot a heart and you\'ll get one.',
         );
         this.withAmmo(1, () => this.spawnNow('heart', 'window', { pinned: true }));
         this.host.setArrows([{ kind: 'target' }, { kind: 'hud', part: 'lives' }]);
@@ -319,7 +321,7 @@ export class TutorialDirector {
         this.waiting = 'destroy-frenzy';
         this.host.setFrenzyLook(true);
         this.prompt(
-          'Score enough and the Frenzy meter fills. Then grab every point you can! Escapes during a frenzy don\'t cost lives.',
+          'Score enough and the Frenzy meter fills. Then grab every point you can! Durians with blue glows that escape during a frenzy don\'t cost lives.',
         );
         this.withAmmo(1, () =>
           this.spawnNow('durian', 'window', { frenzySpawned: true, pinned: true }),
@@ -328,7 +330,7 @@ export class TutorialDirector {
         break;
       case 10:
         this.prompt(
-          'That\'s everything. The booth\'s yours now — good luck out there!',
+          'That\'s everything. Good luck out there!',
           true,
         );
         break;
