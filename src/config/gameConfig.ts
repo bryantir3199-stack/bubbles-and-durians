@@ -47,15 +47,15 @@ export const gameConfig = {
    */
   timedFinaleScoreMult: 2,
   /** Timed results: 100% accuracy. */
-  timedBonusMarksman: 5000,
+  timedBonusMarksman: 2500,
   /** Timed results: 95–99% accuracy. */
-  timedBonusMarksmanPartial: 2500,
+  timedBonusMarksmanPartial: 1000,
   /** Timed results: no bubbles shot. */
-  timedBonusClean: 5000,
+  timedBonusClean: 1500,
   /** Timed results: still at max combo when the clock ends (Blitz). */
-  timedBonusHotStreakShort: 4000,
+  timedBonusHotStreakShort: 1000,
   /** Timed results: still at max combo when the clock ends (Standard / long). */
-  timedBonusHotStreakMedium: 8000,
+  timedBonusHotStreakMedium: 1000,
   /**
    * Opening grace period (ms): no close-camera pops and no gold durians
    * so the first half-minute stays readable.
