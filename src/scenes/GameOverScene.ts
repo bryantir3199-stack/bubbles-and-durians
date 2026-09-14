@@ -28,6 +28,8 @@ export class GameOverScene implements GameScene {
   private mode: GameMode = 'endless';
   private timedPreset: TimedPreset | undefined;
   private score = 0;
+  private bubblesHit: number | undefined;
+  private peakCombo: number | undefined;
   private letters: string[] = ['A', 'A', 'A'];
   private cursor = 0;
   private submitting = false;
@@ -63,6 +65,8 @@ export class GameOverScene implements GameScene {
     this.mode = data?.mode ?? 'endless';
     this.timedPreset = data?.timedPreset;
     this.score = data?.timedTally?.total ?? data?.score ?? 0;
+    this.bubblesHit = data?.bubblesHit;
+    this.peakCombo = data?.peakCombo;
     this.letters = ['A', 'A', 'A'];
     this.cursor = 0;
     this.submitting = false;
@@ -77,7 +81,7 @@ export class GameOverScene implements GameScene {
     this.swipe = null;
     this.stopCruiseImmediate();
 
-    if (!isResultsCrashHeld()) await playResultsCrash();
+    if (!isResultsCrashHeld()) await playResultsCrash(this.headline());
     startResultsBgm();
 
     clearUI(this.ctx.uiRoot);
@@ -85,10 +89,12 @@ export class GameOverScene implements GameScene {
     const ui = panel(
       'menu game-over',
       `<div class="menu-card">
-        <h1 class="danger">${this.modeLabel()}</h1>
+        <h1 class="danger">${this.headline()}</h1>
+        <p class="muted">${this.modeLabel()}</p>
         <p class="score-big">Score: ${this.fmt(this.score)}</p>
+        ${this.endlessStatsMarkup()}
         <div class="go-form">
-          <p>Enter 3 initials</p>
+          <p class="go-prompt">Enter your <strong>3 initials</strong></p>
           <div class="name-initials" id="name-initials">${slots}</div>
           <p class="status" id="status">${isLeaderboardConfigured() ? '' : 'Offline — set .env for online scores'}</p>
           <div class="btn-row">
@@ -625,6 +631,27 @@ export class GameOverScene implements GameScene {
     if (this.mode === 'endless') return 'Endless Mode';
     const preset = getTimedPreset(this.timedPreset ?? defaultTimedPreset);
     return `Timed Mode · ${preset.label} (${preset.seconds}s)`;
+  }
+
+  /** Matches the brief plaque-slam flash text — never rendered visibly, kept for a11y/no-CSS fallback. */
+  private headline(): string {
+    return this.mode === 'timed' ? "TIME'S UP" : 'GAME OVER';
+  }
+
+  /** Endless-only run flavor under the score — skipped when the stats weren't handed off from PlayScene. */
+  private endlessStatsMarkup(): string {
+    if (this.mode !== 'endless') return '';
+    if (this.peakCombo === undefined && this.bubblesHit === undefined) return '';
+    const parts: string[] = [];
+    if (this.peakCombo !== undefined && this.peakCombo > 1) {
+      parts.push(`Best combo <strong>${this.peakCombo}×</strong>`);
+    }
+    if (this.bubblesHit !== undefined) {
+      const label = this.bubblesHit === 1 ? 'bubble' : 'bubbles';
+      parts.push(`<strong class="${this.bubblesHit > 0 ? 'danger-text' : ''}">${this.bubblesHit}</strong> ${label} popped`);
+    }
+    if (!parts.length) return '';
+    return `<p class="go-flavor">${parts.join(' · ')}</p>`;
   }
 
   private fmt(n: number): string {

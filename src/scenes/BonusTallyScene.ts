@@ -50,13 +50,13 @@ export class BonusTallyScene implements GameScene {
       this.timedTally = this.timedTally ?? dummyTimedTally();
     }
 
-    if (!isResultsCrashHeld()) await playResultsCrash();
+    if (!isResultsCrashHeld()) await playResultsCrash("TIME'S UP");
 
     clearUI(this.ctx.uiRoot);
     const ui = panel(
       'menu bonus-tally',
       `<div class="menu-card">
-        <h1 class="danger">GAME OVER</h1>
+        <h1 class="danger">TIME'S UP</h1>
         <p class="muted">${this.modeLabel()}${
           wantsBonusTallyPreview() ? '<br>Click to start tally preview' : ''
         }</p>
