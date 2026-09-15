@@ -18,6 +18,7 @@ interface TallyRow {
   prefix: string;
   suffix: string;
   cssClass: string;
+  section: 'scoring' | 'bonuses' | 'accuracy' | 'total';
   isTotal?: boolean;
 }
 
@@ -129,27 +130,58 @@ export class BonusTallyScene implements GameScene {
 
     const bonus = (n: number) => (n > 0 ? 'is-earned' : 'is-missed');
     const rows: TallyRow[] = [
-      { label: 'DURIANS', target: tally.durianScore, prefix: '', suffix: '', cssClass: '' },
-      { label: 'GOLDS', target: tally.goldScore, prefix: '', suffix: '', cssClass: '' },
-      { label: 'TEETH', target: tally.teethScore, prefix: '', suffix: '', cssClass: tally.teethScore > 0 ? 'is-earned' : 'is-missed' },
+      { label: 'DURIANS', target: tally.durianScore, prefix: '', suffix: '', cssClass: '', section: 'scoring' },
+      { label: 'GOLDS', target: tally.goldScore, prefix: '', suffix: '', cssClass: '', section: 'scoring' },
+      { label: 'TEETH', target: tally.teethScore, prefix: '', suffix: '', cssClass: '', section: 'scoring' },
       {
         label: 'BUBBLES',
         target: tally.bubbleScore,
         prefix: '',
         suffix: '',
         cssClass: tally.bubbleScore < 0 ? 'is-missed' : '',
+        section: 'scoring',
       },
-      { label: 'MARKSMAN', target: tally.marksmanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.marksmanBonus) },
-      { label: 'CLEAN', target: tally.cleanBonus, prefix: '+', suffix: '', cssClass: bonus(tally.cleanBonus) },
-      { label: 'HOT STREAK', target: tally.hotStreakBonus, prefix: '+', suffix: '', cssClass: bonus(tally.hotStreakBonus) },
+      {
+        label: 'MARKSMAN',
+        target: tally.marksmanBonus,
+        prefix: '+',
+        suffix: '',
+        cssClass: bonus(tally.marksmanBonus),
+        section: 'bonuses',
+      },
+      {
+        label: 'CLEAN',
+        target: tally.cleanBonus,
+        prefix: '+',
+        suffix: '',
+        cssClass: bonus(tally.cleanBonus),
+        section: 'bonuses',
+      },
+      {
+        label: 'HOT STREAK',
+        target: tally.hotStreakBonus,
+        prefix: '+',
+        suffix: '',
+        cssClass: bonus(tally.hotStreakBonus),
+        section: 'bonuses',
+      },
       {
         label: 'ACCURACY',
         target: tally.accuracyPct,
         prefix: '× ',
         suffix: '%',
-        cssClass: tally.accuracyPct >= 100 ? 'is-earned' : tally.accuracyPct <= 0 ? 'is-missed' : '',
+        cssClass: `tally-accuracy${tally.accuracyPct <= 0 ? ' is-missed' : ''}`,
+        section: 'accuracy',
       },
-      { label: 'TOTAL', target: tally.total, prefix: '', suffix: '', cssClass: 'tally-total', isTotal: true },
+      {
+        label: 'TOTAL',
+        target: tally.total,
+        prefix: '',
+        suffix: '',
+        cssClass: 'tally-total',
+        section: 'total',
+        isTotal: true,
+      },
     ];
 
     return rows;
@@ -166,7 +198,7 @@ export class BonusTallyScene implements GameScene {
         <button type="button" class="tally-info-btn" aria-label="How bonuses work" aria-expanded="false" aria-describedby="tally-info-bubble">i</button>
         <div class="tally-info-bubble" id="tally-info-bubble" role="tooltip" aria-hidden="true">${this.bonusInfoMarkup()}</div>
       </div>`;
-    const rowsHtml = rows.map((row, i) => {
+    const rowHtml = (row: TallyRow, i: number) => {
       const baseClass = `tally-row ${row.cssClass}`.trim();
       const totalClass = row.isTotal ? 'tally-total-value' : '';
       const valueHtml = `<span class="tally-value ${totalClass}" data-target="${row.target}" data-prefix="${row.prefix}" data-suffix="${row.suffix}">${row.prefix}0${row.suffix}</span>`;
@@ -178,10 +210,27 @@ export class BonusTallyScene implements GameScene {
         <span>${row.label}</span>
         ${valueBlock}
       </div>`;
-    }).join('\n      ');
+    };
+    const scoring = rows
+      .map((row, i) => [row, i] as const)
+      .filter(([row]) => row.section === 'scoring');
+    const bonuses = rows
+      .map((row, i) => [row, i] as const)
+      .filter(([row]) => row.section === 'bonuses');
+    const accuracy = rows.findIndex((row) => row.section === 'accuracy');
+    const total = rows.findIndex((row) => row.section === 'total');
 
     return `<div class="run-tally" aria-label="Round tally">
-      ${rowsHtml}
+      <div class="tally-group tally-group-scoring">
+        <p class="tally-group-label">Scoring</p>
+        ${scoring.map(([row, i]) => rowHtml(row, i)).join('\n        ')}
+      </div>
+      <div class="tally-group tally-group-bonuses">
+        <p class="tally-group-label">Bonuses</p>
+        ${bonuses.map(([row, i]) => rowHtml(row, i)).join('\n        ')}
+      </div>
+      ${accuracy >= 0 ? rowHtml(rows[accuracy], accuracy) : ''}
+      ${total >= 0 ? rowHtml(rows[total], total) : ''}
     </div>`;
   }
 

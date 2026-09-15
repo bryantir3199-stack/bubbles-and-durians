@@ -1024,6 +1024,21 @@
         margin: 8px auto 16px;
         text-align: left;
       }
+      .tally-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .tally-group-bonuses {
+        margin-top: 13px;
+      }
+      .tally-group-label {
+        margin: 0 0 4px;
+        font: 700 11px/1 'Fredoka', sans-serif;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
       .tally-value-wrap {
         position: relative;
         display: inline-block;
@@ -1032,17 +1047,20 @@
         display: flex;
         justify-content: space-between;
         gap: 16px;
-        font: 700 16px/1.45 'Fredoka', sans-serif;
-        color: #d0e4f7;
+        font: 700 16px/1.885 'Fredoka', sans-serif;
+        color: #f7f7f7;
       }
-      .tally-row.is-earned { color: var(--gold); }
+      .tally-row.is-earned { color: #fff70f; }
       .tally-row.is-missed { color: var(--muted); }
+      .tally-row.tally-accuracy {
+        margin-top: 16px;
+      }
       .tally-row.tally-total {
-        margin-top: 8px;
-        padding-top: 8px;
+        margin-top: 0.5em;
+        padding-top: 0.5em;
         border-top: 4px solid #f7f7f7;
-        font-size: 28px;
-        color: var(--gold);
+        font-size: 42px;
+        color: #fff70f;
       }
       .tally-value {
         display: inline-block;
@@ -1490,7 +1508,13 @@
       .lb-score {
         text-align: right;
         font-variant-numeric: tabular-nums;
+      }
+      .lb-row .lb-score,
+      .lb-out .lb-score {
         color: #f7f7f7;
+      }
+      .lb-header .lb-score {
+        color: #fff70f;
       }
       .lb-medal {
         flex: 0 0 auto;
@@ -2902,7 +2926,7 @@
       }
       html.touch-ui .run-tally { margin: 6px auto 12px; }
       html.touch-ui .tally-row { font-size: 15px; }
-      html.touch-ui .tally-row.tally-total { font-size: 24px; }
+      html.touch-ui .tally-row.tally-total { font-size: 36px; }
       html.touch-ui .tally-info-btn { width: 32px; height: 32px; font-size: 17px; }
       html.touch-ui .tally-info-bubble { width: min(630px, 90vw); }
       html.touch-ui .hud-mobile-bar {
@@ -3152,9 +3176,9 @@
         html.touch-ui .run-tally { margin: 6px auto 4px; }
         html.touch-ui .tally-row { font-size: 13px; line-height: 1.3; }
         html.touch-ui .tally-row.tally-total {
-          font-size: 20px;
-          margin-top: 4px;
-          padding-top: 4px;
+          font-size: 30px;
+          margin-top: 0.5em;
+          padding-top: 0.5em;
         }
         html.touch-ui .name-step { display: none; }
         html.touch-ui .name-initials { margin: 6px auto 4px; gap: 10px; }
@@ -3349,8 +3373,9 @@
       }
       /* Tally: skip the RESULTS relief; original type, no scrollbar. */
       :is(html, html.touch-ui) .menu.bonus-tally .menu-card {
-        padding: 16cqh 8cqi 1.6cqh;
-        justify-content: space-between;
+        padding: 14cqh 8cqi 10vh;
+        justify-content: flex-start;
+        gap: 0;
         overflow: hidden;
         overscroll-behavior: none;
       }
@@ -3358,6 +3383,7 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted,
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .score-big,
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row,
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-group-label,
       :is(html, html.touch-ui) .menu.game-over .go-form,
       :is(html, html.touch-ui) .menu.game-over .go-prompt,
       :is(html, html.touch-ui) .menu.game-over .go-flavor,
@@ -3369,10 +3395,19 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted,
       :is(html, html.touch-ui) .menu.game-over .go-prompt,
       :is(html, html.touch-ui) .menu.game-over .go-flavor,
-      :is(html, html.touch-ui) .menu.bonus-tally .tally-row,
-      :is(html, html.touch-ui) .menu.bonus-tally .tally-row.is-missed,
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-row {
+        color: #f7f7f7;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-group-label {
+        color: rgba(247, 247, 247, 0.55);
+        -webkit-text-stroke: 0.28cqh #1a1018;
+        text-shadow: 0 0.14cqh 0 rgba(0, 0, 0, 0.4);
+      }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row-active .tally-value {
         color: #f7f7f7;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-row.is-missed {
+        color: rgba(247, 247, 247, 0.42);
       }
       :is(html, html.touch-ui) .menu.game-over .score-big,
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row.is-earned,
@@ -3406,9 +3441,23 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        justify-content: space-evenly;
+        justify-content: flex-start;
+        gap: 0;
         margin: 0 auto;
         overflow: visible;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-group {
+        width: 100%;
+        gap: 0;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-group-bonuses {
+        margin-top: 3.64cqh;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-group-label {
+        margin: 0 0 0.59cqh;
+        font-size: 2.6cqh;
+        line-height: 1;
+        letter-spacing: 0.16em;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-value-wrap {
         display: inline-block;
@@ -3418,13 +3467,18 @@
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row {
         font-size: 5.6cqh;
-        line-height: 1;
+        line-height: 1.3;
         gap: 2.4cqi;
       }
+      :is(html, html.touch-ui) .menu.bonus-tally .tally-row.tally-accuracy {
+        margin-top: 4.16cqh;
+      }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row.tally-total {
-        font-size: 8.4cqh;
-        margin-top: 0.4cqh;
-        padding-top: 0.6cqh;
+        font-size: 12.6cqh;
+        line-height: 1;
+        margin-top: 0.5em;
+        margin-bottom: 0;
+        padding-top: 0.5em;
         border-top: 4px solid #f7f7f7;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-btn {
@@ -3476,9 +3530,17 @@
         margin-top: 1.8cqh;
         justify-content: center;
       }
+      :is(html, html.touch-ui) .menu.bonus-tally {
+        position: relative;
+      }
       :is(html, html.touch-ui) .menu.bonus-tally .btn-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 9vh;
         flex: 0 0 auto;
-        margin-top: 1cqh;
+        margin-top: 0;
+        z-index: 4;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .btn {
         margin-top: 0;

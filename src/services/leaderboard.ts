@@ -3,7 +3,7 @@ import type { GameMode, RankedMode, TimedPreset } from '../config/gameConfig';
 import { toRankedMode } from '../config/gameConfig';
 import { validatePlayerName } from '../config/playerName';
 
-/** Top ranks in the compact intro strip. */
+/** Top ranks on the compact board; 11+ live behind MORE. */
 export const RANKING_DISPLAY_COUNT = 10;
 /** Rows visible in the ranking viewport at once. */
 export const RANKING_WINDOW = 5;

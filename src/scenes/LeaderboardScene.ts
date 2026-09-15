@@ -236,7 +236,7 @@ export class LeaderboardScene implements GameScene {
     this.hideOutRow();
 
     const compact = !this.expanded;
-    const visible = this.rows;
+    const visible = compact ? this.rows.slice(0, RANKING_DISPLAY_COUNT) : this.rows;
     const lines = visible
       .map((row, i) =>
         this.rowHtml(i + 1, row.player_name, row.score, i === this.highlightIndex),
