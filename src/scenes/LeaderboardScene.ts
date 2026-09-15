@@ -17,8 +17,8 @@ import { fadeFromOverlay, fadeToBlackAndHold } from '../ui/screenFade';
 
 const BOARDS: { id: RankedMode; label: string }[] = [
   { id: 'endless', label: 'ENDLESS' },
-  { id: 'timed-short', label: '90 SEC' },
-  { id: 'timed-medium', label: '3 MIN' },
+  { id: 'timed-short', label: 'BLITZ' },
+  { id: 'timed-medium', label: 'STANDARD' },
 ];
 
 const INTRO_MS = 3900;
@@ -85,14 +85,21 @@ export class LeaderboardScene implements GameScene {
         <h1>RANKING</h1>
         <div class="tabs">${tabs}</div>
         <div class="lb-panel">
-          <div class="lb-header"><span>RANK</span><span>NAME</span><span>SCORE</span></div>
+          <div class="lb-header">
+            <span class="lb-left">
+              <span class="lb-medal-slot" aria-hidden="true"></span>
+              <span class="lb-rank" aria-label="RANK"><span class="lb-rank-label" aria-hidden="true">RAN<span class="lb-rank-k">K</span></span></span>
+            </span>
+            <span class="lb-name">NAME</span>
+            <span class="lb-score">SCORE</span>
+          </div>
           <div class="lb-viewport">
             <div class="lb-track" id="lb-list"><p class="muted">Loading\u2026</p></div>
           </div>
           <div class="lb-out" id="lb-out" hidden></div>
-          <button type="button" class="btn lb-more" data-action="more">MORE</button>
+          <button type="button" class="btn primary lb-more" data-action="more">MORE</button>
         </div>
-        <button type="button" class="btn muted-btn" data-action="back">BACK</button>
+        <button type="button" class="btn" data-action="back">BACK TO MAIN MENU</button>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
@@ -258,6 +265,11 @@ export class LeaderboardScene implements GameScene {
       return;
     }
 
+    if (wantsRankingPreview() && rankingPreviewPlace() == null) {
+      this.enableManualScroll(false);
+      return;
+    }
+
     this.playIntro();
   }
 
@@ -341,8 +353,13 @@ export class LeaderboardScene implements GameScene {
   private rowInner(rank: number, name: string, score: number | null, empty = false): string {
     const scoreText = empty || score == null ? '------' : score.toLocaleString('en-US');
     const nameText = empty ? name : escapeHtml(name);
+    const medalClass = !empty && rank <= 3 ? 'lb-medal' : 'lb-medal is-empty';
+    const place = ordinalParts(rank);
     return (
-      `<span class="lb-rank">${ordinal(rank)}</span>` +
+      `<span class="lb-left">` +
+      `<span class="lb-medal-slot"><span class="${medalClass}" aria-hidden="true"></span></span>` +
+      `<span class="lb-rank"><span class="lb-rank-num">${place.n}</span><span class="lb-rank-suffix">${place.suf}</span></span>` +
+      `</span>` +
       `<span class="lb-name">${nameText}</span>` +
       `<span class="lb-score">${scoreText}</span>`
     );
@@ -360,19 +377,15 @@ function demoRanking(mode: RankedMode): ScoreRow[] {
   }));
 }
 
-function ordinal(n: number): string {
+function ordinalParts(n: number): { n: string; suf: string } {
   const v = n % 100;
-  if (v >= 11 && v <= 13) return `${n}TH`;
-  switch (n % 10) {
-    case 1:
-      return `${n}ST`;
-    case 2:
-      return `${n}ND`;
-    case 3:
-      return `${n}RD`;
-    default:
-      return `${n}TH`;
+  let suf = 'TH';
+  if (v < 11 || v > 13) {
+    if (n % 10 === 1) suf = 'ST';
+    else if (n % 10 === 2) suf = 'ND';
+    else if (n % 10 === 3) suf = 'RD';
   }
+  return { n: String(n), suf };
 }
 
 function escapeHtml(value: string): string {

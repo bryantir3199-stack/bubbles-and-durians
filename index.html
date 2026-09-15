@@ -1250,7 +1250,7 @@
         height: 100%;
         max-width: none;
         margin: 0;
-        padding: max(10px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+        padding: max(22px, env(safe-area-inset-top, 0px)) max(32px, env(safe-area-inset-right, 0px)) max(18px, env(safe-area-inset-bottom, 0px)) max(32px, env(safe-area-inset-left, 0px));
         box-sizing: border-box;
         background: none;
         border: none;
@@ -1265,6 +1265,8 @@
         text-align: center;
         font-family: 'Fredoka', system-ui, sans-serif;
         color: #f7f7f7;
+        --lb-medal-col: 5vw;
+        --lb-rank-col: 14vw;
       }
       .menu.leaderboard h1,
       .menu.leaderboard .tab,
@@ -1279,7 +1281,7 @@
       }
       .menu.leaderboard h1 {
         flex: 0 0 auto;
-        margin: 1cqh 0 0.8cqh;
+        margin: 2.4cqh 0 2.2cqh;
         font: 800 clamp(32px, 9cqh, 88px)/1.05 var(--title-serif);
         letter-spacing: 0.04em;
         color: #fff70f;
@@ -1287,22 +1289,45 @@
       .menu.leaderboard .tabs {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.2cqi;
+        gap: 2.4cqi;
         justify-content: center;
-        margin: 0.2cqh 0 1.2cqh;
+        margin: 0 0 2.6cqh;
       }
       .menu.leaderboard .tab {
-        padding: 0.9cqh 2cqi;
-        font: 700 clamp(14px, 3.2cqh, 28px)/1.15 'Fredoka', sans-serif;
+        padding: 0.7cqh 1.6cqi;
+        font: 800 min(2.7cqh, 3.3cqi) 'Baloo 2', 'Fredoka', sans-serif;
+        letter-spacing: 0.02em;
         color: #fff;
-        background: #334455;
-        border: 2px solid #fff;
-        border-radius: 8px;
+        -webkit-text-stroke: max(1px, 0.2cqh) #1a1018;
+        paint-order: stroke fill;
+        text-shadow: 0 0.15cqh 0 rgba(0, 0, 0, 0.32);
+        background: linear-gradient(180deg, #4a5d70 0%, #334455 48%, #243240 100%);
+        border: max(2px, 0.28cqh) solid #fff;
+        border-radius: 0.65cqh;
         cursor: pointer;
+        box-shadow:
+          inset 0 0.14cqh 0 rgba(255, 255, 255, 0.5),
+          inset 0 -0.3cqh 0.5cqh rgba(0, 0, 0, 0.32),
+          0 0.28cqh 0 rgba(4, 20, 36, 0.55);
+        transition: transform 0.12s ease, filter 0.06s ease, box-shadow 0.12s ease;
       }
       .menu.leaderboard .tab.active {
-        background: var(--accent);
         color: #fff;
+        -webkit-text-stroke: max(1px, 0.2cqh) #0d2438;
+        text-shadow: 0 0.15cqh 0 rgba(0, 0, 0, 0.32);
+        background: linear-gradient(180deg, #3a9fff 0%, #1a8cff 48%, #0d63c4 100%);
+      }
+      .menu.leaderboard .tab:hover,
+      .menu.leaderboard .tab:focus-visible {
+        filter: brightness(1.1);
+        outline: none;
+      }
+      .menu.leaderboard .tab:hover {
+        transform: scale(0.96);
+      }
+      .menu.leaderboard .tab:active {
+        transform: scale(0.95) translateY(0.25cqh);
+        filter: brightness(0.9);
       }
       .lb-panel {
         width: min(1100px, 100%);
@@ -1320,18 +1345,74 @@
       .lb-row,
       .lb-out {
         display: grid;
-        grid-template-columns: 22% 1fr 38%;
-        gap: 0 1.4cqi;
-        align-items: baseline;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 0 2.2cqi;
+        align-items: center;
+        padding-inline: 0.4vw;
       }
-      .lb-header span:first-child,
-      .lb-rank { text-align: right; padding-right: 0.4em; }
-      .lb-name { padding-left: 0.6em; }
+      .lb-left {
+        display: grid;
+        grid-template-columns: var(--lb-medal-col) var(--lb-rank-col);
+        justify-content: start;
+        justify-self: start;
+        align-items: center;
+        column-gap: 0.8vw;
+        min-width: 0;
+      }
+      .lb-medal-slot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lb-rank {
+        display: flex;
+        justify-content: flex-end;
+        align-items: baseline;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: "tnum" 1, "lnum" 1;
+        letter-spacing: 0;
+        -webkit-text-stroke: max(1px, 0.24vh) #1a1018;
+        text-shadow: 0 0.18vh 0 rgba(0, 0, 0, 0.45);
+      }
+      .lb-rank-label {
+        letter-spacing: 0.14em;
+      }
+      .lb-header .lb-rank {
+        font-size: clamp(14px, 3.5vw, 26px);
+      }
+      .lb-rank-k {
+        letter-spacing: 0;
+      }
+      .lb-rank-num {
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: "tnum" 1, "lnum" 1;
+        letter-spacing: 0;
+      }
+      .lb-rank-suffix {
+        flex: 0 0 auto;
+        letter-spacing: 0;
+      }
+      .lb-header .lb-name,
+      .lb-name {
+        text-align: center;
+        padding: 0;
+      }
+      .lb-header .lb-score,
+      .lb-score {
+        text-align: right;
+      }
       .lb-header {
         flex: 0 0 auto;
         color: #fff70f;
-        margin-bottom: 0.6cqh;
-        padding: 0 0.4em 0.7cqh;
+        margin-bottom: 1.4cqh;
+        padding-block: 0 1.2cqh;
         font: 700 clamp(14px, 3cqh, 26px)/1 'Fredoka', sans-serif;
         letter-spacing: 0.14em;
         border-bottom: 4px solid #fff70f;
@@ -1348,15 +1429,14 @@
         touch-action: pan-y;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 247, 15, 0.55) transparent;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
+      .ranking-board.is-expanded .lb-viewport::-webkit-scrollbar,
       .ranking-board.is-manual .lb-viewport::-webkit-scrollbar {
-        width: 8px;
-      }
-      .ranking-board.is-manual .lb-viewport::-webkit-scrollbar-thumb {
-        background: rgba(255, 247, 15, 0.55);
-        border-radius: 8px;
+        display: none;
+        width: 0;
+        height: 0;
       }
       .lb-track {
         display: flex;
@@ -1385,7 +1465,7 @@
       .lb-row {
         font: 700 clamp(22px, min(8.4cqh, 6.2cqi), 72px)/1.1 'Fredoka', sans-serif;
         margin: 0;
-        padding: 0.08em 0.2em;
+        padding-block: 0.08em;
         letter-spacing: 0.02em;
       }
       .ranking-board:not(.is-expanded) .lb-row {
@@ -1399,7 +1479,7 @@
         flex: 0 0 auto;
         height: auto;
         font-size: clamp(18px, min(4.4cqh, 3.6cqi), 36px);
-        padding: 0.32em 0.2em;
+        padding-block: 0.32em;
       }
       .lb-name {
         overflow: hidden;
@@ -1410,14 +1490,46 @@
       .lb-score {
         text-align: right;
         font-variant-numeric: tabular-nums;
+        color: #f7f7f7;
       }
-      .lb-row.rank-1 { color: #fff70f; }
-      .lb-row.rank-2 { color: #f7f7f7; }
-      .lb-row.rank-3 { color: #e39a58; }
+      .lb-medal {
+        flex: 0 0 auto;
+        width: 5.9cqh;
+        height: 5.9cqh;
+        border-radius: 50%;
+        box-shadow:
+          inset 0 0.08em 0.12em rgba(255, 255, 255, 0.55),
+          inset 0 -0.08em 0.1em rgba(0, 0, 0, 0.35),
+          0 0.06em 0.08em rgba(0, 0, 0, 0.28);
+      }
+      .lb-medal.is-empty {
+        visibility: hidden;
+      }
+      .lb-row.rank-1 .lb-medal {
+        background: radial-gradient(circle at 32% 28%, #fff6c2 0%, #ffd24a 38%, #e2a000 72%, #a56b00 100%);
+      }
+      .lb-row.rank-2 .lb-medal {
+        background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e4e8ee 38%, #b7c0ca 72%, #7d8792 100%);
+      }
+      .lb-row.rank-3 .lb-medal {
+        background: radial-gradient(circle at 32% 28%, #ffd9b0 0%, #e39a58 38%, #c06a2a 72%, #8a3f12 100%);
+      }
+      .lb-row.rank-1,
+      .lb-row.rank-2,
+      .lb-row.rank-3 {
+        color: #f7f7f7;
+      }
+      .lb-row.rank-1 .lb-score,
+      .lb-row.rank-2 .lb-score,
+      .lb-row.rank-3 .lb-score,
+      .lb-row.yours .lb-score,
+      .lb-out .lb-score {
+        color: #f7f7f7;
+      }
       .lb-row.empty { color: rgba(247, 247, 247, 0.38); }
       .lb-row.yours,
       .lb-out {
-        color: #fff70f;
+        color: #f7f7f7;
         animation: rankingYouBlink 0.7s steps(1, end) infinite;
       }
       @keyframes rankingYouBlink {
@@ -1427,64 +1539,24 @@
       .lb-out {
         flex: 0 0 auto;
         font: 700 clamp(20px, min(6.4cqh, 5cqi), 52px)/1.1 'Fredoka', sans-serif;
-        margin-top: 0.4cqh;
-        padding: 0.15em 0.2em 0;
+        margin-top: 1.2cqh;
+        padding-block: 0.15em 0;
         letter-spacing: 0.02em;
         text-align: left;
       }
       .lb-out[hidden] { display: none; }
-      .lb-more {
+      .menu.leaderboard .btn.lb-more,
+      .menu.leaderboard .btn[data-action="back"] {
         flex: 0 0 auto;
         display: block;
-        width: 100%;
-        margin: 0.8cqh auto 0;
-        padding: 1.1cqh 1.6cqi;
-        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
-        letter-spacing: 0.08em;
-        color: #1a1018;
-        background: #fff70f;
-        border: 2px solid #fff;
-        border-radius: 8px;
-        cursor: pointer;
-        max-width: 28cqi;
-        min-width: 140px;
-        -webkit-text-stroke: 0;
-        text-shadow: none;
+        width: auto;
+        max-width: 52cqi;
+        min-width: 28cqi;
+        margin-left: auto;
+        margin-right: auto;
+        align-self: center;
       }
       .lb-more[hidden] { display: none; }
-      .lb-more:hover,
-      .lb-more:focus-visible {
-        color: #1a1018;
-        filter: brightness(1.08);
-        outline: none;
-      }
-      .menu.leaderboard .btn.lb-more,
-      html.touch-ui .menu.leaderboard .btn.lb-more {
-        flex: 0 0 auto;
-        max-width: 28cqi;
-        min-width: 140px;
-        margin: 0.8cqh auto 0;
-        padding: 1.1cqh 1.6cqi;
-        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
-        letter-spacing: 0.08em;
-        color: #1a1018;
-        background: #fff70f;
-        border: 2px solid #fff;
-        -webkit-text-stroke: 0;
-        text-shadow: none;
-        animation: none;
-      }
-      .menu.leaderboard .btn.muted-btn,
-      html.touch-ui .menu.leaderboard .btn.muted-btn {
-        flex: 0 0 auto;
-        max-width: 28cqi;
-        min-width: 140px;
-        margin: 1cqh auto 0.4cqh;
-        padding: 1.1cqh 1.6cqi;
-        font: 700 clamp(16px, 3.2cqh, 24px)/1.2 'Fredoka', sans-serif;
-        letter-spacing: 0.06em;
-        background: #445566;
-      }
       .menu.leaderboard .muted,
       .menu.leaderboard .warn-text {
         font: 700 clamp(16px, 3.2cqh, 28px)/1.5 'Fredoka', sans-serif;
@@ -3375,7 +3447,7 @@
         .btn defaults. Font-size caps on both cqh and cqi so SUBMIT/SKIP never
         overflow their own width on tall, narrow (portrait phone) aspect ratios.
       */
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn {
         max-width: 55cqi;
         padding: 2cqh 3.2cqi;
         font: 800 min(5.4cqh, 6.6cqi) 'Baloo 2', 'Fredoka', sans-serif;
@@ -3393,13 +3465,13 @@
           inset 0 -0.6cqh 1cqh rgba(0, 0, 0, 0.32),
           0 0.55cqh 0 rgba(4, 20, 36, 0.55);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn.primary {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn.primary {
         color: #3a2400;
         -webkit-text-stroke: max(1.5px, 0.4cqh) #6b3f00;
         text-shadow: 0 0.3cqh 0 rgba(255, 255, 255, 0.35);
         background: linear-gradient(180deg, #fff394 0%, #ffd93d 48%, #e8a400 100%);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn-row {
         gap: 2.2cqi;
         margin-top: 1.8cqh;
         justify-content: center;
@@ -3411,23 +3483,23 @@
       :is(html, html.touch-ui) .menu.bonus-tally .btn {
         margin-top: 0;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn-row .btn {
         width: 32cqi;
         max-width: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn {
         transition: transform 0.12s ease, filter 0.06s ease, box-shadow 0.12s ease;
         transform: translateZ(0);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover,
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:focus-visible {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:hover,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:focus-visible {
         filter: brightness(1.1);
         outline: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:hover {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:hover {
         transform: translateZ(0) scale(0.96);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:active {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:active {
         transform: translateZ(0) scale(0.95) translateY(0.5cqh);
         filter: brightness(0.9);
         box-shadow:
@@ -3435,16 +3507,38 @@
           inset 0 -0.35cqh 0.6cqh rgba(0, 0, 0, 0.28),
           0 0.15cqh 0 rgba(4, 20, 36, 0.55);
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn.is-selecting {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn.is-selecting {
         animation: menuTileSelectFlash 0.75s steps(1, end) forwards;
         pointer-events: none;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled,
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled:hover,
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn:disabled:active {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:disabled,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:disabled:hover,
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn:disabled:active {
         filter: grayscale(0.6) brightness(0.75);
         transform: translateZ(0);
         cursor: default;
+      }
+      :is(html, html.touch-ui) .menu.leaderboard .btn.lb-more,
+      :is(html, html.touch-ui) .menu.leaderboard .btn[data-action="back"] {
+        padding: 1cqh 1.6cqi;
+        font-size: min(2.7cqh, 3.3cqi);
+        letter-spacing: 0.02em;
+        margin-top: 0.8cqh;
+        -webkit-text-stroke: max(1px, 0.2cqh) #0d2438;
+        text-shadow: 0 0.15cqh 0 rgba(0, 0, 0, 0.32);
+        border-width: max(2px, 0.28cqh);
+        border-radius: 0.65cqh;
+        box-shadow:
+          inset 0 0.14cqh 0 rgba(255, 255, 255, 0.5),
+          inset 0 -0.3cqh 0.5cqh rgba(0, 0, 0, 0.32),
+          0 0.28cqh 0 rgba(4, 20, 36, 0.55);
+        max-width: 36cqi;
+        min-width: 18cqi;
+      }
+      :is(html, html.touch-ui) .menu.leaderboard .btn.lb-more {
+        color: #3a2400;
+        -webkit-text-stroke: max(1px, 0.2cqh) #6b3f00;
+        text-shadow: 0 0.15cqh 0 rgba(255, 255, 255, 0.35);
       }
       /* Gentle glow once CONTINUE unlocks after the tally count-up, inviting the next tap. */
       @keyframes resultsBtnReadyPulse {
