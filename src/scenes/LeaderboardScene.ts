@@ -36,6 +36,7 @@ export class LeaderboardScene implements GameScene {
   private outEl: HTMLElement | null = null;
   private moreEl: HTMLButtonElement | null = null;
   private boardEl: HTMLElement | null = null;
+  private niceTryEl: HTMLElement | null = null;
   private rows: ScoreRow[] = [];
   private highlightIndex = -1;
   private rank: number | null = null;
@@ -82,21 +83,26 @@ export class LeaderboardScene implements GameScene {
     const ui = panel(
       'menu leaderboard',
       `<div class="ranking-board">
-        <h1>RANKING</h1>
-        <div class="tabs">${tabs}</div>
-        <div class="lb-panel">
-          <div class="lb-header">
-            <span class="lb-left">
-              <span class="lb-medal-slot" aria-hidden="true"></span>
-              <span class="lb-rank" aria-label="RANK"><span class="lb-rank-label" aria-hidden="true">RAN<span class="lb-rank-k">K</span></span></span>
-            </span>
-            <span class="lb-name">NAME</span>
-            <span class="lb-score">SCORE</span>
+        <div class="lb-stage">
+          <div class="lb-stage-body">
+            <h1>RANKING</h1>
+            <div class="tabs">${tabs}</div>
+            <div class="lb-panel">
+              <div class="lb-header">
+                <span class="lb-left">
+                  <span class="lb-medal-slot" aria-hidden="true"></span>
+                  <span class="lb-rank" aria-label="RANK"><span class="lb-rank-label" aria-hidden="true">RAN<span class="lb-rank-k">K</span></span></span>
+                </span>
+                <span class="lb-name">NAME</span>
+                <span class="lb-score">SCORE</span>
+              </div>
+              <div class="lb-viewport">
+                <div class="lb-track" id="lb-list"><p class="muted">Loading\u2026</p></div>
+              </div>
+              <div class="lb-out" id="lb-out" hidden></div>
+            </div>
           </div>
-          <div class="lb-viewport">
-            <div class="lb-track" id="lb-list"><p class="muted">Loading\u2026</p></div>
-          </div>
-          <div class="lb-out" id="lb-out" hidden></div>
+          <p class="lb-nice-try" hidden role="status">NICE TRY!</p>
         </div>
         <div class="btn-row lb-actions">
           <button type="button" class="btn primary lb-more" data-action="more">SEE ALL</button>
@@ -106,6 +112,7 @@ export class LeaderboardScene implements GameScene {
     );
     this.ctx.uiRoot.appendChild(ui);
     this.boardEl = ui.querySelector('.ranking-board');
+    this.niceTryEl = ui.querySelector('.lb-nice-try');
     this.viewportEl = ui.querySelector('.lb-viewport');
     this.trackEl = ui.querySelector('#lb-list');
     this.outEl = ui.querySelector('#lb-out');
@@ -165,11 +172,28 @@ export class LeaderboardScene implements GameScene {
     this.outEl = null;
     this.moreEl = null;
     this.boardEl = null;
+    this.niceTryEl = null;
     clearUI(this.ctx.uiRoot);
   }
 
   private showingRun(): boolean {
     return this.runScore != null && this.runBoard === this.board;
+  }
+
+  /** Compact board is top 10; 11th or worse opens SEE ALL immediately. */
+  private shouldOpenSeeAll(): boolean {
+    return this.showingRun() && this.rank != null && this.rank > RANKING_DISPLAY_COUNT;
+  }
+
+  /** Off the stored board (101st or worse). */
+  private missedBoard(): boolean {
+    return this.showingRun() && this.rank != null && this.rank > RANKING_STORE_CAP;
+  }
+
+  private syncNiceTry(): void {
+    const missed = this.missedBoard();
+    this.boardEl?.classList.toggle('is-nice-try', missed);
+    if (this.niceTryEl) this.niceTryEl.hidden = !missed;
   }
 
   private async loadScores(): Promise<void> {
@@ -180,6 +204,7 @@ export class LeaderboardScene implements GameScene {
     this.rank = null;
     this.trackEl.innerHTML = '<p class="muted">Loading\u2026</p>';
     this.hideOutRow();
+    this.syncNiceTry();
     this.syncMoreButton();
 
     if (wantsRankingPreview()) {
@@ -192,6 +217,7 @@ export class LeaderboardScene implements GameScene {
         this.highlightScore = this.runScore;
         this.highlightIndex = place <= this.rows.length ? place - 1 : -1;
         this.rank = place;
+        if (this.shouldOpenSeeAll()) this.expanded = true;
       }
       this.renderList();
       return;
@@ -215,6 +241,7 @@ export class LeaderboardScene implements GameScene {
       if (!this.trackEl) return;
     }
     this.rank = rank;
+    if (this.shouldOpenSeeAll()) this.expanded = true;
     this.renderList();
   }
 
@@ -234,6 +261,7 @@ export class LeaderboardScene implements GameScene {
     this.stopIntro();
     this.boardEl?.classList.toggle('is-expanded', this.expanded);
     this.boardEl?.classList.remove('is-manual');
+    this.syncNiceTry();
     this.syncMoreButton();
     this.hideOutRow();
 
@@ -267,7 +295,7 @@ export class LeaderboardScene implements GameScene {
       return;
     }
 
-    if (wantsRankingPreview() && rankingPreviewPlace() == null) {
+    if (this.missedBoard() || (wantsRankingPreview() && rankingPreviewPlace() == null)) {
       this.enableManualScroll(false);
       return;
     }
@@ -281,7 +309,7 @@ export class LeaderboardScene implements GameScene {
 
     const rank = this.showingRun() ? this.rank : null;
     const scrollDown = rank != null && rank > RANKING_WINDOW;
-    const showOut = rank != null && rank > RANKING_DISPLAY_COUNT;
+    const showOut = rank != null && rank > RANKING_DISPLAY_COUNT && !this.missedBoard();
     const start = scrollDown ? '0' : BOTTOM_SHIFT;
     const gen = ++this.introGen;
     const cls = scrollDown ? 'intro-down' : 'intro-up';

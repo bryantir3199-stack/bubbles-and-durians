@@ -3,11 +3,11 @@ import type { GameMode, RankedMode, TimedPreset } from '../config/gameConfig';
 import { toRankedMode } from '../config/gameConfig';
 import { validatePlayerName } from '../config/playerName';
 
-/** Top ranks on the compact board; 11+ live behind SEE ALL. */
+/** Top ranks on the compact board; 11th or worse opens SEE ALL. */
 export const RANKING_DISPLAY_COUNT = 10;
 /** Rows visible in the ranking viewport at once. */
 export const RANKING_WINDOW = 5;
-/** Max stored scores per mode; the rest of the board is behind SEE ALL. */
+/** Max stored scores per mode. 101st or worse shows NICE TRY. */
 export const RANKING_STORE_CAP = 100;
 
 /** Values stored in scores.mode, including pre-split timed rows. */
