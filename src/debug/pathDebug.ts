@@ -76,7 +76,7 @@ export function wantsRankingPreview(): boolean {
   return v === null || v === '' || v === '1' || v === 'true';
 }
 
-/** Optional `?place=71` rank used with `?ranking=1` to preview intro scroll. */
+/** Optional `?place=71` rank used with `?ranking=1` to preview post-run ranking. */
 export function rankingPreviewPlace(): number | null {
   const raw = new URLSearchParams(window.location.search).get('place');
   if (raw == null || raw === '') return null;
