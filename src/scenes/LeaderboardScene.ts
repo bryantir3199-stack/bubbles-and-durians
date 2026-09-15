@@ -102,8 +102,8 @@ export class LeaderboardScene implements GameScene {
               <div class="lb-out" id="lb-out" hidden></div>
             </div>
           </div>
-          <p class="lb-nice-try" hidden role="status">NICE TRY!</p>
         </div>
+        <p class="lb-nice-try" hidden role="status">NICE TRY!</p>
         <div class="btn-row lb-actions">
           <button type="button" class="btn primary lb-more" data-action="more">SEE ALL</button>
           <button type="button" class="btn" data-action="back">BACK TO MAIN MENU</button>

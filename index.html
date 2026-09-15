@@ -1302,27 +1302,20 @@
         flex-direction: column;
         align-items: stretch;
       }
-      .ranking-board.is-nice-try .lb-stage-body {
-        filter: blur(0.85cqh);
-        transform: translateZ(0);
-      }
-      .ranking-board.is-nice-try .lb-stage::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(8, 6, 14, 0.28);
-        pointer-events: none;
-        z-index: 1;
-      }
       .lb-nice-try {
         position: absolute;
-        inset: 0;
-        z-index: 2;
+        left: 0;
+        right: 0;
+        top: 50%;
+        z-index: 4;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0;
+        padding: 2.2cqh 4cqi;
         pointer-events: none;
+        transform: translateY(-50%);
+        background: rgba(0, 0, 0, 0.75);
         font: 800 clamp(36px, 11cqh, 112px)/1.05 var(--title-serif);
         letter-spacing: 0.04em;
         color: #fff70f;
