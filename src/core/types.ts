@@ -11,6 +11,9 @@ export interface SceneData {
   timedTally?: TimedRunTally;
   highlightScore?: number;
   playerName?: string;
+  /** Endless/tutorial flavor stats carried from PlayScene for the GameOver secondary line. */
+  bubblesHit?: number;
+  peakCombo?: number;
 }
 
 export interface SceneContext {

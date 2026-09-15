@@ -1,5 +1,11 @@
 import type { GameScene, SceneContext, SceneData } from '../core/types';
-import { dummyTimedTally, wantsBonusTallyPreview, wantsRankingPreview, wantsTeethFlybyNow } from '../debug/pathDebug';
+import {
+  dummyTimedTally,
+  wantsBonusTallyPreview,
+  wantsGameOverPreview,
+  wantsRankingPreview,
+  wantsTeethFlybyNow,
+} from '../debug/pathDebug';
 import { preloadSfx } from '../audio/sfx';
 import { preloadResultsCrash } from '../ui/resultsCrash';
 import { fetchModeHighScores } from '../services/leaderboard';
@@ -45,6 +51,27 @@ export class BootScene implements GameScene {
     if (wantsRankingPreview()) {
       window.setTimeout(() => {
         this.ctx.goto('leaderboard', { mode: 'endless' });
+      }, 200);
+      return;
+    }
+
+    const gameOverPreview = wantsGameOverPreview();
+    if (gameOverPreview) {
+      window.setTimeout(() => {
+        if (gameOverPreview === 'timed') {
+          this.ctx.goto('gameOver', {
+            mode: 'timed',
+            timedPreset: 'short',
+            timedTally: dummyTimedTally(),
+          });
+        } else {
+          this.ctx.goto('gameOver', {
+            mode: 'endless',
+            score: 128_400,
+            bubblesHit: 3,
+            peakCombo: 5,
+          });
+        }
       }, 200);
       return;
     }

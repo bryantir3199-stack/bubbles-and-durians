@@ -44,6 +44,7 @@ export class PlayScene implements GameScene {
   private score = 0;
   private combo = 1;
   private comboShots = 0;
+  private peakCombo = 1;
   private bubblesHit = 0;
   private durianScore = 0;
   private goldScore = 0;
@@ -111,6 +112,7 @@ export class PlayScene implements GameScene {
     this.score = 0;
     this.combo = 1;
     this.comboShots = 0;
+    this.peakCombo = 1;
     this.bubblesHit = 0;
     this.durianScore = 0;
     this.goldScore = 0;
@@ -577,6 +579,7 @@ export class PlayScene implements GameScene {
     if (this.comboShots >= gameConfig.shotsPerComboLevel) {
       this.comboShots = 0;
       this.combo += 1;
+      this.peakCombo = Math.max(this.peakCombo, this.combo);
       this.hud?.setCombo(this.combo, this.comboShots);
       this.hud?.spawnFloater(x, y - 36, `${this.combo}x COMBO!`, '#ffe566');
       playComboLevelSound(this.combo);
@@ -757,7 +760,7 @@ export class PlayScene implements GameScene {
   private async finishEndGame(): Promise<void> {
     await new Promise<void>((resolve) => window.setTimeout(resolve, 1050));
     if (this.leavingToMenu) return;
-    await playResultsCrash();
+    await playResultsCrash(this.mode === 'timed' ? "TIME'S UP" : 'GAME OVER');
     if (this.leavingToMenu) return;
     const timedTally =
       this.mode === 'timed'
@@ -783,6 +786,8 @@ export class PlayScene implements GameScene {
       this.ctx.goto('gameOver', {
         mode: this.mode,
         score: this.score,
+        bubblesHit: this.bubblesHit,
+        peakCombo: this.peakCombo,
       });
     }
   }

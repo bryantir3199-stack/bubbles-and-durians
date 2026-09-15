@@ -85,6 +85,18 @@ export function rankingPreviewPlace(): number | null {
   return Math.floor(n);
 }
 
+/**
+ * Skip to the GameOver initials screen with sample stats.
+ * `?gameover=1` or `?gameover=endless` → Endless with flavor stats. `?gameover=timed` → Timed.
+ */
+export function wantsGameOverPreview(): 'endless' | 'timed' | false {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('gameover')) return false;
+  const v = params.get('gameover');
+  if (v === 'timed') return 'timed';
+  return 'endless';
+}
+
 /** Sample timed breakdown for `?tally=1`. */
 export function dummyTimedTally(): TimedRunTally {
   return computeTimedRunTally({
