@@ -1,5 +1,5 @@
 import type { GameMode, TimedPreset, TimedRunTally } from '../config/gameConfig';
-import { defaultTimedPreset, gameConfig, getTimedPreset } from '../config/gameConfig';
+import { gameConfig } from '../config/gameConfig';
 import type { GameScene, SceneContext, SceneData } from '../core/types';
 import {
   playTallyCalcDrumroll,
@@ -31,7 +31,6 @@ export class BonusTallyScene implements GameScene {
   private slamHitTimer = 0;
   private slamShakeTimer = 0;
   private startTimer = 0;
-  private previewClick: ((e: PointerEvent) => void) | null = null;
   private continueBtn: HTMLButtonElement | null = null;
   private flashTimer = 0;
 
@@ -50,16 +49,12 @@ export class BonusTallyScene implements GameScene {
       this.timedTally = this.timedTally ?? dummyTimedTally();
     }
 
-    if (!isResultsCrashHeld()) await playResultsCrash("TIME'S UP");
+    if (!isResultsCrashHeld()) await playResultsCrash();
 
     clearUI(this.ctx.uiRoot);
     const ui = panel(
       'menu bonus-tally',
       `<div class="menu-card">
-        <h1 class="danger">TIME'S UP</h1>
-        <p class="muted">${this.modeLabel()}${
-          wantsBonusTallyPreview() ? '<br>Click to start tally preview' : ''
-        }</p>
         ${this.scoreMarkup()}
         <div class="btn-row">
           <button type="button" class="btn primary" data-action="continue" disabled>CONTINUE</button>
@@ -89,15 +84,7 @@ export class BonusTallyScene implements GameScene {
     this.ctx.three.camera.position.set(0, 110, 635);
     this.ctx.three.camera.lookAt(0, 110, 40);
 
-    if (wantsBonusTallyPreview()) {
-      this.previewClick = () => {
-        this.clearPreviewClick();
-        this.animateScores();
-      };
-      window.addEventListener('pointerdown', this.previewClick, { once: true });
-    } else {
-      this.startTimer = window.setTimeout(() => this.animateScores(), 180);
-    }
+    this.startTimer = window.setTimeout(() => this.animateScores(), 180);
   }
 
   update(): void {}
@@ -110,7 +97,6 @@ export class BonusTallyScene implements GameScene {
     this.continueBtn = null;
     window.clearTimeout(this.flashTimer);
     this.flashTimer = 0;
-    this.clearPreviewClick();
     window.clearTimeout(this.startTimer);
     this.startTimer = 0;
     if (this.animationHandle !== null) {
@@ -125,12 +111,6 @@ export class BonusTallyScene implements GameScene {
     clearUI(this.ctx.uiRoot);
   }
 
-  private clearPreviewClick(): void {
-    if (!this.previewClick) return;
-    window.removeEventListener('pointerdown', this.previewClick);
-    this.previewClick = null;
-  }
-
   private goContinue(): void {
     if (this.flashTimer || !this.continueBtn || this.continueBtn.disabled) return;
     this.flashTimer = flashThen(this.continueBtn, () => {
@@ -141,13 +121,6 @@ export class BonusTallyScene implements GameScene {
         timedTally: this.timedTally,
       });
     });
-  }
-
-  private modeLabel(): string {
-    if (this.mode === 'tutorial') return 'How to Play';
-    if (this.mode === 'endless') return 'Endless Mode';
-    const preset = getTimedPreset(this.timedPreset ?? defaultTimedPreset);
-    return `Timed Mode · ${preset.label} (${preset.seconds}s)`;
   }
 
   private getTallyRows(): TallyRow[] {

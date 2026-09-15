@@ -193,42 +193,6 @@
         0% { opacity: 1; transform: scaleY(3.2); }
         100% { opacity: 0; transform: scaleY(0.15); }
       }
-      /*
-        Brief end-signal flash (TIME'S UP / GAME OVER) — pops in with the slam
-        impact and fades out before the plaque settles. This is the only place
-        that text renders; it never persists into the tally/initials screens.
-      */
-      .results-crash-signal {
-        position: absolute;
-        left: 4%;
-        right: 4%;
-        top: 40%;
-        display: flex;
-        justify-content: center;
-        z-index: 6;
-        pointer-events: none;
-        opacity: 0;
-        text-align: center;
-      }
-      .results-crash-signal.is-set {
-        font: 800 clamp(30px, 9vw, 88px) 'Baloo 2', 'Fredoka', sans-serif;
-        letter-spacing: 0.03em;
-        color: #fff70f;
-        -webkit-text-stroke: clamp(2px, 0.6vw, 6px) #1a1018;
-        paint-order: stroke fill;
-        text-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 0 46px rgba(0, 0, 0, 0.55);
-        transform: scale(0.7) rotate(-2deg);
-      }
-      .results-crash.is-hit .results-crash-signal.is-set {
-        animation: resultsSignalFlash 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
-      }
-      @keyframes resultsSignalFlash {
-        0% { opacity: 0; transform: scale(0.62) rotate(-2deg); }
-        35% { opacity: 1; transform: scale(1.1) rotate(1deg); }
-        55% { transform: scale(0.98) rotate(-0.5deg); }
-        80% { opacity: 1; transform: scale(1.02) rotate(0deg); }
-        100% { opacity: 0; transform: scale(1.06) rotate(0deg); }
-      }
       html.touch-ui .results-crash-pane {
         background-image: url('/assets/results-plaque-mobile.jpg');
       }
@@ -258,16 +222,12 @@
         background: transparent;
       }
       /*
-        The plaque-slam flash (see .results-crash-signal) is the only place
-        TIME'S UP / GAME OVER shows — settled tally + initials screens carry
-        the mode subtitle + score instead, so this stays hidden while the
-        plaque backdrop is up.
+        Tally sits under the RESULTS relief with no HTML title.
+        Initials still carry a mode subtitle + score.
       */
-      body.results-crash-on .menu.bonus-tally h1.danger,
       body.results-crash-on .menu.game-over h1.danger {
         display: none;
       }
-      body.results-crash-on .menu.bonus-tally .muted,
       body.results-crash-on .menu.game-over .muted {
         margin-bottom: 10px;
       }
@@ -1572,12 +1532,10 @@
         flex-direction: column;
         align-items: center;
         gap: 4px;
-        transition: transform 0.15s ease;
-      }
-      .name-slot.is-active {
-        transform: translateY(-2px);
       }
       .name-step {
+        position: relative;
+        z-index: 2;
         width: 56px;
         padding: 2px 0;
         font: 700 14px/1 'Fredoka', sans-serif;
@@ -1597,6 +1555,7 @@
         --reel-cell: 42px;
         --reel-idle: calc(var(--reel-window) / 2 - 2.5 * var(--reel-cell));
         position: relative;
+        z-index: 1;
         display: block;
         overflow: hidden;
         width: 58px;
@@ -1604,6 +1563,7 @@
         padding: 0;
         font: 700 36px/1 'Fredoka', sans-serif;
         color: #fff;
+        transition: transform 0.15s ease;
         background:
           linear-gradient(90deg, rgba(0, 0, 0, 0.42) 0%, transparent 22%, transparent 78%, rgba(0, 0, 0, 0.38) 100%),
           linear-gradient(180deg, #071018 0%, #142c48 26%, #2a5f96 50%, #142c48 74%, #071018 100%);
@@ -1675,6 +1635,11 @@
           0 0 20px rgba(255, 229, 102, 0.55),
           inset 0 2px 0 rgba(255, 255, 255, 0.18),
           inset 0 -4px 8px rgba(0, 0, 0, 0.45);
+      }
+      @media (hover: hover) {
+        .name-slot:hover .name-letter {
+          transform: translateY(-6px);
+        }
       }
       /* Banned feedback always wins over the active-slot glow, even on the focused slot. */
       .name-initials.is-blocked .name-slot.is-active .name-letter {
@@ -3310,6 +3275,13 @@
         font-size: 4.2cqh;
         color: #f7f7f7;
       }
+      /* Tally: skip the RESULTS relief; original type, no scrollbar. */
+      :is(html, html.touch-ui) .menu.bonus-tally .menu-card {
+        padding: 16cqh 8cqi 1.6cqh;
+        justify-content: space-between;
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .menu-card h1,
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .muted,
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .score-big,
@@ -3359,10 +3331,11 @@
         width: 88%;
         max-width: none;
         flex: 1 1 auto;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         justify-content: space-evenly;
-        margin: 1cqh auto;
+        margin: 0 auto;
         overflow: visible;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-value-wrap {
@@ -3373,13 +3346,13 @@
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row {
         font-size: 5.6cqh;
-        line-height: 1.35;
+        line-height: 1;
         gap: 2.4cqi;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-row.tally-total {
         font-size: 8.4cqh;
-        margin-top: 1.8cqh;
-        padding-top: 1.8cqh;
+        margin-top: 0.4cqh;
+        padding-top: 0.6cqh;
         border-top: 4px solid #f7f7f7;
       }
       :is(html, html.touch-ui) .menu.bonus-tally .tally-info-btn {
@@ -3429,6 +3402,14 @@
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row {
         gap: 2.2cqi;
         margin-top: 1.8cqh;
+        justify-content: center;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .btn-row {
+        flex: 0 0 auto;
+        margin-top: 1cqh;
+      }
+      :is(html, html.touch-ui) .menu.bonus-tally .btn {
+        margin-top: 0;
       }
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row .btn {
         width: 32cqi;
@@ -3510,6 +3491,11 @@
         align-items: stretch;
         gap: 20px;
       }
+      @media (hover: hover) {
+        :is(html, html.touch-ui) .menu.game-over .name-slot:hover .name-letter {
+          transform: translateY(-1.8cqh);
+        }
+      }
       :is(html, html.touch-ui) .menu.game-over .name-letter {
         --reel-window: 17cqh;
         --reel-cell: 8cqh;
@@ -3562,7 +3548,6 @@
       html.touch-ui .menu.game-over,
       html.touch-ui .menu.game-over .menu-card,
       html.touch-ui .menu.game-over .go-form,
-      html.touch-ui .menu.game-over .name-slot,
       html.touch-ui .menu.game-over .name-letter,
       html.touch-ui .menu.game-over .name-step {
         overflow: hidden;

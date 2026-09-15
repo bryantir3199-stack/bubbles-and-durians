@@ -20,8 +20,7 @@ export function attachResultsCrash(host: HTMLElement): void {
     '<div class="results-crash-pane results-crash-top"></div>' +
     '<div class="results-crash-pane results-crash-bottom"></div>' +
     '<div class="results-crash-flash"></div>' +
-    '</div>' +
-    '<div class="results-crash-signal"></div>';
+    '</div>';
   host.appendChild(overlay);
 }
 
@@ -47,19 +46,12 @@ export function holdResultsCrash(): void {
 
 /**
  * Split plaque slams together from off-screen, then stays as the results backdrop.
- * `signalText` (e.g. "TIME'S UP" / "GAME OVER") flashes once at impact, then fades —
- * it never persists once the plaque settles, so results screens stay clean.
  */
-export async function playResultsCrash(signalText?: string): Promise<void> {
+export async function playResultsCrash(): Promise<void> {
   if (!overlay) return;
   if (overlay.classList.contains('is-held') || playing) return;
 
   playing = true;
-  const signal = overlay.querySelector<HTMLElement>('.results-crash-signal');
-  if (signal) {
-    signal.textContent = signalText ?? '';
-    signal.classList.toggle('is-set', !!signalText);
-  }
   overlay.className = 'results-crash is-playing';
   document.body.classList.add('results-crash-on');
   overlay.getBoundingClientRect();

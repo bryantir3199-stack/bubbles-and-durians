@@ -760,7 +760,7 @@ export class PlayScene implements GameScene {
   private async finishEndGame(): Promise<void> {
     await new Promise<void>((resolve) => window.setTimeout(resolve, 1050));
     if (this.leavingToMenu) return;
-    await playResultsCrash(this.mode === 'timed' ? "TIME'S UP" : 'GAME OVER');
+    await playResultsCrash();
     if (this.leavingToMenu) return;
     const timedTally =
       this.mode === 'timed'

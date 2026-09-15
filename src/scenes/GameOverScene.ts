@@ -1,5 +1,5 @@
 import type { GameMode, TimedPreset } from '../config/gameConfig';
-import { defaultTimedPreset, getTimedPreset, toRankedMode } from '../config/gameConfig';
+import { toRankedMode } from '../config/gameConfig';
 import {
   PLAYER_NAME_CHARS,
   PLAYER_NAME_LENGTH,
@@ -35,6 +35,7 @@ export class GameOverScene implements GameScene {
   private submitting = false;
   private slotsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
+  private submitBtn: HTMLButtonElement | null = null;
   private onKey: ((e: KeyboardEvent) => void) | null = null;
   private onKeyUp: ((e: KeyboardEvent) => void) | null = null;
   private onPointerUp: (() => void) | null = null;
@@ -48,6 +49,7 @@ export class GameOverScene implements GameScene {
   private holdFast = false;
   private holdDelayTimer = 0;
   private swipe: { index: number; pointerId: number; startY: number } | null = null;
+  private cruiseGen = 0;
   private cruise: {
     index: number;
     dir: 1 | -1;
@@ -79,9 +81,10 @@ export class GameOverScene implements GameScene {
     this.holdFast = false;
     this.holdDelayTimer = 0;
     this.swipe = null;
+    this.cruiseGen += 1;
     this.stopCruiseImmediate();
 
-    if (!isResultsCrashHeld()) await playResultsCrash(this.headline());
+    if (!isResultsCrashHeld()) await playResultsCrash();
     startResultsBgm();
 
     clearUI(this.ctx.uiRoot);
@@ -99,7 +102,6 @@ export class GameOverScene implements GameScene {
           <p class="status" id="status">${isLeaderboardConfigured() ? '' : 'Offline — set .env for online scores'}</p>
           <div class="btn-row">
             <button type="button" class="btn primary" data-action="submit">SUBMIT</button>
-            <button type="button" class="btn" data-action="skip">SKIP</button>
           </div>
         </div>
       </div>`,
@@ -107,10 +109,10 @@ export class GameOverScene implements GameScene {
     this.ctx.uiRoot.appendChild(ui);
     this.slotsEl = ui.querySelector('#name-initials');
     this.statusEl = ui.querySelector('#status');
+    this.submitBtn = ui.querySelector('[data-action="submit"]');
     this.bindSlots(ui);
 
     bindClick(ui, '[data-action="submit"]', () => void this.doSubmit());
-    bindClick(ui, '[data-action="skip"]', () => this.goSkip());
 
     this.onKey = (event: KeyboardEvent) => {
       if (this.submitting) return;
@@ -179,6 +181,7 @@ export class GameOverScene implements GameScene {
     this.onBlockScroll = null;
     this.swipe = null;
     this.endHold();
+    this.cruiseGen += 1;
     this.stopCruiseImmediate();
     window.clearTimeout(this.flashTimer);
     this.flashTimer = 0;
@@ -186,6 +189,7 @@ export class GameOverScene implements GameScene {
     this.reelTimers = [0, 0, 0];
     this.reelBusy = [false, false, false];
     this.reelQueue = [[], [], []];
+    this.submitBtn = null;
     clearUI(this.ctx.uiRoot);
   }
 
@@ -196,16 +200,6 @@ export class GameOverScene implements GameScene {
       rankedMode: toRankedMode(this.mode, this.timedPreset) ?? 'endless',
       score: this.score,
       ...extra,
-    });
-  }
-
-  private goSkip(): void {
-    if (this.submitting || this.flashTimer) return;
-    const skip = this.ctx.uiRoot.querySelector<HTMLElement>('[data-action="skip"]');
-    if (!skip) return;
-    this.flashTimer = flashThen(skip, () => {
-      this.flashTimer = 0;
-      this.goLeaderboard();
     });
   }
 
@@ -296,6 +290,7 @@ export class GameOverScene implements GameScene {
     if (this.cruise && !this.cruise.stopping && this.cruise.index === index && this.cruise.dir === dir) {
       return;
     }
+    this.flushInterruptedCruise(index, dir);
     this.stopCruiseImmediate();
     this.abortReel(index);
     this.holding = { index, dir };
@@ -312,6 +307,8 @@ export class GameOverScene implements GameScene {
       reel.classList.remove('is-spinning', 'is-spin-up', 'is-spin-down');
       this.paintStrip(reel, this.letters[index] || 'A', 1, 1);
     }
+    this.cruiseGen += 1;
+    const gen = this.cruiseGen;
     this.cruise = {
       index,
       dir,
@@ -322,7 +319,7 @@ export class GameOverScene implements GameScene {
       raf: 0,
       moved: 0,
     };
-    this.cruise.raf = window.requestAnimationFrame((ts) => this.tickCruise(ts));
+    this.cruise.raf = window.requestAnimationFrame((ts) => this.tickCruise(ts, gen));
     this.holdDelayTimer = window.setTimeout(() => {
       if (!this.cruise || this.cruise.stopping || this.cruise.index !== index) return;
       this.holdFast = true;
@@ -338,8 +335,19 @@ export class GameOverScene implements GameScene {
     if (!this.cruise || this.cruise.stopping) return;
     this.cruise.stopping = true;
     if (!this.cruise.raf) {
-      this.cruise.raf = window.requestAnimationFrame((ts) => this.tickCruise(ts));
+      const gen = this.cruiseGen;
+      this.cruise.raf = window.requestAnimationFrame((ts) => this.tickCruise(ts, gen));
     }
+  }
+
+  /** Rapid taps interrupt an in-flight cell; commit it so the reel never rests between letters. */
+  private flushInterruptedCruise(index: number, dir: 1 | -1): void {
+    const cruise = this.cruise;
+    if (!cruise || cruise.index !== index) return;
+    const sameDir = cruise.dir === dir;
+    const shouldCommit =
+      cruise.progress >= 0.5 || (sameDir && (cruise.stopping || cruise.progress > 0.08));
+    if (shouldCommit) this.commitCruiseCell();
   }
 
   private setLetter(index: number, ch: string, advance: boolean): void {
@@ -354,6 +362,7 @@ export class GameOverScene implements GameScene {
         slot.classList.toggle('is-active', i === this.cursor);
       });
     }
+    this.syncSubmitEnabled();
     if (from === ch) {
       this.settleReel(index, ch);
     } else {
@@ -399,11 +408,17 @@ export class GameOverScene implements GameScene {
     if (!this.slotsEl) return;
     const banned = isBannedPlayerName(this.currentName());
     this.slotsEl.classList.toggle('is-blocked', banned);
+    this.syncSubmitEnabled();
     this.slotsEl.querySelectorAll<HTMLElement>('.name-slot').forEach((slot, i) => {
       slot.classList.toggle('is-active', i === this.cursor);
       if (this.reelBusy[i] || this.cruise?.index === i) return;
       this.settleReel(i, this.letters[i] ?? 'A');
     });
+  }
+
+  private syncSubmitEnabled(): void {
+    if (!this.submitBtn || this.submitting) return;
+    this.submitBtn.disabled = isBannedPlayerName(this.currentName());
   }
 
   private reelEl(index: number): HTMLElement | null {
@@ -438,7 +453,7 @@ export class GameOverScene implements GameScene {
     this.paintStrip(reel, current || 'A', 1, 1);
     reel.classList.remove('is-spinning', 'is-spin-up', 'is-spin-down');
     reel.style.transition = 'none';
-    reel.style.transform = '';
+    reel.style.transform = 'none';
     void reel.offsetHeight;
     reel.style.removeProperty('transition');
     reel.style.removeProperty('transform');
@@ -447,6 +462,7 @@ export class GameOverScene implements GameScene {
   private stopCruiseImmediate(): void {
     if (!this.cruise) return;
     const index = this.cruise.index;
+    this.cruiseGen += 1;
     window.cancelAnimationFrame(this.cruise.raf);
     this.cruise = null;
     this.holding = null;
@@ -484,7 +500,8 @@ export class GameOverScene implements GameScene {
     this.syncStatus();
   }
 
-  private tickCruise(ts: number): void {
+  private tickCruise(ts: number, gen: number): void {
+    if (gen !== this.cruiseGen) return;
     const cruise = this.cruise;
     if (!cruise) return;
     if (!cruise.lastTs) cruise.lastTs = ts;
@@ -494,7 +511,10 @@ export class GameOverScene implements GameScene {
 
     if (cruise.stopping) {
       if (cruise.progress >= 1) {
-        this.commitCruiseCell();
+        while (cruise.progress >= 1) {
+          this.commitCruiseCell();
+          cruise.progress -= 1;
+        }
         const index = cruise.index;
         window.cancelAnimationFrame(cruise.raf);
         this.cruise = null;
@@ -510,7 +530,7 @@ export class GameOverScene implements GameScene {
     }
 
     this.applyCruiseTransform();
-    cruise.raf = window.requestAnimationFrame((next) => this.tickCruise(next));
+    cruise.raf = window.requestAnimationFrame((next) => this.tickCruise(next, gen));
   }
 
   private abortReel(index: number): void {
@@ -520,6 +540,7 @@ export class GameOverScene implements GameScene {
     this.reelTimers[index] = 0;
     this.reelBusy[index] = false;
     this.reelQueue[index] = [];
+    this.settleReel(index, this.letters[index] || 'A');
   }
 
   private pumpReel(index: number): void {
@@ -614,6 +635,7 @@ export class GameOverScene implements GameScene {
   }
 
   private syncStatus(): void {
+    this.syncSubmitEnabled();
     if (!this.statusEl || this.submitting) return;
     if (!isLeaderboardConfigured()) return;
     const name = this.currentName();
@@ -627,10 +649,10 @@ export class GameOverScene implements GameScene {
   }
 
   private modeLabel(): string {
-    if (this.mode === 'tutorial') return 'How to Play';
+    if (this.mode === 'tutorial') return 'How To Play';
     if (this.mode === 'endless') return 'Endless Mode';
-    const preset = getTimedPreset(this.timedPreset ?? defaultTimedPreset);
-    return `Timed Mode · ${preset.label} (${preset.seconds}s)`;
+    if (this.timedPreset === 'medium' || this.timedPreset === 'long') return 'Standard Mode';
+    return 'Blitz Mode';
   }
 
   /** Matches the brief plaque-slam flash text — never rendered visibly, kept for a11y/no-CSS fallback. */
@@ -664,10 +686,12 @@ export class GameOverScene implements GameScene {
     if (!parsed.ok) {
       this.statusEl.className = 'status danger-text';
       this.statusEl.textContent = parsed.error;
+      this.syncSubmitEnabled();
       return;
     }
 
     this.submitting = true;
+    if (this.submitBtn) this.submitBtn.disabled = true;
     this.statusEl.className = 'status';
     this.statusEl.textContent = 'Submitting…';
 
@@ -676,6 +700,7 @@ export class GameOverScene implements GameScene {
       this.statusEl.className = 'status danger-text';
       this.statusEl.textContent = result.error ?? 'Submit failed';
       this.submitting = false;
+      this.syncSubmitEnabled();
       return;
     }
 
