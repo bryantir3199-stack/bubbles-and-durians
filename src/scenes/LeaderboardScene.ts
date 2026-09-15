@@ -97,9 +97,11 @@ export class LeaderboardScene implements GameScene {
             <div class="lb-track" id="lb-list"><p class="muted">Loading\u2026</p></div>
           </div>
           <div class="lb-out" id="lb-out" hidden></div>
-          <button type="button" class="btn primary lb-more" data-action="more">MORE</button>
         </div>
-        <button type="button" class="btn" data-action="back">BACK TO MAIN MENU</button>
+        <div class="btn-row lb-actions">
+          <button type="button" class="btn primary lb-more" data-action="more">SEE ALL</button>
+          <button type="button" class="btn" data-action="back">BACK TO MAIN MENU</button>
+        </div>
       </div>`,
     );
     this.ctx.uiRoot.appendChild(ui);
@@ -332,7 +334,7 @@ export class LeaderboardScene implements GameScene {
   private syncMoreButton(): void {
     if (!this.moreEl) return;
     this.moreEl.hidden = false;
-    this.moreEl.textContent = this.expanded ? 'TOP 10' : 'MORE';
+    this.moreEl.textContent = this.expanded ? 'TOP 10' : 'SEE ALL';
     this.moreEl.setAttribute('aria-expanded', this.expanded ? 'true' : 'false');
   }
 

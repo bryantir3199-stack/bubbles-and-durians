@@ -1569,16 +1569,23 @@
         text-align: left;
       }
       .lb-out[hidden] { display: none; }
+      .menu.leaderboard .btn-row.lb-actions {
+        flex: 0 0 auto;
+        width: min(1100px, 100%);
+        margin: 1.4cqh auto 0;
+        gap: 2.2cqi;
+        justify-content: center;
+        align-items: stretch;
+      }
       .menu.leaderboard .btn.lb-more,
       .menu.leaderboard .btn[data-action="back"] {
-        flex: 0 0 auto;
+        flex: 0 1 auto;
         display: block;
         width: auto;
-        max-width: 52cqi;
-        min-width: 28cqi;
-        margin-left: auto;
-        margin-right: auto;
-        align-self: center;
+        max-width: none;
+        min-width: 0;
+        margin: 0;
+        white-space: nowrap;
       }
       .lb-more[hidden] { display: none; }
       .menu.leaderboard .muted,
@@ -3545,9 +3552,14 @@
       :is(html, html.touch-ui) .menu.bonus-tally .btn {
         margin-top: 0;
       }
-      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn-row .btn {
+      :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over) .btn-row .btn {
         width: 32cqi;
         max-width: none;
+      }
+      :is(html, html.touch-ui) .menu.leaderboard .btn-row .btn {
+        width: auto;
+        max-width: none;
+        flex: 0 1 auto;
       }
       :is(html, html.touch-ui) :is(.menu.bonus-tally, .menu.game-over, .menu.leaderboard) .btn {
         transition: transform 0.12s ease, filter 0.06s ease, box-shadow 0.12s ease;
@@ -3585,7 +3597,7 @@
         padding: 1cqh 1.6cqi;
         font-size: min(2.7cqh, 3.3cqi);
         letter-spacing: 0.02em;
-        margin-top: 0.8cqh;
+        margin-top: 0;
         -webkit-text-stroke: max(1px, 0.2cqh) #0d2438;
         text-shadow: 0 0.15cqh 0 rgba(0, 0, 0, 0.32);
         border-width: max(2px, 0.28cqh);
@@ -3594,8 +3606,8 @@
           inset 0 0.14cqh 0 rgba(255, 255, 255, 0.5),
           inset 0 -0.3cqh 0.5cqh rgba(0, 0, 0, 0.32),
           0 0.28cqh 0 rgba(4, 20, 36, 0.55);
-        max-width: 36cqi;
-        min-width: 18cqi;
+        max-width: none;
+        min-width: 0;
       }
       :is(html, html.touch-ui) .menu.leaderboard .btn.lb-more {
         color: #3a2400;
